@@ -1,0 +1,10 @@
+[package]
+authors = ["clux <sszynrae@gmail.com>"]
+name = "dieselmysqlcrate"
+version = "0.1.0"
+
+[dependencies]
+openssl = "*"
+
+diesel = { version = "1.4.*", features = ["mysql"] }
+diesel_migrations = "1.4.*"

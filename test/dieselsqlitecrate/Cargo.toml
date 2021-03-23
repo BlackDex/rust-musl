@@ -1,0 +1,8 @@
+[package]
+authors = ["clux <sszynrae@gmail.com>"]
+name = "dieselsqlitecrate"
+version = "0.1.0"
+
+[dependencies]
+diesel = { version = "1.4.*", features = ["sqlite", "chrono", "r2d2"] }
+diesel_migrations = "1.4.*"

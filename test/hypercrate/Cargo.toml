@@ -1,0 +1,10 @@
+[package]
+authors = ["clux <sszynrae@gmail.com>"]
+name = "hypercrate"
+version = "0.1.0"
+
+[dependencies]
+futures = "0.1.14"
+hyper = "0.11"
+hyper-openssl = "0.5"
+tokio-core = "0.1.8"

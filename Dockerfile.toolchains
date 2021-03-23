@@ -1,0 +1,119 @@
+FROM ubuntu:20.04
+LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    TZ=UTC \
+    TERM=xterm-256color
+
+# Make sure we have basic dev tools for building.
+# We only build the gcc musl based toolchain here
+# and use these compiled files later in other Docker builds.
+# This saves time during the building of the actual libraries
+# we want to build since the toolchain doesn't change that much anyway.
+#
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y \
+        build-essential \
+        cmake \
+        libtool \
+        pkg-config \
+        curl \
+        file \
+        ca-certificates \
+        --no-install-recommends \
+        && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+
+# We use a specific commit from the musl-cross-make repo which has a needed patch.
+# This is the same as used by rust it self:
+# https://github.com/rust-lang/rust/blob/cd82e451a88ac8b15894af498cdc49e1fe8caa21/src/ci/docker/scripts/musl-toolchain.sh
+#
+# We use GCC 9.2.0 and musl v1.1.24 since musl v1.2.x uses time64 which isn't quite compatible yet
+#
+# hadolint ignore=DL3003
+RUN echo "Building musl toolchains" && \
+    curl -sSL https://github.com/richfelker/musl-cross-make/archive/a54eb56f33f255dfca60be045f12a5cfaf5a72a9.tar.gz | tar xz && \
+    mv musl-cross-make-* musl-cross-make && \
+    cd /tmp/musl-cross-make && \
+    #
+    # Create base config.mak
+    echo $' \n\
+GCC_VER = 9.2.0\n\
+MUSL_VER = 1.1.24\n\
+#\n\
+DL_CMD = curl --retry 3 -sSfL -C - -o\n\
+#\n\
+FLAG = -g0 -Os -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -Wno-error\n\
+COMMON_CONFIG += CFLAGS="${FLAG}" CXXFLAGS="${FLAG}" LDFLAGS="-s"\n\
+#\n\
+COMMON_CONFIG += --disable-nls\n\
+COMMON_CONFIG += --with-debug-prefix-map=$(CURDIR)=\n\
+#\n\
+GCC_CONFIG += --enable-languages=c,c++\n\
+GCC_CONFIG += --disable-libquadmath --disable-decimal-float\n\
+GCC_CONFIG += --disable-multilib\n\
+GCC_CONFIG += --enable-default-pie --enable-static-pie\n\
+#\n\
+COMMON_CONFIG += ${ARCH_COMMON_CONFIG}\n\
+#\n\
+    ' > config.mak && \
+    #
+    mkdir -p /usr/local/musl && \
+    cd /tmp/musl-cross-make && \
+    #
+    # x86_64-unknown-linux-musl - AMD64 / Intel 64bit
+    export TARGET=x86_64-unknown-linux-musl && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    # armv7-unknown-linux-musleabihf - ARMv7-A (a.o. Cortex-A5>A17) - Raspberry Pi 2
+    export TARGET=armv7-unknown-linux-musleabihf && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    ARCH_COMMON_CONFIG="--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    # aarch64-unknown-linux-musl - ARMv8-A 64bit - (a.o. Cortex-A72) - Raspberry Pi 4
+    export TARGET=aarch64-unknown-linux-musl && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    # arm-unknown-linux-musleabi - ARMv6  (ARM11) Softfloat
+    export TARGET=arm-unknown-linux-musleabi && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    ARCH_COMMON_CONFIG="--with-arch=armv6 --with-float=soft --with-mode=arm" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    # arm-unknown-linux-musleabihf - ARMv6 (ARM11) Hardfloat - Raspberry Pi 1 (A, B, A+, B+, Zero, Zero W)
+    export TARGET=arm-unknown-linux-musleabihf && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    ARCH_COMMON_CONFIG="--with-arch=armv6 --with-float=hard --with-mode=arm --with-fpu=vfp" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    # armv5te-unknown-linux-musleabi - ARMv5TE Softfloat
+    export TARGET=armv5te-unknown-linux-musleabi && \
+    echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
+    make install "-j$(nproc)" \
+    ARCH_COMMON_CONFIG="--with-arch=armv5te --with-float=soft --with-mode=arm" \
+    OUTPUT="/usr/local/musl/${TARGET}" \
+    TARGET="${TARGET}" > /dev/null && \
+    #
+    cd /tmp && \
+    rm -rf /tmp/musl-cross-make
+
+WORKDIR /
