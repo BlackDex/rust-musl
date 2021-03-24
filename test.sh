@@ -33,6 +33,7 @@ docker_build_armv7() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-C link-arg=-s' \
+    -e CFLAGS_armv7_unknown_linux_musleabihf="-mfpu=vfpv3-d16" \
     -it blackdex/rust-musl:armv7-musleabihf \
     cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}
 

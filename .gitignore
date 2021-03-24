@@ -2,3 +2,5 @@ test/*crate/Cargo.lock
 test/*crate/target
 test/zlibcrate/data.tar.gz
 test/zlibcrate/output
+test/dieselsqlitecrate/main.db
+

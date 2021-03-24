@@ -34,11 +34,12 @@ WORKDIR /tmp
 # This is the same as used by rust it self:
 # https://github.com/rust-lang/rust/blob/cd82e451a88ac8b15894af498cdc49e1fe8caa21/src/ci/docker/scripts/musl-toolchain.sh
 #
-# We use GCC 9.2.0 and musl v1.1.24 since musl v1.2.x uses time64 which isn't quite compatible yet
+# We use GCC 9.2.0 and musl v1.1.24 for 32Bit since musl v1.2.x uses time64 which doesn't work. For 64bit we use musl v1.2.1
 #
 # hadolint ignore=DL3003
 RUN echo "Building musl toolchains" && \
-    curl -sSL https://github.com/richfelker/musl-cross-make/archive/a54eb56f33f255dfca60be045f12a5cfaf5a72a9.tar.gz | tar xz && \
+    curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
+      -sSL https://github.com/richfelker/musl-cross-make/archive/b12ded507831d0cac2dabd869aef14f3822a8770.tar.gz | tar xz && \
     mv musl-cross-make-* musl-cross-make && \
     cd /tmp/musl-cross-make && \
     #
@@ -47,7 +48,7 @@ RUN echo "Building musl toolchains" && \
 GCC_VER = 9.2.0\n\
 MUSL_VER = 1.1.24\n\
 #\n\
-DL_CMD = curl --retry 3 -sSfL -C - -o\n\
+DL_CMD = curl -w"%{stderr}URL: %{url_effective}\\nTime: %{time_total}\\nSize: %{size_download}\\n" --retry 3 -sSfL -C - -o\n\
 #\n\
 FLAG = -g0 -Os -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -Wno-error\n\
 COMMON_CONFIG += CFLAGS="${FLAG}" CXXFLAGS="${FLAG}" LDFLAGS="-s"\n\
@@ -71,6 +72,7 @@ COMMON_CONFIG += ${ARCH_COMMON_CONFIG}\n\
     export TARGET=x86_64-unknown-linux-musl && \
     echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
     make install "-j$(nproc)" \
+    MUSL_VER="1.2.1" \
     OUTPUT="/usr/local/musl/${TARGET}" \
     TARGET="${TARGET}" > /dev/null && \
     #
@@ -86,6 +88,7 @@ COMMON_CONFIG += ${ARCH_COMMON_CONFIG}\n\
     export TARGET=aarch64-unknown-linux-musl && \
     echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
     make install "-j$(nproc)" \
+    MUSL_VER="1.2.1" \
     OUTPUT="/usr/local/musl/${TARGET}" \
     TARGET="${TARGET}" > /dev/null && \
     #
