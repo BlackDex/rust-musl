@@ -12,7 +12,7 @@ docker_build() {
     -it blackdex/rust-musl:x86_64-musl \
     cargo build ${cargo_arg}
 
-  cd "test/${crate}"
+  cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/x86_64-unknown-linux-musl/debug/${crate}\n"
   ./target/x86_64-unknown-linux-musl/debug/"${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
@@ -33,11 +33,10 @@ docker_build_armv7() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-C link-arg=-s' \
-    -e CFLAGS_armv7_unknown_linux_musleabihf="-mfpu=vfpv3-d16" \
     -it blackdex/rust-musl:armv7-musleabihf \
     cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}
 
-  cd "test/${crate}"
+  cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/armv7-unknown-linux-musleabihf/debug/${crate}\n"
   qemu-arm -cpu cortex-a7 ./target/armv7-unknown-linux-musleabihf/debug/"${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
@@ -61,7 +60,7 @@ docker_build_aarch64() {
     -it blackdex/rust-musl:aarch64-musl \
     cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}
 
-  cd "test/${crate}"
+  cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/aarch64-unknown-linux-musl/debug/${crate}\n"
   qemu-aarch64 -cpu cortex-a53 ./target/aarch64-unknown-linux-musl/debug/"${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
@@ -85,7 +84,7 @@ docker_build_armhf() {
     -it blackdex/rust-musl:arm-musleabihf \
     cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}
 
-  cd "test/${crate}"
+  cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabihf/debug/${crate}\n"
   qemu-arm -cpu arm1136 ./target/arm-unknown-linux-musleabihf/debug/"${crate}" ; echo -ne "\nExited with: $?\n"
   set -x

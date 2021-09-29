@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1
+
+FROM ubuntu:20.04
+LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+WORKDIR /tmp
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    TZ=UTC \
+    TERM=xterm-256color
+
+# Make sure we have basic dev tools for building.
+# We only build the gcc musl based toolchain here
+# and use these compiled files later in other Docker builds.
+# This saves time during the building of the actual libraries
+# we want to build since the toolchain doesn't change that much anyway.
+#
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y \
+        build-essential \
+        cmake \
+        libtool \
+        pkg-config \
+        curl \
+        file \
+        ca-certificates \
+        --no-install-recommends \
+        && \
+    apt-get autoremove -y --purge && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG TARGET=x86_64-unknown-linux-musl
+ARG RUST_MUSL_MAKE_HASH=0f22991b8d47837ef8dd60a0c43cf40fcf76217a
+ARG RUST_MUSL_MAKE_CONFIG=config.mak
+ENV RUST_MUSL_CROSS_TARGET=$TARGET
+ARG ARCH_COMMON_CONFIG=""
+
+COPY shared.mak /tmp/shared.mak
+COPY $RUST_MUSL_MAKE_CONFIG /tmp/config.mak
+# hadolint ignore=DL3003
+RUN echo "Downloading musl-cross-make" && \
+    # Download musl-cross-make based upon the provided $RUST_MUSL_MAKE_HASH
+    curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
+      -sSL "https://github.com/richfelker/musl-cross-make/archive/${RUST_MUSL_MAKE_HASH}.tar.gz" | tar xz && \
+    mv musl-cross-make-* musl-cross-make && \
+    # Combine the Shared and Arch specific config files into one config.mak file.
+    cat /tmp/shared.mak /tmp/config.mak >> /tmp/musl-cross-make/config.mak && \
+    mkdir -p /usr/local/musl && \
+    #
+    echo "Building musl toolchain for target ${TARGET}" && \
+    cd /tmp/musl-cross-make && \
+    # Build the actual toolchain here
+    # We store the toolchain in /usr/local/musl/${TARGET}
+    make install "-j$(nproc)" \
+    OUTPUT="/usr/local/musl/${TARGET}" > /dev/null && \
+    cd /tmp && \
+    rm -rf /tmp/musl-cross-make && \
+    echo "Finished building target ${TARGET}"
+
+WORKDIR /

@@ -1,0 +1,19 @@
+# Directories
+**/target
+mak
+test
+
+# git
+.git**
+
+# Files
+*.md
+*.py
+*.sh
+*.txt
+LICENSE
+.dockerignore
+Dockerfile**
+Makefile**
+render_template
+**/Cargo.lock

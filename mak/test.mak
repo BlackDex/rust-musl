@@ -14,6 +14,8 @@ test-rocket:
 	fi
 test-pq:
 	./test.sh pq
+test-dieselmulti:
+	./test.sh dieselmulti
 test-dieselpg:
 	./test.sh dieselpg
 test-dieselsqlite:
@@ -36,6 +38,6 @@ clean-builds:
 
 clean: clean-lock clean-builds
 
-test: test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselpg test-dieselsqlite test-dieselmysql
+test: test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
 
-.PHONY: clean clean-lock clean-builds test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselpg test-dieselsqlite test-dieselmysql
+.PHONY: test clean clean-lock clean-builds test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql

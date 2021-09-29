@@ -2,28 +2,57 @@
 
 # This file was generated using a Jinja2 template.
 # Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
+
+{#- Set some default jinja2 variables -#}
+{% if "gnu" in base %}
+{%   set env_prefix = "HOST" %}
+{%   set cc_flags_default = "-fPIE -pie -static -static-libgcc -static-libstdc++" %}
+{%   set cc_flags_zlib = "-fPIE -pie -static -static-libgcc -static-libstdc++" %}
+{%   set cc_flags_openssl = "-fPIC -pie -static -static-libgcc -static-libstdc++" %}
+{% elif "musl" in base %}
+{%   set env_prefix = "TARGET" %}
+{%   set cc_flags_default = "-fPIE -pie -static --static" %}
+{%   set cc_flags_zlib = "-fPIE -static --static" %}
+{%   set cc_flags_openssl = "-fPIC -pie -static --static" %}
+{% endif %}
+
+{% if "gnu" in base %}
+{#- The GNU base file uses Ubuntu 20.04 as it's base -#}
+# Prevent rebuilds if only the Ubuntu image has been updated by using a specific hash.
+FROM ubuntu:20.04@sha256:10cbddb6cf8568f56584ccb6c866203e68ab8e621bb87038e254f6f27f955bbe
+{% elif "musl" in base %}
+{#- The MUSL base file uses GNU Build docker image as it's base -#}
+{#- That image contains the same libraries and versions, but then compiled for the host. -#}
+{#- This is needed for Diesel-RS when linking the database backends -#}
+
 # Which Toolchain Tag to use
 ARG IMAGE_TAG=x86_64-musl
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
+FROM blackdex/musl-toolchain:${IMAGE_TAG} AS cross-toolchain
 
-# Use the gnu-base image which is build with the same libraries and version using x86_64-linux-gnu-gcc.
+# Use the gnu-base image which has build the same libraries and version using x86_64-linux-gnu-gcc.
 # This ensures that when rust needs to use the gnu based libraries to temporary link with they are same.
-# For example, Diesel needs this for MySQL and PostgreSQL
 FROM blackdex/rust-musl:gnu-base as musl-base
 
 # Define the target and openssl architecture to use during build
 ARG TARGET=x86_64-unknown-linux-musl
 ARG OPENSSL_ARCH=linux-x86_64
 
+{% endif %}
 LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     TERM=xterm-256color \
+{% if "gnu" in base %}
+    HOST_PREFIX=/usr/local/gnu \
+    HOST_PKG_CONFIG_PATH=/usr/local/gnu/lib/pkgconfig \
+    HOST_LD=x86_64-linux-gnu-ld \
+    HOST_CC=x86_64-linux-gnu-gcc \
+{% elif "musl" in base %}
     TARGET="${TARGET}" \
     TARGET_PREFIX=/usr/local/musl \
     TARGET_PKG_CONFIG_PATH=/usr/local/musl/lib/pkgconfig \
@@ -32,10 +61,41 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TARGET_CXX="${TARGET}-g++" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     PATH="/usr/local/musl/bin:/root/.cargo/bin:${PATH}" \
+{% endif %}
     TZ=UTC
 
+{% if "gnu" in base %}
+# hadolint ignore=DL3008
+RUN mkdir -p "${HOST_PREFIX}" && \
+    apt-get update && \
+    apt-get install -y \
+        autoconf \
+        automake \
+        build-essential \
+        cmake \
+        libtool \
+        pkg-config \
+        curl \
+        file \
+        git \
+        tzdata \
+        ca-certificates \
+        --no-install-recommends \
+        && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    # Default cleanups
+    find /var/log -type f -delete
+
+ENV SSL_VER="1.1.1l" \
+    CURL_VER="7.79.1" \
+    ZLIB_VER="1.2.11" \
+    PQ_VER="11.12" \
+    SQLITE_VER="3360000" \
+    MARIADB_VER="3.1.13"
+{% elif "musl" in base %}
 RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
-COPY --from=musl-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
+COPY --from=cross-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
+{% endif %}
 
 WORKDIR /tmp
 
@@ -44,120 +104,141 @@ WORKDIR /tmp
 RUN echo "zlib" && \
     curl -sSL "https://zlib.net/zlib-${ZLIB_VER}.tar.gz" | tar xz && \
     cd "zlib-${ZLIB_VER}" && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_zlib }}" \
     ./configure \
+{% if "musl" in base %}
       --static \
-      --prefix="${TARGET_PREFIX}" && \
+{% endif %}
+      --prefix="${ {{- env_prefix -}} _PREFIX}" && \
     make -j"$(nproc)" && make install && \
     cd /tmp && rm -rf "zlib-${ZLIB_VER}" && \
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
 
 # Build openssl (used in curl, pq and mariadb)
 # hadolint ignore=DL3003
 RUN echo "OpenSSL" && \
     curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
     cd "openssl-${SSL_VER}" && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIC -pie -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_openssl }}" \
     ./Configure \
+{% if "gnu" in base %}
+      linux-x86_64 enable-ec_nistp_64_gcc_128 \
+{% elif "musl" in base %}
       ${OPENSSL_ARCH} \
       no-shared \
+{% endif %}
       no-ssl3 \
-      -fPIC -pie -static --static \
-      --openssldir="${TARGET_PREFIX}/ssl" \
-      --prefix="${TARGET_PREFIX}" && \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" make -j"$(nproc)" depend && \
+      {{ cc_flags_openssl }} \
+      --openssldir="${ {{- env_prefix -}} _PREFIX}/ssl" \
+      --prefix="${ {{- env_prefix -}} _PREFIX}" && \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" make -j"$(nproc)" depend && \
     make -j"$(nproc)" && \
     make install_sw install_ssldirs && \
     cd /tmp && rm -rf "openssl-${SSL_VER}" && \
+{% if "musl" in base %}
     # Move the compiled binaries out off the main musl bin to tbin
-    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/openssl" "${TARGET_PREFIX}/bin/c_rehash" && \
+    mv -t "${ {{- env_prefix -}} _PREFIX}/tbin" "${ {{- env_prefix -}} _PREFIX}/bin/openssl" "${ {{- env_prefix -}} _PREFIX}/bin/c_rehash" && \
+{% endif %}
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
 
 # Build curl (needs with-zlib and all this stuff to allow https)
 # hadolint ignore=DL3003
 RUN echo "libcurl" && \
     curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_default }}" \
     ./configure \
-      --host="${TARGET}" \
-      --target="${TARGET}" \
+{% if "musl" in base %}
+      --host="${ {{- env_prefix -}} }" \
+      --target="${ {{- env_prefix -}} }" \
       --enable-shared=no \
       --enable-static=ssl \
+{% endif %}
       --with-zlib \
       --with-openssl \
       --enable-optimize \
       --with-ca-path=/etc/ssl/certs/ \
       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
       --with-ca-fallback \
-      --prefix="${TARGET_PREFIX}" && \
+      --prefix="${ {{- env_prefix -}} _PREFIX}" && \
     make -j"$(nproc)" && make install && \
     cd /tmp && rm -rf "curl-${CURL_VER}" && \
+{% if "musl" in base %}
     # Move the compiled binaries out off the main musl bin to tbin
-    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/curl" "${TARGET_PREFIX}/bin/curl-config" && \
+    mv -t "${ {{- env_prefix -}} _PREFIX}/tbin" "${ {{- env_prefix -}} _PREFIX}/bin/curl" "${ {{- env_prefix -}} _PREFIX}/bin/curl-config" && \
+{% endif %}
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
 
 # Build libpq
 # hadolint ignore=DL3003
 RUN echo "PostgreSQL" && \
     curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_VER}/postgresql-${PQ_VER}.tar.gz" | tar xz && \
     cd "postgresql-${PQ_VER}" && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_default }}" \
    ./configure \
-      --host="${TARGET}" \
-      --target="${TARGET}" \
+{% if "musl" in base %}
+      --host="${ {{- env_prefix -}} }" \
+      --target="${ {{- env_prefix -}} }" \
+{% endif %}
       --without-readline \
       --with-openssl \
       --disable-rpath \
       --with-system-tzdata=/usr/share/zoneinfo \
-      --prefix="${TARGET_PREFIX}" && \
+      --prefix="${ {{- env_prefix -}} _PREFIX}" && \
     # build libpq only
     cd src/interfaces/libpq && \
+{% if "gnu" in base %}
+      make -j"$(nproc)" && \
+      make -j"$(nproc)" install && \
+{% elif "musl" in base %}
       make -j"$(nproc)" all-static-lib && \
       make -j"$(nproc)" install-lib-pc install-lib-static && \
+{% endif %}
     cd /tmp && rm -rf "postgresql-${PQ_VER}" && \
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
 
 # Build libsqlite3
 # hadolint ignore=DL3003
 RUN echo "SQLite3" && \
     curl -sSL "https://www.sqlite.org/2021/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
     cd "sqlite-autoconf-${SQLITE_VER}" && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_default }}" \
     CFLAGS="-DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
     ./configure \
-      --host="${TARGET}" \
-      --target="${TARGET}" \
+{% if "musl" in base %}
+      --host="${ {{- env_prefix -}} }" \
+      --target="${ {{- env_prefix -}} }" \
       --disable-shared \
+{% endif %}
       --enable-threadsafe \
       --enable-fts3 \
       --enable-fts4 \
@@ -165,16 +246,18 @@ RUN echo "SQLite3" && \
       --enable-rtree \
       --enable-json1 \
       --enable-dynamic-extensions \
-      --prefix="${TARGET_PREFIX}" && \
+      --prefix="${ {{- env_prefix -}} _PREFIX}" && \
     # rpath removal - Same as Alpine
     sed -i 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool && \
     sed -i 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool && \
     make && make install && \
     cd /tmp && rm -rf "sqlite-autoconf-${SQLITE_VER}" && \
+{% if "musl" in base %}
     # Move the compiled binaries out off the main musl bin to tbin
-    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/sqlite3" && \
+    mv -t "${ {{- env_prefix -}} _PREFIX}/tbin" "${ {{- env_prefix -}} _PREFIX}/bin/sqlite3" && \
+{% endif %}
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
 
 # Building mariadb
 # hadolint ignore=DL3003
@@ -182,15 +265,17 @@ RUN echo "MariaDB Connector/C" && \
     curl -sSL "https://downloads.mariadb.org/interstitial/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
-    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
-    LD="${TARGET_LD}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
+    LD="${ {{- env_prefix -}} _LD}" \
+    LDFLAGS="-L${ {{- env_prefix -}} _PREFIX}/lib" \
+    CPPFLAGS="-I${ {{- env_prefix -}} _PREFIX}/include" \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" \
+    CC="${ {{- env_prefix -}} _CC} {{ cc_flags_default }}" \
     cmake \
+      {#- -LAH \ -#}
+      {#- -DCMAKE_VERBOSE_MAKEFILE=ON \ -#}
       -DCMAKE_IGNORE_PATH="/usr/include" \
-      -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
+      -DCMAKE_INSTALL_PREFIX="${ {{- env_prefix -}} _PREFIX}" \
       -DCMAKE_SYSTEM_NAME=Linux \
       -DCMAKE_HOST_SYSTEM_NAME=Linux \
       -DINSTALL_LIBDIR=lib \
@@ -208,21 +293,41 @@ RUN echo "MariaDB Connector/C" && \
       -DCLIENT_PLUGIN_REMOTE_IO=OFF \
       -DDEFAULT_CHARSET=utf8mb4 \
     ../ && \
-    C_INCLUDE_PATH="${TARGET_PREFIX}/include" make -j"$(nproc)" && make install && \
+    C_INCLUDE_PATH="${ {{- env_prefix -}} _PREFIX}/include" make -j"$(nproc)" && make install && \
     cd /tmp && rm -rf "mariadb-connector-c-${MARIADB_VER}-src" && \
+{% if "musl" in base %}
     # Move the compiled binaries out off the main musl bin to tbin
-    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/mariadb_config" && \
+    mv -t "${ {{- env_prefix -}} _PREFIX}/tbin" "${ {{- env_prefix -}} _PREFIX}/bin/mariadb_config" && \
+{% endif %}
     # Create some compatibilty symlinks so pkg-config and diesel can find all the correct files
-    ln -sfnr "${TARGET_PREFIX}/include/mysql/mariadb_version.h" "${TARGET_PREFIX}/include/mysql/mysql_version.h" && \
+{% if "gnu" in base %}
+    ln -sfnr "${ {{- env_prefix -}} _PREFIX}/bin/mariadb_config" "${ {{- env_prefix -}} _PREFIX}/bin/mysql_config" && \
+{% endif %}
+    ln -sfnr "${ {{- env_prefix -}} _PREFIX}/include/mysql/mariadb_version.h" "${ {{- env_prefix -}} _PREFIX}/include/mysql/mysql_version.h" && \
     # Create and fix the default pkg-config for mysqlclient using the libmariadb generated file
     # We need the library to point to mysqlclient instead of mariadb, else mysqlclient-sys crate will not link it statically!
-    sed "s#Name: libmariadb#Name: mysqlclient#g" "${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc" | \
-      sed "s#${TARGET_PREFIX}/lib/lib##g" | \
+    sed "s#Name: libmariadb#Name: mysqlclient#g" "${ {{- env_prefix -}} _PREFIX}/lib/pkgconfig/libmariadb.pc" | \
+      sed "s#${ {{- env_prefix -}} _PREFIX}/lib/lib##g" | \
       sed 's#\.a##g' | \
+{% if "musl" in base %}
       sed 's#-ldl\s##g' | \
-      sed 's#-lmariadb#-lmysqlclient#g' > "${TARGET_PREFIX}/lib/pkgconfig/mysqlclient.pc" && \
+{% endif %}
+      sed 's#-lmariadb#-lmysqlclient#g' > "${ {{- env_prefix -}} _PREFIX}/lib/pkgconfig/mysqlclient.pc" && \
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+    find /var/log -type f -delete && rm -rf "${ {{- env_prefix -}} _PREFIX}/share/man"
+
+{% if "gnu" in base %}
+{#- For the GNU Base image we only have some ENV variables we want to set -#}
+
+ENV PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="${HOST_PKG_CONFIG_PATH}" \
+    PKG_CONFIG_LIBDIR_x86_64_unknown_linux_gnu="${HOST_PREFIX}/lib" \
+    #
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_DIR=/etc/ssl/certs
+{% elif "musl" in base %}
+{#- For the MUSL Base image we are going to generate the final image here -#}
+{#- The multi-stage docker allows us to only install the Rust Toolchain, either nightly or stable -#}
+{#- but still use the already compiled libraries, since they do not change that often. -#}
 
 # Install the Rust toolchain and `musl` target.
 FROM musl-base
@@ -270,5 +375,6 @@ ENV SYSROOT="/usr/local/musl/${TARGET}" \
     SQLITE3_STATIC=1 \
     SQLITE3_LIB_DIR="${TARGET_PREFIX}/lib" \
     SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include"
+{% endif %}
 
 WORKDIR /home/rust/src

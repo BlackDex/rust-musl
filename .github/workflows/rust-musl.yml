@@ -1,0 +1,262 @@
+on:
+  push:
+    paths:
+      - ".github/workflows/rust-musl.yml"
+      - "Dockerfile.gnu-base"
+      - "Dockerfile.musl-base"
+    branches:
+      - main
+      - workflow-test
+
+  pull_request:
+    paths:
+      - ".github/workflows/rust-musl.yml"
+      - "Dockerfile.gnu-base"
+      - "Dockerfile.musl-base"
+
+  workflow_dispatch:
+    inputs:
+      clean_cache:
+        description: Clean Docker cache before build, yes/no
+        default: 'no'
+        required: false
+  # schedule:
+  #   - cron: '0 0 1 */2 *'
+
+name: Build Rust MUSL/GNU Base Images
+
+jobs:
+
+  vars:
+    name: Generate Build Variables
+    id: vars
+    runs-on: ubuntu-latest
+    outputs:
+      commitpath: ${{ steps.build_vars.outputs.commitpath }}
+      rust_channel: ${{ steps.build_vars.outputs.rust_channel }}
+      tag_postfix: ${{ steps.build_vars.outputs.tag_postfix }}
+      date: ${{ steps.build_vars.outputs.date }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Check if this is a scheduled job, if so, set to nightly
+      - name: Get build variables
+        id: build_vars
+        shell: bash
+        run: |
+          #
+          # Changed files
+          echo set-output name=commitpath::$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+          echo ::set-output name=commitpath::$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+          #
+          # Date
+          export DATE=$(date +'%Y-%m-%d')
+          echo "set-output name=date::${DATE}"
+          echo "::set-output name=date::${DATE}"
+          #
+          # Check if this is run via a scheduler, if so we will build the nightly
+          if [[ "${{ github.event.schedule }}" == "" ]]; then
+            echo "set-output name=rust_channel::stable"
+            echo "::set-output name=rust_channel::stable"
+            echo "set-output name=tag_postfix::-${DATE}"
+            echo "::set-output name=tag_postfix::-${DATE}"
+          else
+            echo "set-output name=rust_channel::nightly"
+            echo "::set-output name=rust_channel::nightly"
+            echo "set-output name=tag_postfix::-nightly-${DATE}"
+            echo "::set-output name=tag_postfix::-nightly-${DATE}"
+          fi
+
+  gnu-base:
+    name: Build GNU Base Image
+    runs-on: ubuntu-latest
+    needs: vars
+    # Only rebuild the gnu-base if there were changes
+    if: ${{ Contains(needs.vars.outputs.commitpath), 'Dockerfile.gnu-base' }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Cache Docker layers
+        # Do not run when using act
+        if: ${{ !env.ACT }}
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-gnu-base-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-gnu-base-buildx-
+
+      - name: Clean Docker cache
+        # Do not run when using act or when the commit message contains '[clean cache]' or via triggered via workflow input
+        if: |
+          !env.ACT &&
+          (contains(github.event.head_commit.message, '[clean cache]') || github.event.inputs.clean_cache == 'yes')
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/.buildx-cache
+
+      - name: Docker Build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile.gnu-base
+          tags: |
+            blackdex/rust-musl:gnu-base
+            blackdex/rust-musl:gnu-base-${{ needs.vars.outputs.date }}
+          push: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Move cache
+        # Do not run when using act
+        if: ${{ !env.ACT }}
+        run: |
+          # Temp fix
+          # https://github.com/docker/build-push-action/issues/252
+          # https://github.com/moby/buildkit/issues/1896
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ###
+  # Building the final MUSL Based images including the rust toolchain.
+  musl-base:
+    name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }}
+    needs: vars
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env:
+          - IMAGE_TAG: x86_64-musl
+            TARGET: x86_64-unknown-linux-musl
+            OPENSSL_ARCH: "linux-x86_64 enable-ec_nistp_64_gcc_128"
+          - IMAGE_TAG: armv7-musleabihf
+            TARGET: armv7-unknown-linux-musleabihf
+            OPENSSL_ARCH: linux-armv4
+          # - IMAGE_TAG: aarch64-musl
+          #   TARGET: aarch64-unknown-linux-musl
+          #   OPENSSL_ARCH: linux-aarch64
+          # - IMAGE_TAG: arm-musleabi
+          #   TARGET: arm-unknown-linux-musleabi
+          #   OPENSSL_ARCH: linux-armv4
+          # - IMAGE_TAG: arm-musleabihf
+          #   TARGET: arm-unknown-linux-musleabihf
+          #   OPENSSL_ARCH: linux-armv4
+          # - IMAGE_TAG: armv5te-musleabi
+          #   TARGET: armv5te-unknown-linux-musleabi
+          #   OPENSSL_ARCH: linux-armv4
+    env: ${{ matrix.env }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Cache Docker layers
+        # Do not run when using act
+        if: ${{ !env.ACT }}
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ env.IMAGE_TAG }}-musl-buildx-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-${{ env.IMAGE_TAG }}-musl-buildx-
+
+      - name: Clean Docker cache
+        # Do not run when using act or when the commit message contains '[clean cache]' or via triggered via workflow input
+        if: ${{ !env.ACT && ( contains(github.event.head_commit.message, '[clean cache]') || github.event.inputs.clean_cache == 'yes' ) }}
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/.buildx-cache
+
+      - name: Docker Build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile.musl-base
+          build-args: |
+            --build-arg TARGET=${{ env.TARGET }} \
+            --build-arg IMAGE_TAG=${{ env.IMAGE_TAG }} \
+            --build-arg OPENSSL_ARCH=${{ env.OPENSSL_ARCH }} \
+            --build-arg RUST_CHANNEL=${{ needs.vars.outputs.rust_channel }} \
+          tags: |
+            blackdex/rust-musl:${{ env.IMAGE_TAG }}
+            blackdex/rust-musl:${{ env.IMAGE_TAG }}-${{ needs.vars.outputs.tag_postfix }}
+          push: false
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Move cache
+        # Do not run when using act
+        if: ${{ !env.ACT }}
+        run: |
+          # Temp fix
+          # https://github.com/docker/build-push-action/issues/252
+          # https://github.com/moby/buildkit/issues/1896
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+
+
+
+
+
+
+
+
+
+
+      # - name: Test Docker cargo build
+      #   run: |
+      #     docker run --rm \
+      #       -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
+      #       -e RUST_BACKTRACE=1 \
+      #       -e RUSTFLAGS='-C link-arg=-s' \
+      #       blackdex/rust-musl:arm-musleabihf cargo build
+
+      # - name: Build and push multiarch image
+      #   if: github.ref == 'refs/heads/master'
+      #   run: |
+      #     docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      #     docker push messense/rust-musl-cross:$IMAGE_TAG
+
+      #     echo "image: messense/rust-musl-cross:$IMAGE_TAG
+      #     manifests:
+      #       - image: messense/rust-musl-cross:$IMAGE_TAG-amd64
+      #         platform:
+      #           architecture: amd64
+      #           os: linux
+      #       - image: messense/rust-musl-cross:$IMAGE_TAG-arm64
+      #         platform:
+      #           architecture: arm64
+      #           os: linux
+      #     " > manifest.yaml
+
+      #     curl -sqL -o manifest-tool https://github.com/estesp/manifest-tool/releases/download/v1.0.3/manifest-tool-linux
+      #     chmod +x manifest-tool
+      #     ./manifest-tool push from-spec manifest.yaml
+
+
+      # - name: setenv
+      #   if: github.event.schedule=='*/6 * * * *'         # set-env value
+      #   run: |
+      #     echo "::set-env name=cronenv::midnight_run"
+      # - name: setenv2
+      #   if: github.event.schedule=='*/7 * * * *'   # set env value
+      #   run: |
+      #     echo "::set-env name=cronenv::morning_run"

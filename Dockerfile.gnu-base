@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # This file was generated using a Jinja2 template.
 # Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
 FROM ubuntu:20.04
@@ -6,17 +8,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
-    TZ=UTC \
     TERM=xterm-256color \
     HOST_PREFIX=/usr/local/gnu \
     HOST_PKG_CONFIG_PATH=/usr/local/gnu/lib/pkgconfig \
+    HOST_LD=x86_64-linux-gnu-ld \
     HOST_CC=x86_64-linux-gnu-gcc \
-    SSL_VER="1.1.1j" \
-    CURL_VER="7.75.0" \
-    ZLIB_VER="1.2.11" \
-    PQ_VER="11.11" \
-    SQLITE_VER="3350200" \
-    MARIADB_VER="3.1.12"
+    TZ=UTC
 
 # hadolint ignore=DL3008
 RUN mkdir -p "${HOST_PREFIX}" && \
@@ -31,12 +28,20 @@ RUN mkdir -p "${HOST_PREFIX}" && \
         curl \
         file \
         git \
+        tzdata \
         ca-certificates \
         --no-install-recommends \
         && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     # Default cleanups
     find /var/log -type f -delete
+
+ENV SSL_VER="1.1.1l" \
+    CURL_VER="7.79.1" \
+    ZLIB_VER="1.2.11" \
+    PQ_VER="11.12" \
+    SQLITE_VER="3360000" \
+    MARIADB_VER="3.1.13"
 
 WORKDIR /tmp
 
@@ -46,6 +51,7 @@ RUN echo "zlib" && \
     curl -sSL "https://zlib.net/zlib-${ZLIB_VER}.tar.gz" | tar xz && \
     cd "zlib-${ZLIB_VER}" && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
@@ -63,12 +69,14 @@ RUN echo "OpenSSL" && \
     curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
     cd "openssl-${SSL_VER}" && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
     CC="${HOST_CC} -fPIC" \
     ./Configure \
-      linux-x86_64 \
+      linux-x86_64 enable-ec_nistp_64_gcc_128 \
+      no-ssl3 \
       -fPIC \
       --openssldir="${HOST_PREFIX}/ssl" \
       --prefix="${HOST_PREFIX}" && \
@@ -82,16 +90,17 @@ RUN echo "OpenSSL" && \
 # Build curl (needs with-zlib and all this stuff to allow https)
 # hadolint ignore=DL3003
 RUN echo "libcurl" && \
-    curl -sSL "https://curl.haxx.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
+    curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
     CC="${HOST_CC} -fPIC" \
     ./configure \
       --with-zlib \
-      --with-ssl \
+      --with-openssl \
       --enable-optimize \
       --with-ca-path=/etc/ssl/certs/ \
       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
@@ -108,6 +117,7 @@ RUN echo "PostgreSQL" && \
     curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_VER}/postgresql-${PQ_VER}.tar.gz" | tar xz && \
     cd "postgresql-${PQ_VER}" && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
@@ -115,6 +125,8 @@ RUN echo "PostgreSQL" && \
    ./configure \
       --without-readline \
       --with-openssl \
+      --disable-rpath \
+      --with-system-tzdata=/usr/share/zoneinfo \
       --prefix="${HOST_PREFIX}" && \
     # build libpq only
     cd src/interfaces/libpq && \
@@ -130,15 +142,24 @@ RUN echo "SQLite3" && \
     curl -sSL "https://www.sqlite.org/2021/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
     cd "sqlite-autoconf-${SQLITE_VER}" && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
     CC="${HOST_CC} -fPIC" \
-    CFLAGS="-DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_ENABLE_RTREE -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_ENABLE_JSON1" \
+    CFLAGS="-DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
     ./configure \
       --enable-threadsafe \
+      --enable-fts3 \
+      --enable-fts4 \
+      --enable-fts5 \
+      --enable-rtree \
+      --enable-json1 \
       --enable-dynamic-extensions \
       --prefix="${HOST_PREFIX}" && \
+    # rpath removal - Same as Alpine
+    sed -i 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool && \
+    sed -i 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool && \
     make && make install && \
     cd /tmp && rm -rf "sqlite-autoconf-${SQLITE_VER}" && \
     # Default cleanups
@@ -151,15 +172,16 @@ RUN echo "MariaDB Connector/C" && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
+    LD="${HOST_LD}" \
     LDFLAGS="-L${HOST_PREFIX}/lib" \
     CPPFLAGS="-I${HOST_PREFIX}/include" \
     C_INCLUDE_PATH="${HOST_PREFIX}/include" \
     CC="${HOST_CC} -fPIC" \
     cmake \
-      # -LAH \
-      # -DCMAKE_VERBOSE_MAKEFILE=ON \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${HOST_PREFIX}" \
+      -DCMAKE_SYSTEM_NAME=Linux \
+      -DCMAKE_HOST_SYSTEM_NAME=Linux \
       -DINSTALL_LIBDIR=lib \
       -DINSTALL_INCLUDEDIR=include/mysql \
       -DCMAKE_BUILD_TYPE=MINSIZEREL \

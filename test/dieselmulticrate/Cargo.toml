@@ -1,0 +1,17 @@
+[package]
+authors = ["BlackDex <black.dex@gmail.com>"]
+name = "dieselmulticrate"
+version = "0.1.0"
+edition = "2018"
+resolver = "2"
+
+[dependencies]
+# Make sure OpenSSL gets build
+openssl = "*"
+
+# We need to provide pq-sys to tell it we need pkg-config, else building Diesel will fail
+pq-sys = { version = "0.4.*", features = ["pkg-config"] }
+
+# Tell diels to use all these features.
+diesel = { version = "1.4.*", features = ["sqlite", "mysql", "postgres", "chrono", "r2d2"] }
+diesel_migrations = { version = "1.4.*", features = ["sqlite", "mysql", "postgres"] }

@@ -1,4 +1,5 @@
-FROM ubuntu:20.04
+# Prevent rebuilds if only the Ubuntu image has been updated by using a specific hash.
+FROM ubuntu:20.04@sha256:10cbddb6cf8568f56584ccb6c866203e68ab8e621bb87038e254f6f27f955bbe
 LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -30,22 +31,18 @@ RUN apt-get update && \
 
 WORKDIR /tmp
 
-# We use a specific commit from the musl-cross-make repo which has a needed patch.
-# This is the same as used by rust it self:
-# https://github.com/rust-lang/rust/blob/cd82e451a88ac8b15894af498cdc49e1fe8caa21/src/ci/docker/scripts/musl-toolchain.sh
+# We use musl v1.1.24 for 32Bit since musl v1.2.x uses time64 which doesn't work. For 64bit we use musl v1.2.2
 #
-# We use GCC 9.2.0 and musl v1.1.24 for 32Bit since musl v1.2.x uses time64 which doesn't work. For 64bit we use musl v1.2.1
-#
-# hadolint ignore=DL3003
+# hadolint ignore=DL3003,SC2028
 RUN echo "Building musl toolchains" && \
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
-      -sSL https://github.com/richfelker/musl-cross-make/archive/b12ded507831d0cac2dabd869aef14f3822a8770.tar.gz | tar xz && \
+      -sSL https://github.com/richfelker/musl-cross-make/archive/0f22991b8d47837ef8dd60a0c43cf40fcf76217a.tar.gz | tar xz && \
     mv musl-cross-make-* musl-cross-make && \
     cd /tmp/musl-cross-make && \
     #
     # Create base config.mak
     echo $' \n\
-GCC_VER = 9.2.0\n\
+GCC_VER = 10.3.0\n\
 MUSL_VER = 1.1.24\n\
 #\n\
 DL_CMD = curl -w"%{stderr}URL: %{url_effective}\\nTime: %{time_total}\\nSize: %{size_download}\\n" --retry 3 -sSfL -C - -o\n\
@@ -72,7 +69,7 @@ COMMON_CONFIG += ${ARCH_COMMON_CONFIG}\n\
     export TARGET=x86_64-unknown-linux-musl && \
     echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
     make install "-j$(nproc)" \
-    MUSL_VER="1.2.1" \
+    MUSL_VER="1.2.2" \
     OUTPUT="/usr/local/musl/${TARGET}" \
     TARGET="${TARGET}" > /dev/null && \
     #
@@ -88,7 +85,7 @@ COMMON_CONFIG += ${ARCH_COMMON_CONFIG}\n\
     export TARGET=aarch64-unknown-linux-musl && \
     echo -ne "\nBuilding toolchain for: ${TARGET}\n" && \
     make install "-j$(nproc)" \
-    MUSL_VER="1.2.1" \
+    MUSL_VER="1.2.2" \
     OUTPUT="/usr/local/musl/${TARGET}" \
     TARGET="${TARGET}" > /dev/null && \
     #
