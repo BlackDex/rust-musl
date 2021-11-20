@@ -87,11 +87,11 @@ RUN mkdir -p "${HOST_PREFIX}" && \
     find /var/log -type f -delete
 
 ENV SSL_VER="1.1.1l" \
-    CURL_VER="7.79.1" \
+    CURL_VER="7.80.0" \
     ZLIB_VER="1.2.11" \
-    PQ_VER="11.12" \
+    PQ_VER="11.13" \
     SQLITE_VER="3360000" \
-    MARIADB_VER="3.1.13"
+    MARIADB_VER="3.1.15"
 {% elif "musl" in base %}
 RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
 COPY --from=musl-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
@@ -262,7 +262,7 @@ RUN echo "SQLite3" && \
 # Building mariadb
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
-    curl -sSL "https://downloads.mariadb.org/interstitial/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
+    curl -sSL "https://ftp.nluug.nl/db/mariadb/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${ {{- env_prefix -}} _PKG_CONFIG_PATH}" \
@@ -328,10 +328,10 @@ ENV PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="${HOST_PKG_CONFIG_PATH}" \
 {#- but still use the already compiled libraries, since they do not change that often. -#}
 
 # Install the Rust toolchain and `musl` target.
-FROM musl-base
+{#- FROM musl-base -#}
 ARG RUST_CHANNEL=stable
 
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+{#- SHELL ["/bin/bash", "-o", "pipefail", "-c"] -#}
 
 # Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
 RUN chmod 755 /root/ && \
@@ -376,3 +376,9 @@ ENV SYSROOT="/usr/local/musl/${TARGET}" \
 {% endif %}
 
 WORKDIR /home/rust/src
+
+LABEL maintainer="BlackDex <black.dex@gmail.com>"
+LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/rust-musl/"

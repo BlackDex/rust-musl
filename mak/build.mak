@@ -10,6 +10,12 @@ else ifeq ($(RUST_CHANNEL),nightly)
 	RUST_CHANNEL=nightly$(TAG_DATE)
 endif
 
+## This script can be used to see which files are transferred during a `COPY . /`
+check-context:
+	echo -e "FROM busybox\nCOPY . /build-context\nWORKDIR /build-context\nRUN find .\n" \
+	| docker build --progress=plain --no-cache -f - .
+.PHONY: check-context
+
 # Toolchain Makefile
 include mak/toolchain.mak
 

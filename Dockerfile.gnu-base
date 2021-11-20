@@ -37,11 +37,11 @@ RUN mkdir -p "${HOST_PREFIX}" && \
     find /var/log -type f -delete
 
 ENV SSL_VER="1.1.1l" \
-    CURL_VER="7.79.1" \
+    CURL_VER="7.80.0" \
     ZLIB_VER="1.2.11" \
-    PQ_VER="11.12" \
+    PQ_VER="11.13" \
     SQLITE_VER="3360000" \
-    MARIADB_VER="3.1.13"
+    MARIADB_VER="3.1.15"
 
 WORKDIR /tmp
 
@@ -168,7 +168,7 @@ RUN echo "SQLite3" && \
 # Building mariadb
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
-    curl -sSL "https://downloads.mariadb.org/interstitial/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
+    curl -sSL "https://ftp.nluug.nl/db/mariadb/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${HOST_PKG_CONFIG_PATH}" \
@@ -218,3 +218,9 @@ ENV PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="${HOST_PKG_CONFIG_PATH}" \
     SSL_CERT_DIR=/etc/ssl/certs
 
 WORKDIR /home/rust/src
+
+LABEL maintainer="BlackDex <black.dex@gmail.com>"
+LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/rust-musl/"

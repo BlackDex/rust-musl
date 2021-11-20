@@ -179,7 +179,7 @@ RUN echo "SQLite3" && \
 # Building mariadb
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
-    curl -sSL "https://downloads.mariadb.org/interstitial/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
+    curl -sSL "https://ftp.nluug.nl/db/mariadb/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
@@ -224,13 +224,7 @@ RUN echo "MariaDB Connector/C" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Install the Rust toolchain and `musl` target.
-FROM musl-base
-ARG RUST_CHANNEL=stable
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-# Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
+# Install the Rust toolchain and `musl` target.ARG RUST_CHANNEL=stable# Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
 RUN chmod 755 /root/ && \
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
@@ -272,3 +266,9 @@ ENV SYSROOT="/usr/local/musl/${TARGET}" \
     SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include"
 
 WORKDIR /home/rust/src
+
+LABEL maintainer="BlackDex <black.dex@gmail.com>"
+LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/rust-musl/"

@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
-
 FROM ubuntu:20.04
-LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -46,7 +44,7 @@ COPY $RUST_MUSL_MAKE_CONFIG /tmp/config.mak
 RUN echo "Downloading musl-cross-make" && \
     # Download musl-cross-make based upon the provided $RUST_MUSL_MAKE_HASH
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
-      -sSL "https://github.com/richfelker/musl-cross-make/archive/${RUST_MUSL_MAKE_HASH}.tar.gz" | tar xz && \
+      -sSL "https://codeload.github.com/richfelker/musl-cross-make/tar.gz/${RUST_MUSL_MAKE_HASH}" | tar xz && \
     mv musl-cross-make-* musl-cross-make && \
     # Combine the Shared and Arch specific config files into one config.mak file.
     cat /tmp/shared.mak /tmp/config.mak >> /tmp/musl-cross-make/config.mak && \
@@ -63,3 +61,9 @@ RUN echo "Downloading musl-cross-make" && \
     echo "Finished building target ${TARGET}"
 
 WORKDIR /
+
+LABEL maintainer="BlackDex <black.dex@gmail.com>"
+LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/musl-toolchain/"
