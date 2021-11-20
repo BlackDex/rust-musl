@@ -2,6 +2,7 @@
 
 # This file was generated using a Jinja2 template.
 # Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
+# The GNU base file uses Ubuntu 20.04 as it's base
 FROM ubuntu:20.04
 LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

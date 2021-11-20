@@ -10,9 +10,9 @@ ARG IMAGE_TAG=x86_64-musl
 FROM blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
 
 # Use the gnu-base image which is build with the same libraries and version using x86_64-linux-gnu-gcc.
-# This ensures that when rust needs to use the gnu based libraries to temporary link with they are same.
+# This ensures that when Rust needs to use the gnu based libraries to temporary link with they are same.
 # For example, Diesel needs this for MySQL and PostgreSQL
-FROM blackdex/rust-musl:gnu-base as musl-base
+FROM blackdex/rust-musl:gnu-base
 
 # Define the target and openssl architecture to use during build
 ARG TARGET=x86_64-unknown-linux-musl

@@ -5,8 +5,8 @@ on:
       - "Dockerfile.gnu-base"
       - "Dockerfile.musl-base"
     branches:
-      # - main
-      - workflow-test
+      - main
+      # - workflow-test
 
   # workflow_dispatch:
   #   inputs:
@@ -28,6 +28,7 @@ jobs:
       rust_channel: ${{ steps.build_vars.outputs.rust_channel }}
       tag_postfix: ${{ steps.build_vars.outputs.tag_postfix }}
       date: ${{ steps.build_vars.outputs.date }}
+      act: ${{ steps.build_vars.outputs.act }}
 
     steps:
       - name: Checkout Repo
@@ -38,9 +39,16 @@ jobs:
         id: build_vars
         run: |
           #
+          # Add env.ACT as an output since GHA does not support env within if checks on some locations
+          # See: https://github.com/actions/runner/issues/480
+          echo "set-output name=act::${ACT}"
+          echo "::set-output name=act::${ACT}"
+          #
           # Changed files
-          echo set-output name=commitpath::$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
-          echo ::set-output name=commitpath::$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+          git diff-tree --no-commit-id --name-only -r ${{ github.sha }}
+          export COMMITPATH=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+          echo "set-output name=commitpath::${COMMITPATH}"
+          echo "::set-output name=commitpath::${COMMITPATH}"
           #
           # Date
           export DATE=$(date +'%Y-%m-%d')
@@ -65,9 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_vars
     # Only rebuild the gnu-base if there were changes
-    if: |
-      env.ACT ||
-      Contains(needs.build_vars.outputs.commitpath), 'Dockerfile.gnu-base'
+    # if: ${{ needs.build_vars.outputs.act || Contains(needs.build_vars.outputs.commitpath, 'Dockerfile.gnu-base') }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v2
@@ -123,9 +129,11 @@ jobs:
   # Building the final MUSL Based images including the rust toolchain.
   musl-base:
     name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }}
-    needs: build_vars
+    needs: [build_vars, gnu-base]
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
+      fail-fast: false
       matrix:
         env:
           - IMAGE_TAG: x86_64-musl
