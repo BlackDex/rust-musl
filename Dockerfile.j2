@@ -3,6 +3,7 @@
 # This file was generated using a Jinja2 template.
 # Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
 
+
 {#- Set some default jinja2 variables -#}
 {% if "gnu" in base %}
 {%   set env_prefix = "HOST" %}
@@ -17,7 +18,6 @@
 {% endif %}
 
 {% if "gnu" in base %}
-# The GNU base file uses Ubuntu 20.04 as it's base
 FROM ubuntu:20.04
 {% elif "musl" in base %}
 {#- The MUSL base file uses GNU Build docker image as it's base -#}
@@ -328,10 +328,7 @@ ENV PKG_CONFIG_PATH_x86_64_unknown_linux_gnu="${HOST_PKG_CONFIG_PATH}" \
 {#- but still use the already compiled libraries, since they do not change that often. -#}
 
 # Install the Rust toolchain and `musl` target.
-{#- FROM musl-base -#}
 ARG RUST_CHANNEL=stable
-
-{#- SHELL ["/bin/bash", "-o", "pipefail", "-c"] -#}
 
 # Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
 RUN chmod 755 /root/ && \

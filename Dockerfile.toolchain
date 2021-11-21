@@ -42,7 +42,7 @@ COPY shared.mak /tmp/shared.mak
 COPY $RUST_MUSL_MAKE_CONFIG /tmp/config.mak
 # hadolint ignore=DL3003
 RUN echo "Downloading musl-cross-make" && \
-    # Download musl-cross-make based upon the provided $RUST_MUSL_MAKE_HASH
+    # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $RUST_MUSL_MAKE_HASH
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
       -sSL "https://codeload.github.com/richfelker/musl-cross-make/tar.gz/${RUST_MUSL_MAKE_HASH}" | tar xz && \
     mv musl-cross-make-* musl-cross-make && \

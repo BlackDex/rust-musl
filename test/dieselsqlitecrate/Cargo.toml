@@ -2,7 +2,14 @@
 authors = ["clux <sszynrae@gmail.com>"]
 name = "dieselsqlitecrate"
 version = "0.1.0"
+edition = "2018"
+resolver = "2"
+
+[features]
+bundled_sqlite = ["libsqlite3-sys"]
 
 [dependencies]
+libsqlite3-sys = { version = "0.22.2", features = ["bundled"], optional = true }
+
 diesel = { version = "1.4.*", features = ["sqlite", "chrono", "r2d2"] }
 diesel_migrations = "1.4.*"

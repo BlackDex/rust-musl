@@ -2,6 +2,7 @@
 **/target
 mak
 test
+.vscode
 
 # git
 .git**

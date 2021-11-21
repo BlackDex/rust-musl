@@ -224,7 +224,10 @@ RUN echo "MariaDB Connector/C" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Install the Rust toolchain and `musl` target.ARG RUST_CHANNEL=stable# Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
+# Install the Rust toolchain and `musl` target.
+ARG RUST_CHANNEL=stable
+
+# Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
 RUN chmod 755 /root/ && \
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker

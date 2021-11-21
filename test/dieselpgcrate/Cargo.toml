@@ -2,6 +2,11 @@
 authors = ["clux <sszynrae@gmail.com>"]
 name = "dieselpgcrate"
 version = "0.1.0"
+edition = "2018"
+resolver = "2"
+
+[features]
+vendored_openssl = ["openssl/vendored"]
 
 [dependencies]
 openssl = "*"

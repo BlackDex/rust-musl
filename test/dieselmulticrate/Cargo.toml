@@ -5,6 +5,9 @@ version = "0.1.0"
 edition = "2018"
 resolver = "2"
 
+[features]
+vendored_openssl = ["openssl/vendored"]
+
 [dependencies]
 # Make sure OpenSSL gets build
 openssl = "*"

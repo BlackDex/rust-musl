@@ -16,6 +16,7 @@ jobs:
   toolchain:
     name: Build Toolchain - ${{ matrix.env.IMAGE_TAG }}
     runs-on: ubuntu-latest
+    if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
       matrix:
         # ARCH_COMMON_CONFIG are based upon the `"COMMON_CONFIG +=` additions extracted

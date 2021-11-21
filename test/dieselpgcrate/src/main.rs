@@ -20,7 +20,7 @@ mod schema {
 }
 
 mod models {
-  use schema::posts;
+  use crate::schema::posts;
   #[derive(Queryable)]
   pub struct Post {
       pub id: i32,
