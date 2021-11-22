@@ -82,10 +82,10 @@ jobs:
           #
           # Check if we are running this via act or not and determine the caching method
           if [[ -z "${ACT}" ]]; then
-            echo "set-output name=cache_from::type=local,src=/tmp/.buildx-cache"
-            echo "::set-output name=cache_from::type=local,src=/tmp/.buildx-cache"
-            echo "set-output name=cache_to::type=local,dest=/tmp/.buildx-cache-new"
-            echo "::set-output name=cache_to::type=local,dest=/tmp/.buildx-cache-new"
+            echo "set-output name=cache_from::type=gha,scope=amd64-gnu-base"
+            echo "::set-output name=cache_from::type=gha,scope=amd64-gnu-base"
+            echo "set-output name=cache_to::type=gha,scope=amd64-gnu-base"
+            echo "::set-output name=cache_to::type=gha,scope=amd64-gnu-base"
           else
             echo "set-output name=cache_from::blackdex/rust-musl:gnu-base"
             echo "::set-output name=cache_from::blackdex/rust-musl:gnu-base"
@@ -93,13 +93,6 @@ jobs:
             echo "::set-output name=cache_to::"
           fi
           #
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: amd64-gnu-base
-          restore-keys: amd64-gnu-base
 
       - name: Docker Build
         uses: docker/build-push-action@v2
@@ -112,11 +105,6 @@ jobs:
           push: ${{ !env.ACT }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
 
   # ###
@@ -179,10 +167,10 @@ jobs:
           #
           # Check if we are running this via act or not and determine the caching method
           if [[ -z "${ACT}" ]]; then
-            echo "set-output name=cache_from::type=local,src=/tmp/.buildx-cache"
-            echo "::set-output name=cache_from::type=local,src=/tmp/.buildx-cache"
-            echo "set-output name=cache_to::type=local,dest=/tmp/.buildx-cache-new"
-            echo "::set-output name=cache_to::type=local,dest=/tmp/.buildx-cache-new"
+            echo "set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "::set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "::set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
           else
             echo "set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
             echo "::set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
@@ -190,13 +178,6 @@ jobs:
             echo "::set-output name=cache_to::"
           fi
           #
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ matrix.env.IMAGE_TAG }}-musl
-          restore-keys: ${{ matrix.env.IMAGE_TAG }}-
 
       # ###
       # Rust Stable
@@ -207,6 +188,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          # Set load to true so that we can test the builded image in the next step
+          load: true
+          # Do not push the image just yet, we first want to test it
+          push: false
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
@@ -214,15 +199,8 @@ jobs:
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             RUST_CHANNEL=stable
           tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test
-          # Do not push the image just yet, we first want to test it
-          push: false
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Test Docker Image - Rust Stable
         # Skip during nightly builds
@@ -243,6 +221,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          # Disable load, because we are going to push the image here
+          load: false
+          # Run this step also when using `act`, but do not push the images when build locally
+          push: ${{ !env.ACT }}
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
@@ -254,14 +236,8 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.date }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.date }}
-          push: ${{ !env.ACT }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       # ###
       # Rust Nightly
@@ -270,6 +246,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          # Set load to true so that we can test the builded image in the next step
+          load: true
+          # Do not push the image just yet, we first want to test it
+          push: false
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
@@ -277,15 +257,8 @@ jobs:
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             RUST_CHANNEL=nightly
           tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test
-          # Do not push the image just yet, we first want to test it
-          push: false
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Test Docker Image - Rust Nightly
         # Skip testing the nightly aarch64 image for now
@@ -306,6 +279,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          # Disable load, because we are going to push the image here
+          load: false
+          # Run this step also when using `act`, but do not push the images when build locally
+          push: ${{ !env.ACT }}
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
@@ -315,11 +292,5 @@ jobs:
           tags: |
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.date }}
-          push: ${{ !env.ACT }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
