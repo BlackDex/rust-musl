@@ -124,9 +124,13 @@ jobs:
           - IMAGE_TAG: armv7-musleabihf
             TARGET: armv7-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
+          # The aarch64 musl is having issues with rust, we add some extra arguments as RUSTFLAGS to fix this for now.
+          # See: https://github.com/rust-lang/rust/issues/89626
+          # A Temp solution can be found here: https://github.com/twilight-rs/http-proxy/pull/42/files#diff-dd2c0eb6ea5cfc6c4bd4eac30934e2d5746747af48fef6da689e85b752f39557
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
             OPENSSL_ARCH: linux-aarch64
+            RUSTFLAGS: " -Zgcc-ld=ldd"
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
@@ -212,7 +216,7 @@ jobs:
           docker run --rm \
             -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
             -e RUST_BACKTRACE=1 \
-            -e RUSTFLAGS='-C link-arg=-s' \
+            -e RUSTFLAGS='-C link-arg=-s${{ matrix.env.RUSTFLAGS }}' \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 
       - name: Docker Push - Rust Stable
@@ -261,10 +265,6 @@ jobs:
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image - Rust Nightly
-        # Skip testing the nightly aarch64 image for now
-        # See: https://github.com/rust-lang/rust/issues/89626
-        # A Possible temp solution can be found here: https://github.com/twilight-rs/http-proxy/pull/42/files#diff-dd2c0eb6ea5cfc6c4bd4eac30934e2d5746747af48fef6da689e85b752f39557
-        if: ${{ matrix.env.IMAGE_TAG != 'aarch64-musl' }}
         run: |
           # Clean leftover files from previous run if they exists
           rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
@@ -272,7 +272,7 @@ jobs:
           docker run --rm \
             -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
             -e RUST_BACKTRACE=1 \
-            -e RUSTFLAGS='-C link-arg=-s' \
+            -e RUSTFLAGS='-C link-arg=-s${{ matrix.env.RUSTFLAGS }}' \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 
       - name: Docker Push - Rust Nightly
