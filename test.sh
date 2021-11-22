@@ -47,7 +47,6 @@ docker_build_armv7() {
   exit 0
 }
 
-
 docker_build_aarch64() {
   local -r crate="$1"crate
   local -r cargo_arg="${2}"
@@ -56,8 +55,8 @@ docker_build_aarch64() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-C link-arg=-s' \
-    -it blackdex/rust-musl:aarch64-musl \
+    -e RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s' \
+    -it blackdex/rust-musl:aarch64-musl-stable \
     cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}
 
   cd "test/${crate}" || return
