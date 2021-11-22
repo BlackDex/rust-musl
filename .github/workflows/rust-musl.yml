@@ -8,8 +8,8 @@ on:
       - main
       # - workflow-test
 
-  # schedule:
-  #   - cron: '30 9 * * *' # everyday at 9:30am
+  schedule:
+    - cron: '30 9 * * *' # everyday at 9:30am
 
 name: Rust MUSL
 
@@ -121,25 +121,33 @@ jobs:
           - IMAGE_TAG: x86_64-musl
             TARGET: x86_64-unknown-linux-musl
             OPENSSL_ARCH: "linux-x86_64 enable-ec_nistp_64_gcc_128"
+            TEST_CRATE: dieselmulticrate
           - IMAGE_TAG: armv7-musleabihf
             TARGET: armv7-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
-          # The aarch64 musl is having issues with rust, we add some extra arguments as RUSTFLAGS to fix this for now.
+            TEST_CRATE: dieselmulticrate
+          # The aarch64 musl is having issues with rustc, we use a different test crate for now
+          # Also, we need to provide some extra RUSTFLAGS for the nightly version to build
           # See: https://github.com/rust-lang/rust/issues/89626
           # A Temp solution can be found here: https://github.com/twilight-rs/http-proxy/pull/42/files#diff-dd2c0eb6ea5cfc6c4bd4eac30934e2d5746747af48fef6da689e85b752f39557
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
             OPENSSL_ARCH: linux-aarch64
-            RUSTFLAGS: " -Zgcc-ld=ldd"
+            TEST_CRATE: dieselsqlitecrate
+            NIGHTLY_RUSTFLAGS: "-Zgcc-ld=lld "
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: dieselmulticrate
           - IMAGE_TAG: arm-musleabihf
             TARGET: arm-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: dieselmulticrate
           - IMAGE_TAG: armv5te-musleabi
             TARGET: armv5te-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: dieselmulticrate
+
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v2
@@ -193,7 +201,7 @@ jobs:
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
-          load: true
+          load: ${{ !env.ACT }}
           # Do not push the image just yet, we first want to test it
           push: false
           file: ./Dockerfile.musl-base
@@ -211,12 +219,12 @@ jobs:
         if: ${{ github.event.schedule != '30 9 * * *' }}
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
             -e RUST_BACKTRACE=1 \
-            -e RUSTFLAGS='-C link-arg=-s${{ matrix.env.RUSTFLAGS }}' \
+            -e RUSTFLAGS="${{ matrix.env.STABLE_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 
       - name: Docker Push - Rust Stable
@@ -251,7 +259,7 @@ jobs:
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
-          load: true
+          load: ${{ !env.ACT }}
           # Do not push the image just yet, we first want to test it
           push: false
           file: ./Dockerfile.musl-base
@@ -267,12 +275,12 @@ jobs:
       - name: Test Docker Image - Rust Nightly
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
             -e RUST_BACKTRACE=1 \
-            -e RUSTFLAGS='-C link-arg=-s${{ matrix.env.RUSTFLAGS }}' \
+            -e RUSTFLAGS="${{ matrix.env.NIGHTLY_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 
       - name: Docker Push - Rust Nightly
