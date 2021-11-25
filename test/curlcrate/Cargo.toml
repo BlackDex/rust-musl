@@ -1,7 +1,13 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "curlcrate"
 version = "0.1.0"
+edition = "2018"
+resolver = "2"
+
+[features]
+vendored_openssl = ["openssl/vendored"]
 
 [dependencies]
+openssl = { version = "*", optional = true }
 curl = "*"

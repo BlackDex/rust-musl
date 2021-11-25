@@ -8,6 +8,13 @@ on:
       - main
       # - workflow-test
 
+  workflow_dispatch:
+    inputs:
+      nightly_date:
+        description: "Nightly date to build"
+        required: false
+        default: ""
+
   schedule:
     - cron: '30 9 * * *' # everyday at 9:30am
 
@@ -18,7 +25,10 @@ jobs:
     name: Generate Build Variables
     runs-on: ubuntu-latest
     outputs:
-      date: ${{ steps.build_vars.outputs.date }}
+      current_date: ${{ steps.build_vars.outputs.current_date }}
+      nightly_date: ${{ steps.build_vars.outputs.nightly_date }}
+      nightly_tag_postfix: ${{ steps.build_vars.outputs.nightly_tag_postfix }}
+      nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
       act: ${{ steps.build_vars.outputs.act }}
 
     steps:
@@ -34,12 +44,53 @@ jobs:
           # See: https://github.com/actions/runner/issues/480
           echo "set-output name=act::${ACT}"
           echo "::set-output name=act::${ACT}"
+
           #
           # Date
           export DATE=$(date +'%Y-%m-%d')
-          echo "set-output name=date::${DATE}"
-          echo "::set-output name=date::${DATE}"
+          echo "set-output name=current_date::${DATE}"
+          echo "::set-output name=current_date::${DATE}"
+
           #
+          # Determine nightly date
+          # If this is triggered by a workflow dispatch and a date is filled use that, else use the current date
+          if [[ -z "${{ github.event.inputs.nightly_date }}" ]]; then
+            echo "set-output name=nightly_date::${DATE}"
+            echo "::set-output name=nightly_date::${DATE}"
+
+            # Set an empty nightly_tag_postfix because we are building the current nightly
+            echo "set-output name=nightly_tag_postfix::"
+            echo "::set-output name=nightly_tag_postfix::"
+
+          # When there is a custom nightly_date set, lets first validate it.
+          elif [[ "${{ github.event.inputs.nightly_date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+            && date +'%Y-%m-%d' -d'${{ github.event.inputs.nightly_date }}' >/dev/null 2>&1 \
+            && [[ $(date +%s -d "00:00:00") -ge $(date +%s -d'${{ github.event.inputs.nightly_date }}') ]] ; then
+              echo "set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
+              echo "::set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
+
+              # To prevent tagging an older nightly version, we set a postfix here which is used by the nightly build/push action
+              echo "set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
+              echo "::set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
+
+          # If there was a workflow run, and it had an invalid date, stop the whole workflow
+          else
+            echo "error::Invalid nightly_date"
+            echo "::error::Invalid nightly_date"
+            exit 1
+          fi
+
+          #
+          # Check if we want to build a nightly only.
+          # We want this either when the cron is triggered
+          # Or if we trigger a manual workflow
+          if [[ "${{ github.event.action }}" == 'workflow_dispatch' ]] || [[ "${{ github.event.schedule }}" == '30 9 * * *' ]]; then
+            echo "set-output name=nightly_trigger::true"
+            echo "::set-output name=nightly_trigger::true"
+          else
+            echo "set-output name=nightly_trigger::"
+            echo "::set-output name=nightly_trigger::"
+          fi
 
   gnu-base:
     name: Build GNU Base Image
@@ -51,21 +102,17 @@ jobs:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     steps:
       - name: Checkout Repo
-        if: ${{ github.event.schedule != '30 9 * * *' }}
+        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         uses: actions/checkout@v2
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
-        if: |
-          !env.ACT &&
-          github.event.schedule != '30 9 * * *'
+        if: ${{ !env.ACT && !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/setup-buildx-action@v1
 
       # Use the DOCKER_BUILDKIT=1 env when using `act`
       - name: Setup Docker Buildx (DOCKER_BUILDKIT=1)
-        if: |
-          !env.ACT &&
-          github.event.schedule != '30 9 * * *'
+        if: ${{ !env.ACT && !needs.build_vars.outputs.nightly_trigger }}
         shell: bash
         run: |
           echo "DOCKER_BUILDKIT=1"
@@ -73,9 +120,7 @@ jobs:
 
       # Do not login when using `act`
       - name: Login to DockerHub
-        if: |
-          !env.ACT &&
-          github.event.schedule != '30 9 * * *'
+        if: ${{ !env.ACT && !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -100,14 +145,14 @@ jobs:
           #
 
       - name: Docker Build
-        if: ${{ github.event.schedule != '30 9 * * *' }}
+        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v2
         with:
           context: .
           file: ./Dockerfile.gnu-base
           tags: |
             blackdex/rust-musl:gnu-base
-            blackdex/rust-musl:gnu-base-${{ needs.build_vars.outputs.date }}
+            blackdex/rust-musl:gnu-base-${{ needs.build_vars.outputs.current_date }}
           push: ${{ !env.ACT }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
@@ -196,7 +241,7 @@ jobs:
 
       - name: Docker Build - Rust Stable
         # Skip during nightly builds
-        if: ${{ github.event.schedule != '30 9 * * *' }}
+        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -216,7 +261,7 @@ jobs:
 
       - name: Test Docker Image - Rust Stable
         # Skip during nightly builds
-        if: ${{ github.event.schedule != '30 9 * * *' }}
+        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         run: |
           # Clean leftover files from previous run if they exists
           rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
@@ -229,7 +274,7 @@ jobs:
 
       - name: Docker Push - Rust Stable
         # Skip during nightly builds
-        if: ${{ github.event.schedule != '30 9 * * *' }}
+        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -245,9 +290,9 @@ jobs:
             RUST_CHANNEL=stable
           tags: |
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -267,7 +312,7 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
-            RUST_CHANNEL=nightly
+            RUST_CHANNEL=nightly-${{ needs.build_vars.outputs.nightly_date }}
           tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
@@ -296,9 +341,9 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
-            RUST_CHANNEL=nightly
+            RUST_CHANNEL=nightly-${{ needs.build_vars.outputs.nightly_date }}
           tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ needs.build_vars.outputs.nightly_tag_postfix }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.nightly_date }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
