@@ -6,7 +6,6 @@ on:
       - "Dockerfile.musl-base"
     branches:
       - main
-      # - workflow-test
 
   workflow_dispatch:
     inputs:
@@ -84,7 +83,7 @@ jobs:
           # Check if we want to build a nightly only.
           # We want this either when the cron is triggered
           # Or if we trigger a manual workflow
-          if [[ "${{ github.event.action }}" == 'workflow_dispatch' ]] || [[ "${{ github.event.schedule }}" == '30 9 * * *' ]]; then
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]] || [[ "${{ github.event.schedule }}" == '30 9 * * *' ]]; then
             echo "set-output name=nightly_trigger::true"
             echo "::set-output name=nightly_trigger::true"
           else
