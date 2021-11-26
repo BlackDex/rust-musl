@@ -1,0 +1,92 @@
+on:
+  push:
+    paths:
+      - ".github/workflows/test.yml"
+    branches:
+      - main
+      # - workflow-test
+
+  workflow_dispatch:
+    inputs:
+      nightly_date:
+        description: "Nightly date to build"
+        required: false
+        default: ""
+
+  schedule:
+    - cron: '*/5 * * * *' # every 5m
+
+name: Rust MUSL
+
+jobs:
+  test_vars:
+    name: Generate Build Variables
+    runs-on: ubuntu-latest
+    outputs:
+      current_date: ${{ steps.build_vars.outputs.current_date }}
+      nightly_date: ${{ steps.build_vars.outputs.nightly_date }}
+      nightly_tag_postfix: ${{ steps.build_vars.outputs.nightly_tag_postfix }}
+      nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
+      act: ${{ steps.build_vars.outputs.act }}
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+
+      # Check if this is a scheduled job, if so, set to nightly
+      - name: Get build variables
+        id: build_vars
+        run: |
+          echo "${{ toJson(github) }}"
+          #
+          # Add env.ACT as an output since GHA does not support env within if checks on some locations
+          # See: https://github.com/actions/runner/issues/480
+          echo "set-output name=act::${ACT}"
+          echo "::set-output name=act::${ACT}"
+
+          #
+          # Date
+          export DATE=$(date +'%Y-%m-%d')
+          echo "set-output name=current_date::${DATE}"
+          echo "::set-output name=current_date::${DATE}"
+
+          #
+          # Determine nightly date
+          # If this is triggered by a workflow dispatch and a date is filled use that, else use the current date
+          if [[ -z "${{ github.event.inputs.nightly_date }}" ]]; then
+            echo "set-output name=nightly_date::${DATE}"
+            echo "::set-output name=nightly_date::${DATE}"
+
+            # Set an empty nightly_tag_postfix because we are building the current nightly
+            echo "set-output name=nightly_tag_postfix::"
+            echo "::set-output name=nightly_tag_postfix::"
+
+          # When there is a custom nightly_date set, lets first validate it.
+          elif [[ "${{ github.event.inputs.nightly_date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+            && date +'%Y-%m-%d' -d'${{ github.event.inputs.nightly_date }}' >/dev/null 2>&1 \
+            && [[ $(date +%s -d "00:00:00") -ge $(date +%s -d'${{ github.event.inputs.nightly_date }}') ]] ; then
+              echo "set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
+              echo "::set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
+
+              # To prevent tagging an older nightly version, we set a postfix here which is used by the nightly build/push action
+              echo "set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
+              echo "::set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
+
+          # If there was a workflow run, and it had an invalid date, stop the whole workflow
+          else
+            echo "error::Invalid nightly_date"
+            echo "::error::Invalid nightly_date"
+            exit 1
+          fi
+
+          #
+          # Check if we want to build a nightly only.
+          # We want this either when the cron is triggered
+          # Or if we trigger a manual workflow
+          if [[ "${{ github.event.action }}" == 'workflow_dispatch' ]] || [[ "${{ github.event.schedule }}" == '30 9 * * *' ]]; then
+            echo "set-output name=nightly_trigger::true"
+            echo "::set-output name=nightly_trigger::true"
+          else
+            echo "set-output name=nightly_trigger::"
+            echo "::set-output name=nightly_trigger::"
+          fi

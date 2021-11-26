@@ -112,7 +112,7 @@ jobs:
 
       # Use the DOCKER_BUILDKIT=1 env when using `act`
       - name: Setup Docker Buildx (DOCKER_BUILDKIT=1)
-        if: ${{ !env.ACT && !needs.build_vars.outputs.nightly_trigger }}
+        if: ${{ env.ACT && !needs.build_vars.outputs.nightly_trigger }}
         shell: bash
         run: |
           echo "DOCKER_BUILDKIT=1"
