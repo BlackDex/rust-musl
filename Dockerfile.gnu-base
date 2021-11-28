@@ -39,8 +39,8 @@ RUN mkdir -p "${HOST_PREFIX}" && \
 ENV SSL_VER="1.1.1l" \
     CURL_VER="7.80.0" \
     ZLIB_VER="1.2.11" \
-    PQ_VER="11.13" \
-    SQLITE_VER="3360000" \
+    PQ_VER="11.14" \
+    SQLITE_VER="3370000" \
     MARIADB_VER="3.1.15"
 
 WORKDIR /tmp

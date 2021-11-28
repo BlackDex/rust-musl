@@ -263,10 +263,10 @@ jobs:
         if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
@@ -319,10 +319,10 @@ jobs:
       - name: Test Docker Image - Rust Nightly
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/dieselmulticrate/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/dieselmulticrate":/home/rust/src \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'

@@ -1,4 +1,4 @@
-RUST_CHANNEL="stable"
+RUST_CHANNEL := "stable"
 ARCH=x86_64-musl
 VERBOSE=
 
@@ -14,6 +14,8 @@ test-rocket:
 	fi
 test-pq:
 	./test.sh pq
+test-multi:
+	./test.sh multi
 test-dieselmulti:
 	./test.sh dieselmulti
 test-dieselpg:
@@ -32,12 +34,11 @@ test-hyper:
 clean-lock:
 	sudo find . -iname Cargo.lock -exec rm {} \;
 clean-builds:
-	sudo find . -iname Cargo.lock -exec rm {} \;
 	sudo find . -mindepth 3 -maxdepth 3 -name target -exec rm -rf {} \;
-	sudo rm -f test/dieselsqlitecrate/main.db
+	sudo rm -vf test/*/main.db
 
 clean: clean-lock clean-builds
 
-test: test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
 
-.PHONY: test clean clean-lock clean-builds test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+.PHONY: test clean clean-lock clean-builds test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql

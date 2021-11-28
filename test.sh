@@ -9,7 +9,7 @@ docker_build() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-C link-arg=-s' \
-    -it blackdex/rust-musl:x86_64-musl \
+    -it "blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
     cargo build ${cargo_arg}
 
   cd "test/${crate}" || return
@@ -33,7 +33,7 @@ docker_build_armv7() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-C link-arg=-s' \
-    -it blackdex/rust-musl:armv7-musleabihf \
+    -it "blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
     cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}
 
   cd "test/${crate}" || return
@@ -56,7 +56,7 @@ docker_build_aarch64() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s' \
-    -it blackdex/rust-musl:aarch64-musl-stable \
+    -it "blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
     cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}
 
   cd "test/${crate}" || return
@@ -80,7 +80,7 @@ docker_build_armhf() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-C link-arg=-s' \
-    -it blackdex/rust-musl:arm-musleabihf \
+    -it "blackdex/rust-musl:arm-musleabihf-${RUST_CHANNEL}" \
     cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}
 
   cd "test/${crate}" || return
@@ -98,6 +98,10 @@ docker_build_armhf() {
 MUSL_ARG=
 if [[ -n "${VERBOSE}" ]]; then
   MUSL_ARG="-vv"
+fi
+
+if [[ -z "${RUST_CHANNEL}" ]]; then
+  RUST_CHANNEL="stable"
 fi
 
 if [[ "${ARCH}" == "armv7" ]]; then
