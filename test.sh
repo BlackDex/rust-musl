@@ -8,9 +8,9 @@ docker_build() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-C link-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    cargo build ${cargo_arg}
+    cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/x86_64-unknown-linux-musl/debug/${crate}\n"
@@ -32,7 +32,7 @@ docker_build_armv7() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-C link-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
     cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}
 
@@ -79,7 +79,7 @@ docker_build_armhf() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-C link-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:arm-musleabihf-${RUST_CHANNEL}" \
     cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}
 
@@ -95,9 +95,32 @@ docker_build_armhf() {
 }
 
 
-MUSL_ARG=
+docker_build_armv5te() {
+  local -r crate="$1"crate
+  local -r cargo_arg="${2}"
+
+  docker run --rm \
+    -v "$PWD/test/${crate}:/home/rust/src" \
+    -v cargo-cache:/root/.cargo/registry \
+    -e RUST_BACKTRACE=1 \
+    -e RUSTFLAGS='-Clink-arg=-s' \
+    -it "blackdex/rust-musl:armv5te-musleabi-${RUST_CHANNEL}" \
+    cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}
+
+  cd "test/${crate}" || return
+  echo -ne "\n\nTESTING: /target/armv5te-unknown-linux-musleabi/debug/${crate}\n"
+  qemu-arm -cpu arm1136 ./target/armv5te-unknown-linux-musleabi/debug/"${crate}" ; echo -ne "\nExited with: $?\n"
+  set -x
+  file "target/armv5te-unknown-linux-musleabi/debug/${crate}"
+  ldd "target/armv5te-unknown-linux-musleabi/debug/${crate}"
+  checksec --file="target/armv5te-unknown-linux-musleabi/debug/${crate}"
+  set +x
+  exit 0
+}
+
+
 if [[ -n "${VERBOSE}" ]]; then
-  MUSL_ARG="-vv"
+  MUSL_ARG+=" -vv"
 fi
 
 if [[ -z "${RUST_CHANNEL}" ]]; then
@@ -110,6 +133,8 @@ elif [[ "${ARCH}" == "aarch64" ]]; then
   docker_build_aarch64 "${1}" "${MUSL_ARG}"
 elif [[ "${ARCH}" == "armhf" ]]; then
   docker_build_armhf "${1}" "${MUSL_ARG}"
+elif [[ "${ARCH}" == "armv5te" ]]; then
+  docker_build_armv5te "${1}" "${MUSL_ARG}"
 else
   docker_build "${1}" "${MUSL_ARG}"
 fi

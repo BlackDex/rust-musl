@@ -171,9 +171,11 @@ jobs:
           - IMAGE_TAG: x86_64-musl
             TARGET: x86_64-unknown-linux-musl
             OPENSSL_ARCH: "linux-x86_64 enable-ec_nistp_64_gcc_128"
+            TEST_CRATE: multicrate
           - IMAGE_TAG: armv7-musleabihf
             TARGET: armv7-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: multicrate
           # The aarch64 musl is having issues with rustc
           # We need to provide some extra RUSTFLAGS to get it to compile
           # See: https://github.com/rust-lang/rust/issues/89626
@@ -181,16 +183,20 @@ jobs:
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
             OPENSSL_ARCH: linux-aarch64
+            TEST_CRATE: multicrate
             XTRA_RUSTFLAGS: "-Clinker=rust-lld "
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: multicrate
           - IMAGE_TAG: arm-musleabihf
             TARGET: arm-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: multicrate
           - IMAGE_TAG: armv5te-musleabi
             TARGET: armv5te-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
+            TEST_CRATE: dieselmulticrate
 
     steps:
       - name: Checkout Repo
@@ -263,10 +269,10 @@ jobs:
         if: ${{ !needs.build_vars.outputs.nightly_trigger }}
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
@@ -319,10 +325,10 @@ jobs:
       - name: Test Docker Image - Rust Nightly
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
