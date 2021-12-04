@@ -2,6 +2,15 @@
 
 # This file was generated using a Jinja2 template.
 # Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
+## Note
+# For the musl based image we do some checks to see if we are building for aarch64
+# This is needed because aarch64 has no (propper) support for 'outline atomics'.
+# Because of this we need to add an extra flag during the build of this image.
+# See:
+#  - https://github.com/rust-lang/rust/issues/89626
+#  - https://github.com/rust-lang/rust/pull/91361/files#diff-9f3bfd2fdc228dcb1b352082a7ebc39b19c8bea15b73141f72d9f5021aa3c66c
+##
+
 # Which Toolchain Tag to use
 ARG IMAGE_TAG=x86_64-musl
 
@@ -49,7 +58,7 @@ RUN echo "zlib" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -static --static" \
+    CC="${TARGET_CC} -fPIE -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
     ./configure \
       --static \
       --prefix="${TARGET_PREFIX}" && \
@@ -68,7 +77,7 @@ RUN echo "OpenSSL" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIC -pie -static --static" \
+    CC="${TARGET_CC} -fPIC -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
     ./Configure \
       ${OPENSSL_ARCH} \
       no-shared \
@@ -95,7 +104,7 @@ RUN echo "libcurl" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
     ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -125,7 +134,7 @@ RUN echo "PostgreSQL" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -152,7 +161,7 @@ RUN echo "SQLite3" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
     CFLAGS="-DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
     ./configure \
       --host="${TARGET}" \
@@ -187,7 +196,7 @@ RUN echo "MariaDB Connector/C" && \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
@@ -226,15 +235,18 @@ RUN echo "MariaDB Connector/C" && \
 
 # Install the Rust toolchain and `musl` target.
 ARG RUST_CHANNEL=stable
+ARG RUSTC_HASH=
 
 # Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
 RUN chmod 755 /root/ && \
+    echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '${RUSTC_HASH}'." && \
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
     curl --proto '=https' --tlsv1.2 -sqSf https://sh.rustup.rs | \
       sh -s -- -y --profile minimal --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
     rustup set profile minimal && \
-    rm -rf "/root/.rustup/toolchains/stable-$(uname -m)-unknown-linux-gnu/share/" && \
+    # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
+    find "/root/.rustup/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
     echo -ne "[build]\ntarget = \"$RUST_MUSL_CROSS_TARGET\"\n\n[target.$RUST_MUSL_CROSS_TARGET]\nlinker = \"$RUST_MUSL_CROSS_TARGET-gcc\"\n\n" > /root/.cargo/config && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command

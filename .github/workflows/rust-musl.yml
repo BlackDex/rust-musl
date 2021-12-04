@@ -13,9 +13,33 @@ on:
         description: "Nightly date to build"
         required: false
         default: ""
+      fresh_stable:
+        description: "Trigger new stable build"
+        required: false
+        default: ""
 
   schedule:
     - cron: '30 9 * * *' # everyday at 9:30am
+
+## ##
+## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
+## Full run no/different rustc_hash: (This triggers a fresh stable, since the rustc_hash is not available)
+##   act push -j musl-base
+##
+## Full run with same rustc_hash: (Get the current rustc_hash either from the output of the rust_stable step, or running rustc -vV your self)
+##   act push --env RUSTC_STABLE_HASH_ACT=f1edd0429 -j musl-base
+##
+## Nightly dispatch:
+##   act workflow_dispatch -e <(echo '{"action":"workflow_dispatch", "inputs":{"nightly_date":"","fresh_stable":""}}') -j musl-base
+##
+## Nightly dispatch specific date:
+##   act workflow_dispatch -e <(echo '{"action":"workflow_dispatch", "inputs":{"nightly_date":"2012-12-03","fresh_stable":""}}') -j musl-base
+##
+## Stable and Nightly dispatch:
+##   act workflow_dispatch -e <(echo '{"action":"workflow_dispatch", "inputs":{"nightly_date":"","fresh_stable":"true"}}') -j musl-base
+##
+## To only see the outputs from the build_vars to see what is getting triggered, use the same commands as above but replace `musl-base` with `build_vars`
+## ##
 
 name: Rust MUSL
 
@@ -28,11 +52,33 @@ jobs:
       nightly_date: ${{ steps.build_vars.outputs.nightly_date }}
       nightly_tag_postfix: ${{ steps.build_vars.outputs.nightly_tag_postfix }}
       nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
+      stable_trigger: ${{ steps.build_vars.outputs.stable_trigger }}
+      stable_version: ${{ steps.build_vars.outputs.stable_version }}
+      # We also append the value of workflow input fresh_stable here.
+      # This will ensure we do trigger a fresh rustup
+      stable_rustc_hash: "${{ steps.rust_stable.outputs.rustc_hash }}${{ github.event.inputs.fresh_stable }}"
       act: ${{ steps.build_vars.outputs.act }}
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v2
+
+      - name: Get Rust stable info
+        id: rust_stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            default: true
+            profile: minimal
+
+      - name: Cache previous rustc stable hash
+        uses: actions/cache@v2
+        if: ${{ !env.ACT }}
+        with:
+          path: |
+            ~/rustc-stable.hash
+          key: build-vars-rustc-stable
 
       # Check if this is a scheduled job, if so, set to nightly
       - name: Get build variables
@@ -49,6 +95,36 @@ jobs:
           export DATE=$(date +'%Y-%m-%d')
           echo "set-output name=current_date::${DATE}"
           echo "::set-output name=current_date::${DATE}"
+
+          #
+          # Since `act` doesn't support actions/cache (yet) we check some env vars here.
+          # With this we can fake the cache if we want to so we can test the flow.
+          if [[ -n "${{ env.RUSTC_STABLE_HASH_ACT }}" ]]; then
+            echo "Found RUSTC_STABLE_HASH_ACT"
+            echo "${{ env.RUSTC_STABLE_HASH_ACT }}" | tee ~/rustc-stable.hash
+          fi
+
+          #
+          # Determine if we need to update the stable version
+          export RUSTC_STABLE_HASH_CACHED="$( cat ~/rustc-stable.hash 2>/dev/null )"
+          if [[ -n "${{ github.event.inputs.fresh_stable }}" ]]; then
+            echo "set-output name=stable_trigger::true"
+            echo "::set-output name=stable_trigger::true"
+          elif [[ "${RUSTC_STABLE_HASH_CACHED}" != ${{ steps.rust_stable.outputs.rustc_hash }} ]]; then
+            echo "set-output name=stable_trigger::true"
+            echo "::set-output name=stable_trigger::true"
+          else
+            echo "set-output name=stable_trigger::"
+            echo "::set-output name=stable_trigger::"
+          fi
+          # Store the current stable hash in GHA Cache
+          echo "${{ steps.rust_stable.outputs.rustc_hash }}" | tee ~/rustc-stable.hash
+
+          #
+          # Extract rust stable version
+          export RUST_VER="$( echo "${{ steps.rust_stable.outputs.rustc }}" | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]" )"
+          echo "set-output name=stable_version::${RUST_VER}"
+          echo "::set-output name=stable_version::${RUST_VER}"
 
           #
           # Determine nightly date
@@ -130,16 +206,16 @@ jobs:
         run: |
           #
           # Check if we are running this via act or not and determine the caching method
-          if [[ -z "${ACT}" ]]; then
-            echo "set-output name=cache_from::type=gha,scope=amd64-gnu-base"
-            echo "::set-output name=cache_from::type=gha,scope=amd64-gnu-base"
-            echo "set-output name=cache_to::type=gha,scope=amd64-gnu-base"
-            echo "::set-output name=cache_to::type=gha,scope=amd64-gnu-base"
-          else
+          if [[ -n "${ACT}" ]]; then
             echo "set-output name=cache_from::blackdex/rust-musl:gnu-base"
             echo "::set-output name=cache_from::blackdex/rust-musl:gnu-base"
             echo "set-output name=cache_to::"
             echo "::set-output name=cache_to::"
+          else
+            echo "set-output name=cache_from::type=gha,scope=amd64-gnu-base"
+            echo "::set-output name=cache_from::type=gha,scope=amd64-gnu-base"
+            echo "set-output name=cache_to::type=gha,scope=amd64-gnu-base"
+            echo "::set-output name=cache_to::type=gha,scope=amd64-gnu-base"
           fi
           #
 
@@ -184,7 +260,7 @@ jobs:
             TARGET: aarch64-unknown-linux-musl
             OPENSSL_ARCH: linux-aarch64
             TEST_CRATE: multicrate
-            XTRA_RUSTFLAGS: "-Clinker=rust-lld "
+            # XTRA_RUSTFLAGS: "-Clinker=rust-lld "
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
@@ -228,16 +304,16 @@ jobs:
         run: |
           #
           # Check if we are running this via act or not and determine the caching method
-          if [[ -z "${ACT}" ]]; then
-            echo "set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "::set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "::set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-          else
+          if [[ -n "${ACT}" ]]; then
             echo "set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
             echo "::set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
             echo "set-output name=cache_to::"
             echo "::set-output name=cache_to::"
+          else
+            echo "set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "::set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            echo "::set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
           fi
           #
 
@@ -246,7 +322,7 @@ jobs:
 
       - name: Docker Build - Rust Stable
         # Skip during nightly builds
-        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
+        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -260,13 +336,14 @@ jobs:
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             RUST_CHANNEL=stable
+            RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
           tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image - Rust Stable
         # Skip during nightly builds
-        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
+        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         run: |
           # Clean leftover files from previous run if they exists
           rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
@@ -279,7 +356,7 @@ jobs:
 
       - name: Docker Push - Rust Stable
         # Skip during nightly builds
-        if: ${{ !needs.build_vars.outputs.nightly_trigger }}
+        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -293,11 +370,14 @@ jobs:
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             RUST_CHANNEL=stable
+            RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
           tags: |
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 

@@ -10,7 +10,7 @@ docker_build() {
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}
+    bash -c "cargo -vV ; rustc -vV ; cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/x86_64-unknown-linux-musl/debug/${crate}\n"
@@ -34,7 +34,7 @@ docker_build_armv7() {
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
-    cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}
+    bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/armv7-unknown-linux-musleabihf/debug/${crate}\n"
@@ -51,13 +51,15 @@ docker_build_aarch64() {
   local -r crate="$1"crate
   local -r cargo_arg="${2}"
 
+  # -e RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s' \
+
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
-    cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}
+    bash -c "cargo -vV ; rustc -vV ; cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/aarch64-unknown-linux-musl/debug/${crate}\n"
@@ -81,7 +83,7 @@ docker_build_armhf() {
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:arm-musleabihf-${RUST_CHANNEL}" \
-    cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}
+    bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabihf/debug/${crate}\n"
@@ -105,7 +107,7 @@ docker_build_armv5te() {
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:armv5te-musleabi-${RUST_CHANNEL}" \
-    cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}
+    bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/armv5te-unknown-linux-musleabi/debug/${crate}\n"
