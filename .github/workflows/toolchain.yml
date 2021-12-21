@@ -8,7 +8,6 @@ on:
       - "shared.mak"
     branches:
       - main
-      # - workflow-test
 
 name: Build Toolchains
 
@@ -24,25 +23,25 @@ jobs:
         env:
           - IMAGE_TAG: x86_64-musl
             TARGET: x86_64-unknown-linux-musl
-            RUST_MUSL_MAKE_CONFIG: config.mak
+            MUSL_CROSS_MAKE_CONFIG: config.mak
           - IMAGE_TAG: armv7-musleabihf
             TARGET: armv7-unknown-linux-musleabihf
-            RUST_MUSL_MAKE_CONFIG: config32.mak
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
-            RUST_MUSL_MAKE_CONFIG: config.mak
+            MUSL_CROSS_MAKE_CONFIG: config.mak
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
-            RUST_MUSL_MAKE_CONFIG: config32.mak
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=soft --with-mode=arm"
           - IMAGE_TAG: arm-musleabihf
             TARGET: arm-unknown-linux-musleabihf
-            RUST_MUSL_MAKE_CONFIG: config32.mak
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=hard --with-mode=arm --with-fpu=vfp"
           - IMAGE_TAG: armv5te-musleabi
             TARGET: armv5te-unknown-linux-musleabi
-            RUST_MUSL_MAKE_CONFIG: config32.mak
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv5te --with-float=soft --with-mode=arm"
     steps:
       - name: Checkout Repo
@@ -85,7 +84,7 @@ jobs:
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
             ARCH_COMMON_CONFIG=${{ matrix.env.ARCH_COMMON_CONFIG }}
-            RUST_MUSL_MAKE_CONFIG=${{ matrix.env.RUST_MUSL_MAKE_CONFIG }}
+            MUSL_CROSS_MAKE_CONFIG=${{ matrix.env.MUSL_CROSS_MAKE_CONFIG }}
           tags: |
             blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}
             blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${{ steps.vars.outputs.TAG_DATE }}
