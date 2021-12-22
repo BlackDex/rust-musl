@@ -1,8 +1,10 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "pqcrate"
 version = "0.1.0"
+edition = "2018"
+resolver = "2"
 
 [dependencies]
 openssl = "*"
-pq-sys = { version = "0.4.*", features = ["pkg-config"] }
+pq-sys = { version = "0.4.*" }

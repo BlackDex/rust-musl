@@ -1,6 +1,7 @@
 RUST_CHANNEL := "stable"
 ARCH=x86_64-musl
 VERBOSE=
+RELEASE=
 
 test-plain:
 	./test.sh plain
@@ -9,9 +10,9 @@ test-curl:
 test-serde:
 	./test.sh serde
 test-rocket:
-	if [ -z "$$RUST_CHANNEL" ] || [ "$$RUST_CHANNEL" = "nightly" ]; then \
-		./test.sh rocket; \
-	fi
+	./test.sh rocket
+test-mimalloc:
+	./test.sh mimalloc
 test-pq:
 	./test.sh pq
 test-multi:
@@ -36,9 +37,10 @@ clean-lock:
 clean-builds:
 	sudo find . -mindepth 3 -maxdepth 3 -name target -exec rm -rf {} \;
 	sudo rm -vf test/*/main.db
+	sudo rm -vf test/*/qemu_*.core
 
 clean: clean-lock clean-builds
 
 test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
 
-.PHONY: test clean clean-lock clean-builds test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql

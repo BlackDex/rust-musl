@@ -1,9 +1,10 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "serdecrate"
-version = "0.1.0"
+version = "0.2.0"
+edition = "2018"
+resolver = "2"
 
 [dependencies]
-serde = "1.0.15"
-serde_derive = "1.0.15"
-serde_json = "1.0.4"
+serde = { version = "1.0.*", features = ["derive"] }
+serde_json = "1.0.*"

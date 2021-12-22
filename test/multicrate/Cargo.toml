@@ -14,9 +14,6 @@ vendored_openssl = ["openssl/vendored"]
 openssl = "*"
 
 # Deps for Diesel / SQLite / MySQL/MariaDB / PostgreSQL testing
-# We need to provide pq-sys to tell it we need pkg-config, else building Diesel will fail
-pq-sys = { version = "0.4.*", features = ["pkg-config"] }
-
 # Tell diels to use all these features.
 diesel = { version = "1.4.*", features = ["sqlite", "mysql", "postgres", "chrono", "r2d2"] }
 diesel_migrations = { version = "1.4.*", features = ["sqlite", "mysql", "postgres"] }

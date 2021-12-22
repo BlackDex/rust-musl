@@ -1,10 +1,13 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselmysqlcrate"
-version = "0.1.0"
+version = "0.2.0"
+edition = "2018"
+resolver = "2"
 
 [dependencies]
 openssl = "*"
 
-diesel = { version = "1.4.*", features = ["mysql"] }
-diesel_migrations = "1.4.*"
+# Tell Diesel to use MySQL features
+diesel = { version = "1.4.*", features = ["mysql", "chrono", "r2d2"] }
+diesel_migrations = { version = "1.4.*", features = ["mysql"] }

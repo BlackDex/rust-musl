@@ -1,0 +1,16 @@
+# Directories
+target
+src
+!target/x86_64-unknown-linux-musl/release/rocketcrate
+!target/x86_64-unknown-linux-musl/debug/rocketcrate
+!target/aarch64-unknown-linux-musl/release/rocketcrate
+!target/aarch64-unknown-linux-musl/debug/rocketcrate
+!target/armv7-unknown-linux-musleabihf/release/rocketcrate
+!target/armv7-unknown-linux-musleabihf/debug/rocketcrate
+!target/arm-unknown-linux-musleabi/release/rocketcrate
+!target/arm-unknown-linux-musleabi/debug/rocketcrate
+
+.dockerignore
+Dockerfile**
+Cargo.lock
+qemu_**

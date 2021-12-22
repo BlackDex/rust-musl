@@ -1,16 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# This file was generated using a Jinja2 template.
-# Please make your changes in `Dockerfile.j2` and then `make render` to generate the base files.
-## Note
-# For the musl based image we do some checks to see if we are building for aarch64
-# This is needed because aarch64 has no (propper) support for 'outline atomics'.
-# Because of this we need to add an extra flag during the build of this image.
-# See:
-#  - https://github.com/rust-lang/rust/issues/89626
-#  - https://github.com/rust-lang/rust/pull/91361/files#diff-9f3bfd2fdc228dcb1b352082a7ebc39b19c8bea15b73141f72d9f5021aa3c66c
-##
-
 # Which Toolchain Tag to use
 ARG IMAGE_TAG=x86_64-musl
 
@@ -18,35 +7,63 @@ ARG IMAGE_TAG=x86_64-musl
 # This doesn't need to be build everytime since not much will change
 FROM blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
 
-# Use the gnu-base image which is build with the same libraries and version using x86_64-linux-gnu-gcc.
-# This ensures that when Rust needs to use the gnu based libraries to temporary link with they are same.
-# For example, Diesel needs this for MySQL and PostgreSQL
-FROM blackdex/rust-musl:gnu-base
+# Start building the musl-base
+FROM ubuntu:20.04
 
-# Define the target and openssl architecture to use during build
-ARG TARGET=x86_64-unknown-linux-musl
-ARG OPENSSL_ARCH=linux-x86_64
-
-LABEL maintainer="Mathijs van Veluw <rust@mathijsvanveluw.nl>"
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     TERM=xterm-256color \
-    TARGET="${TARGET}" \
-    TARGET_PREFIX=/usr/local/musl \
-    TARGET_PKG_CONFIG_PATH=/usr/local/musl/lib/pkgconfig \
-    TARGET_LD="${TARGET}-ld" \
-    TARGET_CC="${TARGET}-gcc" \
-    TARGET_CXX="${TARGET}-g++" \
-    RUST_MUSL_CROSS_TARGET="${TARGET}" \
     PATH="/usr/local/musl/bin:/root/.cargo/bin:${PATH}" \
     TZ=UTC
 
-RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
-COPY --from=musl-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y \
+        autoconf \
+        automake \
+        build-essential \
+        cmake \
+        libtool \
+        pkg-config \
+        curl \
+        file \
+        git \
+        tzdata \
+        ca-certificates \
+        --no-install-recommends \
+        && \
+    # Cleanup apt
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    # Default cleanups
+    find /var/log -type f -delete
+
+# Define the target and openssl architecture to use during build
+ARG TARGET=x86_64-unknown-linux-musl
+ARG OPENSSL_ARCH=linux-x86_64
+ARG ARCH_CPPFLAGS=
+
+ENV TARGET="${TARGET}" \
+    TARGET_PREFIX=/usr/local/musl \
+    TARGET_PKG_CONFIG_PATH=/usr/local/musl/lib/pkgconfig \
+    TARGET_LD="${TARGET}-ld" \
+    TARGET_AR="${TARGET}-ar" \
+    TARGET_CC="${TARGET}-gcc" \
+    TARGET_CXX="${TARGET}-g++" \
+    RUST_MUSL_CROSS_TARGET="${TARGET}" \
+    # Library versions
+    SSL_VER="1.1.1m" \
+    CURL_VER="7.80.0" \
+    ZLIB_VER="1.2.11" \
+    PQ_VER="11.14" \
+    SQLITE_VER="3370000" \
+    MARIADB_VER="3.1.15"
 
 WORKDIR /tmp
+
+RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
+COPY --from=musl-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
 # hadolint ignore=DL3003
@@ -54,11 +71,12 @@ RUN echo "zlib" && \
     curl -sSL "https://zlib.net/zlib-${ZLIB_VER}.tar.gz" | tar xz && \
     cd "zlib-${ZLIB_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
     ./configure \
       --static \
       --prefix="${TARGET_PREFIX}" && \
@@ -73,11 +91,12 @@ RUN echo "OpenSSL" && \
     curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
     cd "openssl-${SSL_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIC -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
+    CC="${TARGET_CC} -fPIC -pie -static --static" \
     ./Configure \
       ${OPENSSL_ARCH} \
       no-shared \
@@ -100,11 +119,12 @@ RUN echo "libcurl" && \
     curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
     ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -130,11 +150,12 @@ RUN echo "PostgreSQL" && \
     curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_VER}/postgresql-${PQ_VER}.tar.gz" | tar xz && \
     cd "postgresql-${PQ_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -157,12 +178,15 @@ RUN echo "SQLite3" && \
     curl -sSL "https://www.sqlite.org/2021/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
     cd "sqlite-autoconf-${SQLITE_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
-    CFLAGS="-DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_SECURE_DELETE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CFLAGS="-DSQLITE_CORE -D_POSIX_THREAD_SAFE_FUNCTIONS -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_API_ARMOR -DSQLITE_DEFAULT_FOREIGN_KEYS=1 -DHAVE_USLEEP=1 -DSQLITE_ENABLE_MEMORY_MANAGEMENT" \
+    CFLAGS+=" -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_JSON1 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_RTREE" \
+    CFLAGS+=" -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
     ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -192,11 +216,12 @@ RUN echo "MariaDB Connector/C" && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
-    CPPFLAGS="-I${TARGET_PREFIX}/include" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static $( if [[ "${TARGET}" =~ "aarch64" ]]; then echo -n '-mno-outline-atomics' ; fi )" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
@@ -252,14 +277,15 @@ RUN chmod 755 /root/ && \
     # Link the strip command to musl-strip which is more widely used as the default strip command
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
 
-ENV SYSROOT="/usr/local/musl/${TARGET}" \
+ENV HOST="x86_64-unknown-linux-gnu" \
+    SYSROOT="/usr/local/musl/${TARGET}" \
     PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_ALL_STATIC=1 \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     TARGET_PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     # pq-sys (PosgreSQL) support
-    # Enable feature pkg-config for this to work!
     PQ_LIB_STATIC=1 \
+    PQ_LIB_DIR="${TARGET_PREFIX}/lib" \
     # openssl-sys support
     OPENSSL_STATIC=1 \
     OPENSSL_DIR="${TARGET_PREFIX}" \
@@ -278,7 +304,13 @@ ENV SYSROOT="/usr/local/musl/${TARGET}" \
     # Rust libsqlite3-sys support
     SQLITE3_STATIC=1 \
     SQLITE3_LIB_DIR="${TARGET_PREFIX}/lib" \
-    SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include"
+    SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include" \
+    # If the ARCH_CPPFLAGS are set, we probably also need to pass them on to Rust.
+    # For example aarch64 needs `-mno-outline-atomic` set during builds.
+    # Here we pass-on the ARCH_CPPFLAGS so that Rust is able to use the same
+    TARGET_CFLAGS="${ARCH_CPPFLAGS}" \
+    # Tell some crates that we are cross compile
+    CROSS_COMPILE=1
 
 WORKDIR /home/rust/src
 

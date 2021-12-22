@@ -19,16 +19,13 @@ check-context:
 # Toolchain Makefile
 include mak/toolchain.mak
 
-# GNU Base Image Makefile
-include mak/gnu.mak
-
 # MUSL Images Makefile
 include mak/musl.mak
 
-build: build-gnu build-musl
-build-push: build-push-gnu build-push-musl
+build: build-musl
+build-push: build-push-musl
 .PHONY: build build-push
 
-build-all: build-toolchains build-gnu build-musl
-build-push-all: build-push-toolchains build-push-gnu build-push-musl
+build-all: build-toolchains build-musl
+build-push-all: build-push-toolchains build-push-musl
 .PHONY: build-all build-push-all

@@ -1,0 +1,29 @@
+FROM balenalib/armv7hf-alpine:3.15
+
+ENV SSL_CERT_DIR=/etc/ssl/certs
+
+# hadolint ignore=DL3059
+RUN [ "cross-build-start" ]
+
+# Create data folder and Install needed libraries
+RUN mkdir /data \
+    && apk add --no-cache \
+        openssl \
+        tzdata \
+        ca-certificates
+
+# hadolint ignore=DL3059
+RUN [ "cross-build-end" ]
+
+EXPOSE 8000
+
+ENV ROCKET_PROFILE "development"
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8000
+ENV ROCKET_WORKERS=5
+
+WORKDIR /
+COPY target/armv7-unknown-linux-musleabihf/release/rocketcrate .
+
+# Configures the startup!
+CMD ["/rocketcrate"]

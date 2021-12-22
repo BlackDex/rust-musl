@@ -24,7 +24,7 @@ build-musl-armv5te: OPENSSL_ARCH=linux-armv4
 build-musl-armv5te: TAG=armv5te-musleabi
 
 # Pull the latest musl-base to be used as cache if possible
-# Build the gnu-base image using the previous image as cache
+# Build the musl-base image using the previous image as cache
 # For the musl image we use multi-stage docker images.
 # So first we build the musl-base part, and after that we will build the the main image.
 build-musl-x86_64 build-musl-aarch64 build-musl-armv7 build-musl-arm build-musl-armhf build-musl-armv5te:

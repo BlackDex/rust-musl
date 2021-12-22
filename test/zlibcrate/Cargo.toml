@@ -1,7 +1,9 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "zlibcrate"
-version = "0.1.0"
+version = "0.2.0"
+edition = "2018"
+resolver = "2"
 
 [dependencies]
 flate2 = "*"

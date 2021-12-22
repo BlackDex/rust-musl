@@ -1,5 +1,5 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselsqlitecrate"
 version = "0.1.0"
 edition = "2018"
@@ -12,4 +12,4 @@ bundled_sqlite = ["libsqlite3-sys"]
 libsqlite3-sys = { version = "0.22.2", features = ["bundled"], optional = true }
 
 diesel = { version = "1.4.*", features = ["sqlite", "chrono", "r2d2"] }
-diesel_migrations = "1.4.*"
+diesel_migrations = { version = "1.4.*", features = ["sqlite"] }

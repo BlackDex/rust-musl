@@ -1,0 +1,16 @@
+[package]
+authors = ["BlackDex <black.dex@gmail.com>"]
+name = "mimalloccrate"
+version = "0.2.0"
+edition = "2021"
+resolver = "2"
+
+[dependencies]
+rocket = "0.5.0-rc.1"
+
+mimalloc = { version = "*", features = ["v1_dev", "secure", "debug"], default-features = false }
+# mimalloc = { version = "*", features = ["v2_dev", "secure", "debug"], default-features = false }
+
+[patch.crates-io]
+# Use mimalloc with v1 dev and v2 support
+mimalloc = { git = 'https://github.com/BlackDex/mimalloc_rust', rev = '3b8391e5d557530ce7c391cf2ef8523d6f9a8680' }

@@ -1,5 +1,9 @@
 #[macro_use] extern crate rocket;
 
+use mimalloc::MiMalloc;
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[get("/")]
 fn index() -> &'static str {
     "Hello, world!"

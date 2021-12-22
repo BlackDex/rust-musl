@@ -1,7 +1,9 @@
 [package]
-authors = ["clux <sszynrae@gmail.com>"]
+authors = ["BlackDex <black.dex@gmail.com>"]
 name = "plaincrate"
 version = "0.1.0"
+edition = "2018"
+resolver = "2"
 
 [dependencies]
 rand = "*"
