@@ -2,6 +2,7 @@ RUST_CHANNEL := "stable"
 ARCH=x86_64-musl
 VERBOSE=
 RELEASE=
+FEATURES=
 
 test-plain:
 	./test.sh plain

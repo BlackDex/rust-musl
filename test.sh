@@ -166,6 +166,10 @@ else
   RELTYPE="debug"
 fi
 
+if [[ -n "${FEATURES}" ]]; then
+  CARGO_ARG+=" --features ${FEATURES}"
+fi
+
 if [[ -z "${RUST_CHANNEL}" ]]; then
   RUST_CHANNEL="stable"
 fi
