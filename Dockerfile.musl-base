@@ -54,10 +54,10 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1m" \
-    CURL_VER="7.80.0" \
+    CURL_VER="7.81.0" \
     ZLIB_VER="1.2.11" \
     PQ_VER="11.14" \
-    SQLITE_VER="3370000" \
+    SQLITE_VER="3370200" \
     MARIADB_VER="3.1.15"
 
 WORKDIR /tmp
@@ -175,7 +175,7 @@ RUN echo "PostgreSQL" && \
 # Build libsqlite3
 # hadolint ignore=DL3003
 RUN echo "SQLite3" && \
-    curl -sSL "https://www.sqlite.org/2021/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
+    curl -sSL "https://www.sqlite.org/2022/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
     cd "sqlite-autoconf-${SQLITE_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
@@ -309,7 +309,7 @@ ENV HOST="x86_64-unknown-linux-gnu" \
     # For example aarch64 needs `-mno-outline-atomic` set during builds.
     # Here we pass-on the ARCH_CPPFLAGS so that Rust is able to use the same
     TARGET_CFLAGS="${ARCH_CPPFLAGS}" \
-    # Tell some crates that we are cross compile
+    # Tell some crates that we are cross compiling
     CROSS_COMPILE=1
 
 WORKDIR /home/rust/src

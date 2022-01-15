@@ -75,9 +75,10 @@ jobs:
         uses: actions/cache@v2
         if: ${{ !env.ACT }}
         with:
-          path: |
-            ~/rustc-stable.hash
-          key: build-vars-rustc-stable
+          path: ~/rustc-stable.hash
+          key: build-vars-rustc-stable-${{ steps.rust_stable.outputs.rustc_hash }}
+          restore-keys: |
+            build-vars-rustc-stable-
 
       # Check if this is a scheduled job, if so, set to nightly
       - name: Get build variables
@@ -110,6 +111,7 @@ jobs:
             echo "set-output name=stable_trigger::true"
             echo "::set-output name=stable_trigger::true"
           elif [[ "${RUSTC_STABLE_HASH_CACHED}" != ${{ steps.rust_stable.outputs.rustc_hash }} ]]; then
+            echo "Cached: '${RUSTC_STABLE_HASH_CACHED}' - Current: '${{ steps.rust_stable.outputs.rustc_hash }}'"
             echo "set-output name=stable_trigger::true"
             echo "::set-output name=stable_trigger::true"
           else

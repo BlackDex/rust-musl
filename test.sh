@@ -91,6 +91,7 @@ docker_build_arm() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a -Clink-arg=-s' \
     -it "blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
     bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabi ${cargo_arg}"
 
@@ -139,6 +140,7 @@ docker_build_armv5te() {
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a -Clink-arg=-s' \
     -it "blackdex/rust-musl:armv5te-musleabi-${RUST_CHANNEL}" \
     bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}"
 

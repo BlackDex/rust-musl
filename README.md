@@ -6,9 +6,9 @@ It has several pre-build C/C++ libraries to either speedup the compile time of t
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.11`)
 * OpenSSL (`v1.1.1m`)
-* cURL (`v7.80.0`)
+* cURL (`v7.81.0`)
 * PostgreSQL lib (`v11.14`)
-* SQLite (`v3.37.0`)
+* SQLite (`v3.37.2`)
 * MariaDB Connector/C (`v3.1.15`) (MySQL Compatible)
 
 ## Available architectures
