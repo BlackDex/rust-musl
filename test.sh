@@ -8,6 +8,9 @@
 #
 # Adding a custom CFLAG for a specific architecture
 # -e CFLAGS_aarch64_unknown_linux_musl="-mno-outline-atomics" \
+#
+# Use PostgreSQL v14
+# -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
 # ########################################
 
 docker_build() {

@@ -56,7 +56,8 @@ ENV TARGET="${TARGET}" \
     SSL_VER="1.1.1m" \
     CURL_VER="7.81.0" \
     ZLIB_VER="1.2.11" \
-    PQ_VER="11.14" \
+    PQ_11_VER="11.14" \
+    PQ_14_VER="14.1" \
     SQLITE_VER="3370200" \
     MARIADB_VER="3.1.15"
 
@@ -144,11 +145,11 @@ RUN echo "libcurl" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Build libpq
+# Build libpq v11
 # hadolint ignore=DL3003
-RUN echo "PostgreSQL" && \
-    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_VER}/postgresql-${PQ_VER}.tar.gz" | tar xz && \
-    cd "postgresql-${PQ_VER}" && \
+RUN echo "PostgreSQL v11" && \
+    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_11_VER}/postgresql-${PQ_11_VER}.tar.gz" | tar xz && \
+    cd "postgresql-${PQ_11_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
@@ -168,9 +169,56 @@ RUN echo "PostgreSQL" && \
     cd src/interfaces/libpq && \
       make -j"$(nproc)" all-static-lib && \
       make -j"$(nproc)" install-lib-pc install-lib-static && \
-    cd /tmp && rm -rf "postgresql-${PQ_VER}" && \
+    cd /tmp && rm -rf "postgresql-${PQ_11_VER}" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Build libpq v14
+# hadolint ignore=DL3003
+RUN echo "PostgreSQL v14" && \
+    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_14_VER}/postgresql-${PQ_14_VER}.tar.gz" | tar xz && \
+    cd "postgresql-${PQ_14_VER}" && \
+    PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
+    CC="${TARGET_CC} -fPIE -pie -static --static" \
+   ./configure \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
+      --without-readline \
+      --with-openssl \
+      --disable-rpath \
+      --with-system-tzdata=/usr/share/zoneinfo \
+      --prefix="${TARGET_PREFIX}/pq14" && \
+    # build common, port and libpq only
+    cd src/common && \
+      make -j"$(nproc)" all && \
+      make -j"$(nproc)" install && \
+    cd ../../src/port && \
+      make -j"$(nproc)" all && \
+      make -j"$(nproc)" install && \
+    cd ../../src/interfaces/libpq && \
+      make -j"$(nproc)" all-static-lib && \
+      make -j"$(nproc)" install-lib-pc install-lib-static && \
+    # Merge these libraries so pq-sys will work without using pkg-config
+    cd "${TARGET_PREFIX}/pq14/lib" && \
+      mkdir -v merge && cd merge && \
+      # Extract the generated .a files
+      "${TARGET_AR}" x ../libpq.a && \
+      "${TARGET_AR}" x ../libpgcommon.a && \
+      "${TARGET_AR}" x ../libpgport.a && \
+      # Merge all these files again into one libpq.a file
+      "${TARGET_AR}" csr libpq.a *.o && \
+      # Move and cleanup
+      mv -vf libpq.a ../libpq.a && \
+      cd ../ && rm -rf merge pkgconfig libpgcommon* libpgport* && \
+    # Remove the source
+    cd /tmp && rm -rf "postgresql-${PQ_14_VER}" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/pq14/share/man"
 
 # Build libsqlite3
 # hadolint ignore=DL3003

@@ -289,6 +289,21 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 
+      - name: Test Docker Image (PQ14) - Rust Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
+        continue-on-error: true
+        run: |
+          # Clean leftover files from previous run if they exists
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          # Run the test
+          docker run --rm \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
+
       - name: Docker Push - Rust Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
@@ -347,6 +362,19 @@ jobs:
           docker run --rm \
             -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
             -e RUST_BACKTRACE=1 \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
+
+      - name: Test Docker Image (PQ14) - Rust Nightly
+        continue-on-error: true
+        run: |
+          # Clean leftover files from previous run if they exists
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          # Run the test
+          docker run --rm \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build'
 

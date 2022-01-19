@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
 fn main() {
@@ -72,12 +71,24 @@ mod models {
 }
 use diesel::prelude::*;
 
+use libsqlite3_sys;
+
 fn test_sqlite() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { libsqlite3_sys::sqlite3_libversion_number() };
+    println!("sqlite3 lib version: {:?}", lib_version);
+
     let database_url = std::env::var("DATABASE_URL_SQLITE").unwrap_or("main.db".into());
     SqliteConnection::establish(&database_url).unwrap();
 }
 
+use pq_sys;
+
 fn test_postgres() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { pq_sys::PQlibVersion() };
+    println!("postgres lib version: {:?}", lib_version);
+
     let database_url = std::env::var("DATABASE_URL_PG")
       .unwrap_or("postgres://localhost?connect_timeout=1&sslmode=require".into());
     match PgConnection::establish(&database_url) {
@@ -91,7 +102,13 @@ fn test_postgres() {
     }
 }
 
+use mysqlclient_sys;
+
 fn test_mysql() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { mysqlclient_sys::mysql_get_client_version() };
+    println!("mysql/mariadb lib version: {:?}", lib_version);
+
     let database_url = std::env::var("DATABASE_URL_MYSQL")
       .unwrap_or("mysql://localhost?connect_timeout=1&sslmode=require".into());
     match MysqlConnection::establish(&database_url) {

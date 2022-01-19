@@ -11,6 +11,10 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * SQLite (`v3.37.2`)
 * MariaDB Connector/C (`v3.1.15`) (MySQL Compatible)
 
+Since 2022-01-19 there is also support for PostreSQL lib `v14`.<br>
+See below on how to use this version instead of the current default `v11`.
+* PostgreSQL lib (`v14.1`)
+
 ## Available architectures
 Both stable and nightly builds are available.
 The latest nightly's are always postfixed with `-nightly`, if you want to use a specific date check if the images exists then you can use the `-nightly-YYYY-MM-DD` tag.
@@ -39,6 +43,9 @@ FROM blackdex/rust-musl:aarch64-musl as build
 
 COPY . /home/rust/src
 
+# If you want to use PostgreSQL v14 add and uncomment the following ENV
+# ENV PQ_LIB_DIR="/usr/local/musl/pq14/lib"
+
 RUN docker build --release
 
 FROM scratch
@@ -50,6 +57,8 @@ CMD ["/my-application-name"]
 ```
 
 ### Using the CLI
+
+If you want to use PostgreSQL `v14` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq14/lib"` before the `-v "$(pwd)"` argument.
 
 ```bash
 # First pull the image:

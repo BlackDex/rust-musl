@@ -6,10 +6,13 @@ edition = "2018"
 resolver = "2"
 
 [features]
+default = []
 vendored_openssl = ["openssl/vendored"]
+pq_pkg-config = ["pq-sys/pkg-config"]
 
 [dependencies]
 openssl = "*"
+pq-sys = { version = "*", optional = true }
 
 diesel = { version = "1.4.*", features = ["postgres", "chrono", "r2d2"] }
 diesel_migrations = { version = "1.4.*", features = ["postgres"] }

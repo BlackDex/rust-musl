@@ -1,27 +1,29 @@
 #!/usr/bin/env python3
 # update_libs.py
+# pylint: disable=line-too-long,missing-function-docstring,missing-module-docstring
 #
-# Retrieve the versions of packages from Arch Linux's repositories and update
-# Dockerfile as needed.
+# Retrieve the versions of packages from Arch Linux's (inc. AUR) and Alpine's repositories.
+# Also try to extract versions from some download sites like basic mirrors.
 #
 # The code in documentation comments can also be used to test the functions by
 # running "python -m doctest update_libs.py -v".
 #   The "str" call is only needed to make the test pass on Python, you
 #   do not need to include it when using this function.
 
-#from __future__ import print_function
-
-import urllib.request as urllib
 import json
-import toml
 import re
+import urllib.error
+import urllib.request as request
+
+import toml
+from natsort import natsorted
 
 
 def convert_openssl_version(version):
     """Convert OpenSSL package versions to match upstream's format
 
-    >>> convert_openssl_version('1.1.1.k')
-    '1.1.1k'
+    >>> convert_openssl_version('1.1.1.m')
+    '1.1.1m'
     """
 
     return re.sub(r'(.+)\.([a-z])', r'\1\2', version)
@@ -30,12 +32,12 @@ def convert_openssl_version(version):
 def convert_sqlite_version(version):
     """Convert SQLite package versions to match upstream's format
 
-    >>> convert_sqlite_version('3.36.1')
-    '3360100'
+    >>> convert_sqlite_version('3.37.2')
+    '3370200'
     """
 
     matches = re.match(r'(\d+)\.(\d+)\.(\d+)', version)
-    return '{:d}{:02d}{:02d}00'.format(int(matches.group(1)), int(matches.group(2)), int(matches.group(3)))
+    return f'{int(matches.group(1)):d}{int(matches.group(2)):02d}{int(matches.group(3)):02d}00'
 
 
 def pkgver(package):
@@ -47,33 +49,33 @@ def pkgver(package):
     """
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-    url = 'https://www.archlinux.org/packages/search/json/?name={}'.format(package)
-    req = urllib.urlopen(url)
+    url = f'https://www.archlinux.org/packages/search/json/?name={package}'
+    req = request.urlopen(url)
     metadata = json.loads(req.read())
     req.close()
     try:
         return metadata['results'][0]['pkgver']
     except IndexError:
-        raise NameError('Package not found: {}'.format(package))
+        return 'Package not found'
 
 
 def aurver(package):
     """Retrieve the current version of the package in AUR Arch Linux repos
     API documentation: https://wiki.archlinux.org/title/Aurweb_RPC_interface
 
-    >>> str(aurver('postgresql-11'))
-    '11.12'
+    >>> str(aurver('mariadb-connector-c'))
+    '3.2.4'
     """
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-    url = 'https://aur.archlinux.org/rpc/?v=5&type=info&arg[]={}'.format(package)
-    req = urllib.urlopen(url)
+    url = f'https://aur.archlinux.org/rpc/?v=5&type=info&arg[]={package}'
+    req = request.urlopen(url)
     metadata = json.loads(req.read())
     req.close()
     try:
         return metadata['results'][0]['Version'].rsplit('-', 1)[0]
     except IndexError:
-        raise NameError('Package not found: {}'.format(package))
+        return 'Package not found'
 
 
 def alpinever(package):
@@ -83,16 +85,38 @@ def alpinever(package):
     '3.1.13'
     """
 
-    # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-    url = 'https://git.alpinelinux.org/aports/plain/main/{}/APKBUILD'.format(package)
-    req = urllib.urlopen(url)
-    apkbuild = req.read(1024).decode('utf-8')
-    req.close()
     try:
+        # Though the URL contains "/search/", this only returns exact matches (see API documentation)
+        url = f'https://git.alpinelinux.org/aports/plain/main/{package}/APKBUILD'
+        req = request.urlopen(url)
+        apkbuild = req.read(1024).decode('utf-8')
+        req.close()
+
         matches = re.search(r'pkgver=(.*)\n', apkbuild, re.MULTILINE)
-        return '{}'.format(matches.group(1))
-    except:
-        raise NameError('Package not found: {}'.format(package))
+        return f'{matches.group(1)}'
+    except urllib.error.HTTPError:
+        return 'Package not found'
+
+
+def mirrorver(site, href_prefix, strip_prefix=None):
+    # pylint: disable=anomalous-backslash-in-string
+    """Retrieve the current version of the package in Alpine repos
+
+    # >>> str(mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'))
+    # '3.1.15'
+    """
+
+    try:
+        url = f'{site}'
+        req = request.urlopen(url)
+        site_html = req.read(10240).decode('utf-8')
+        req.close()
+
+        matches = re.findall(fr'href=\"({href_prefix}.*?)[\/]\"', site_html, re.MULTILINE)
+        latest_version = natsorted(matches).pop().strip(strip_prefix)
+        return f'{latest_version}'
+    except urllib.error.HTTPError:
+        return 'Package not found'
 
 
 def rustup_version():
@@ -102,7 +126,7 @@ def rustup_version():
     :return: The current Rustup version
     """
 
-    req = urllib.urlopen('https://static.rust-lang.org/rustup/release-stable.toml')
+    req = request.urlopen('https://static.rust-lang.org/rustup/release-stable.toml')
     metadata = toml.loads(req.read().decode("utf-8"))
     req.close()
 
@@ -114,34 +138,25 @@ if __name__ == '__main__':
         'SSL': convert_openssl_version(pkgver('openssl')),
         'CURL': pkgver('curl'),
         'ZLIB': pkgver('zlib'),
-        'PQ': aurver('postgresql-11'),
+        'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
+        'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
         'SQLITE': convert_sqlite_version(pkgver('sqlite')),
-        'MARIADB': alpinever('mariadb-connector-c'),
-        '---': '---',
-        'PQ_12': aurver('postgresql-12'),
-        'PQ_LATEST': pkgver('postgresql'),
-        'RUSTUP': rustup_version()
+        'MARIADB': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
+        '---': '---', # Also print some other version or from other resources just to compare.
+        'RUSTUP': rustup_version(),
+        'PQ_ARCH': pkgver('postgresql'),
+        'PQ_ALPINE': alpinever('postgresql14'),
+        'PQ_12': mirrorver('https://ftp.postgresql.org/pub/source/', r'v12\.', 'v'),
+        'PQ_13': mirrorver('https://ftp.postgresql.org/pub/source/', r'v13\.', 'v'),
+        'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
+        'MARIADB_AUR': aurver('mariadb-connector-c'),
+        'MARIADB_3_2': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'),
     }
 
     # Show a list of packages with current versions
+    # pylint: disable=consider-using-dict-items
     for prefix in PACKAGES:
         if prefix == '---':
-            print('{}'.format(prefix))
+            print(f'{prefix}')
         else:
-            print('{}_VER="{}"'.format(prefix, PACKAGES[prefix]))
-
-    # # Open a different file for the destination to update Dockerfile atomically
-    # src = open('Dockerfile', 'r')
-    # dst = open('Dockerfile.new', 'w')
-
-    # # Iterate over each line in Dockerfile, replacing any *_VER variables with the most recent version
-    # for line in src:
-    #     for prefix in PACKAGES:
-    #         version = PACKAGES[prefix]
-    #         line = re.sub(r'({}_VER=)\S+'.format(prefix), r'\1"{}"'.format(version), line)
-    #     dst.write(line)
-
-    # # Close original and new Dockerfile then overwrite the old with the new
-    # src.close()
-    # dst.close()
-    # os.rename('Dockerfile.new', 'Dockerfile')
+            print(f'{prefix}_VER="{PACKAGES[prefix]}"')
