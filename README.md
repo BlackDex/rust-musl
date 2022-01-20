@@ -46,7 +46,7 @@ COPY . /home/rust/src
 # If you want to use PostgreSQL v14 add and uncomment the following ENV
 # ENV PQ_LIB_DIR="/usr/local/musl/pq14/lib"
 
-RUN docker build --release
+RUN cargo build --release
 
 FROM scratch
 
