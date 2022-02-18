@@ -56,10 +56,10 @@ ENV TARGET="${TARGET}" \
     SSL_VER="1.1.1m" \
     CURL_VER="7.81.0" \
     ZLIB_VER="1.2.11" \
-    PQ_11_VER="11.14" \
-    PQ_14_VER="14.1" \
+    PQ_11_VER="11.15" \
+    PQ_14_VER="14.2" \
     SQLITE_VER="3370200" \
-    MARIADB_VER="3.1.15"
+    MARIADB_VER="3.1.16"
 
 WORKDIR /tmp
 
