@@ -1,4 +1,8 @@
-#[macro_use] extern crate rocket;
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
+
+#[macro_use]
+extern crate rocket;
 
 use mimalloc::MiMalloc;
 #[global_allocator]

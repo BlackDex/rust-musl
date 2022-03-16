@@ -1,4 +1,5 @@
 #![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
 
 fn main() {
     println!("\n## Start testing Diesel SQLite");
@@ -36,53 +37,48 @@ fn main() {
 extern crate diesel;
 // Also include diesel_migrations because it can causes some issues during compiling with C Libs.
 #[macro_use]
-#[allow(dead_code)]
 #[allow(unused_imports)]
 extern crate diesel_migrations;
 
 mod schema {
-  table! {
-      posts (id) {
-          id -> Int4,
-          title -> Varchar,
-          body -> Text,
-          published -> Bool,
-      }
-  }
+    table! {
+        posts (id) {
+            id -> Int4,
+            title -> Varchar,
+            body -> Text,
+            published -> Bool,
+        }
+    }
 }
 
 mod models {
-  use crate::schema::posts;
-  #[derive(Queryable)]
-  pub struct Post {
-      pub id: i32,
-      pub title: String,
-      pub body: String,
-      pub published: bool,
-  }
+    use crate::schema::posts;
+    #[derive(Queryable)]
+    pub struct Post {
+        pub id: i32,
+        pub title: String,
+        pub body: String,
+        pub published: bool,
+    }
 
-  // apparently this can be done without heap storage, but lifetimes spread far..
-  #[derive(Insertable)]
-  #[table_name="posts"]
-  pub struct NewPost {
-      pub title: String,
-      pub body: String,
-  }
+    // apparently this can be done without heap storage, but lifetimes spread far..
+    #[derive(Insertable)]
+    #[table_name = "posts"]
+    pub struct NewPost {
+        pub title: String,
+        pub body: String,
+    }
 }
 use diesel::prelude::*;
-
-use libsqlite3_sys;
 
 fn test_sqlite() {
     // Unsafe function to extract the library version
     let lib_version = unsafe { libsqlite3_sys::sqlite3_libversion_number() };
     println!("sqlite3 lib version: {:?}", lib_version);
 
-    let database_url = std::env::var("DATABASE_URL_SQLITE").unwrap_or("main.db".into());
+    let database_url = std::env::var("DATABASE_URL_SQLITE").unwrap_or_else(|_| "main.db".into());
     SqliteConnection::establish(&database_url).unwrap();
 }
-
-use pq_sys;
 
 fn test_postgres() {
     // Unsafe function to extract the library version
@@ -90,19 +86,17 @@ fn test_postgres() {
     println!("postgres lib version: {:?}", lib_version);
 
     let database_url = std::env::var("DATABASE_URL_PG")
-      .unwrap_or("postgres://localhost?connect_timeout=1&sslmode=require".into());
+        .unwrap_or_else(|_| "postgres://localhost?connect_timeout=1&sslmode=require".into());
     match PgConnection::establish(&database_url) {
-      Err(e) => {
-        println!("Should fail to connect here:");
-        println!("{}", e);
-      }
-      Ok(_) => {
-        unreachable!();
-      }
+        Err(e) => {
+            println!("Should fail to connect here:");
+            println!("{}", e);
+        }
+        Ok(_) => {
+            unreachable!();
+        }
     }
 }
-
-use mysqlclient_sys;
 
 fn test_mysql() {
     // Unsafe function to extract the library version
@@ -110,35 +104,34 @@ fn test_mysql() {
     println!("mysql/mariadb lib version: {:?}", lib_version);
 
     let database_url = std::env::var("DATABASE_URL_MYSQL")
-      .unwrap_or("mysql://localhost?connect_timeout=1&sslmode=require".into());
+        .unwrap_or_else(|_| "mysql://localhost?connect_timeout=1&sslmode=require".into());
     match MysqlConnection::establish(&database_url) {
-      Err(e) => {
-        println!("Should fail to connect here:");
-        println!("{}", e);
-      }
-      Ok(_) => {
-        unreachable!();
-      }
+        Err(e) => {
+            println!("Should fail to connect here:");
+            println!("{}", e);
+        }
+        Ok(_) => {
+            unreachable!();
+        }
     }
 }
 
 // == Curl Testing
 
-use std::process;
-use std::io::{stdout, Write};
 use curl::easy::Easy;
+use std::io::{stdout, Write};
+use std::process;
 fn test_curl() {
     let url = "https://raw.githubusercontent.com/BlackDex/rust-musl/main/.gitignore";
 
     let mut easy = Easy::new();
     easy.fail_on_error(true).unwrap();
     easy.url(url).unwrap();
-    easy.write_function(|data| {
-        Ok(stdout().write(data).unwrap())
-    }).unwrap();
+    easy.write_function(|data| Ok(stdout().write(data).unwrap()))
+        .unwrap();
     easy.perform().unwrap_or_else(|e| {
-      println!("Failed: {}", e);
-      process::exit(1);
+        println!("Failed: {}", e);
+        process::exit(1);
     });
 }
 
@@ -186,7 +179,7 @@ fn test_json() {
         },
         "Boolean": true,
         "Int": 10,
-        "Float": 3.14,
+        "Float": 42.42,
         "String": "Hello World"
     });
     println!("json_macro = {:#?}", json_macro);
@@ -195,11 +188,14 @@ fn test_json() {
 // == OpenSSL Testing
 
 fn test_openssl() {
+    use openssl::{
+        hash::{hash, MessageDigest},
+        version::{platform, version},
+    };
     use std::str;
-    use openssl::{hash::{hash, MessageDigest}, version::{version, platform}};
 
     let data: &[u8] = b"Hello, OpenSSL world";
-    let digest = hash(MessageDigest::sha256(), &data);
+    let digest = hash(MessageDigest::sha256(), data);
 
     println!("version: {}", version());
     println!("{}", platform());

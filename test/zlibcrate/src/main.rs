@@ -1,10 +1,10 @@
-extern crate tar;
-extern crate flate2;
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
 
-use std::io::{self, Read};
-use std::fs::{self, File};
-use std::path::{Path, PathBuf};
 use std::env;
+use std::fs::{self, File};
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
 use std::process;
 
 fn decompress(tarpath: PathBuf, extract_path: PathBuf) -> io::Result<()> {

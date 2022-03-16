@@ -53,13 +53,13 @@ ENV TARGET="${TARGET}" \
     TARGET_CXX="${TARGET}-g++" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1m" \
-    CURL_VER="7.81.0" \
+    SSL_VER="1.1.1n" \
+    CURL_VER="7.82.0" \
     ZLIB_VER="1.2.11" \
     PQ_11_VER="11.15" \
     PQ_14_VER="14.2" \
-    SQLITE_VER="3380000" \
-    MARIADB_VER="3.1.16"
+    SQLITE_VER="3380100" \
+    MARIADB_VER="3.2.6"
 
 WORKDIR /tmp
 

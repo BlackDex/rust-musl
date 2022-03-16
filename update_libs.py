@@ -98,7 +98,7 @@ def alpinever(package):
         return 'Package not found'
 
 
-def mirrorver(site, href_prefix, strip_prefix=None):
+def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
     # pylint: disable=anomalous-backslash-in-string
     """Retrieve the current version of the package in Alpine repos
 
@@ -112,8 +112,8 @@ def mirrorver(site, href_prefix, strip_prefix=None):
         site_html = req.read(10240).decode('utf-8')
         req.close()
 
-        matches = re.findall(fr'href=\"({href_prefix}.*?)[\/]\"', site_html, re.MULTILINE)
-        latest_version = natsorted(matches).pop().strip(strip_prefix)
+        matches = re.findall(fr'href=\"({href_prefix}.*?){re_postfix}', site_html, re.MULTILINE)
+        latest_version = natsorted(matches).pop().replace(strip_prefix, '')
         return f'{latest_version}'
     except urllib.error.HTTPError:
         return 'Package not found'
@@ -135,14 +135,16 @@ def rustup_version():
 
 if __name__ == '__main__':
     PACKAGES = {
-        'SSL': convert_openssl_version(pkgver('openssl')),
+        'SSL': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d\w+', 'openssl-', r''),
         'CURL': pkgver('curl'),
         'ZLIB': pkgver('zlib'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
         'SQLITE': convert_sqlite_version(pkgver('sqlite')),
-        'MARIADB': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
+        'MARIADB': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'),
         '---': '---', # Also print some other version or from other resources just to compare.
+        'SSL3': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
+        'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),
@@ -150,7 +152,7 @@ if __name__ == '__main__':
         'PQ_13': mirrorver('https://ftp.postgresql.org/pub/source/', r'v13\.', 'v'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
         'MARIADB_AUR': aurver('mariadb-connector-c'),
-        'MARIADB_3_2': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'),
+        'MARIADB_3_1': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
     }
 
     # Show a list of packages with current versions

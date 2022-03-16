@@ -1,8 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "plaincrate"
-version = "0.1.0"
-edition = "2018"
+version = "0.3.0"
+edition = "2021"
 resolver = "2"
 
 [dependencies]

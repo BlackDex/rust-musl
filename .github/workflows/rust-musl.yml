@@ -23,10 +23,10 @@ on:
 ## ##
 ## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
 ## Full run no/different rustc_hash: (This triggers a fresh stable, since the rustc_hash is not available)
-##   act push -j musl-base
+##   act push -e <(echo '{"inputs":{"nightly_date":"","fresh_stable":""}}') -j musl-base
 ##
 ## Full run with same rustc_hash: (Get the current rustc_hash either from the output of the rust_stable step, or running rustc -vV your self)
-##   act push --env RUSTC_STABLE_HASH_ACT=f1edd0429 -j musl-base
+##   act push -e <(echo '{"inputs":{"nightly_date":"","fresh_stable":""}}') --env RUSTC_STABLE_HASH_ACT=f1edd0429 -j musl-base
 ##
 ## Nightly dispatch:
 ##   act workflow_dispatch -e <(echo '{"action":"workflow_dispatch", "inputs":{"nightly_date":"","fresh_stable":""}}') -j musl-base
@@ -54,13 +54,13 @@ jobs:
       stable_trigger: ${{ steps.build_vars.outputs.stable_trigger }}
       stable_version: ${{ steps.build_vars.outputs.stable_version }}
       # We also append the value of workflow input fresh_stable here.
-      # This will ensure we do trigger a fresh rustup
+      # This will ensure we do trigger a fresh rustup.
       stable_rustc_hash: "${{ steps.rust_stable.outputs.rustc_hash }}${{ github.event.inputs.fresh_stable }}"
       act: ${{ steps.build_vars.outputs.act }}
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Get Rust stable info
         id: rust_stable
@@ -176,6 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
+      # max-parallel: 1 # Use this when using `act` and buildx, else there are some strange buildx issues.
       fail-fast: false
       matrix:
         env:
@@ -210,7 +211,7 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
@@ -228,7 +229,7 @@ jobs:
       # Do not login when using `act`
       - name: Login to DockerHub
         if: ${{ !env.ACT }}
-        uses: docker/login-action@v1
+        uses: docker/login-action@v1.14.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

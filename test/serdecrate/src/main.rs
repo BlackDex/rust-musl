@@ -1,6 +1,8 @@
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
+
 #[macro_use]
 extern crate serde;
-extern crate serde_json;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Point {

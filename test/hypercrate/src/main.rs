@@ -1,40 +1,28 @@
-extern crate futures;
-extern crate hyper;
-extern crate tokio_core;
-extern crate hyper_openssl;
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
 
-use std::env;
-use std::io::{self, Write};
-
-use futures::Future;
-use futures::stream::Stream;
-
-use hyper::Client;
 use hyper_openssl::HttpsConnector;
 
-fn main() {
-    // set SSL_CERT location - see issue #5
-    // normally you'd want to set this in your docker container
-    // but for plain bin distribution and this test, we set it here
-    env::set_var("SSL_CERT_FILE", "/etc/ssl/certs/ca-certificates.crt");
+#[tokio::main]
+async fn main() {
+    let url: hyper::Uri =
+        "https://raw.githubusercontent.com/BlackDex/rust-musl/main/test/hypercrate/Cargo.toml"
+            .parse()
+            .unwrap();
 
-    let url = "https://raw.githubusercontent.com/clux/muslrust/master/README.md";
-    let url = url.parse::<hyper::Uri>().unwrap();
+    let tls_connector = HttpsConnector::new().unwrap();
+    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(tls_connector);
 
-    let mut core = tokio_core::reactor::Core::new().unwrap();
+    let resp = client.get(url).await.unwrap();
 
-    let client = Client::configure()
-        .connector(HttpsConnector::new(4, &core.handle()).unwrap())
-        .build(&core.handle());
+    println!("Response: {}\n", resp.status());
+    assert!(resp.status().is_success());
 
-    let work = client.get(url).and_then(|res| {
-        println!("Response: {}", res.status());
-        assert!(res.status().is_success());
-
-        res.body().for_each(|chunk| {
-            io::stdout().write_all(&chunk).map_err(From::from)
-        })
-    });
-
-    core.run(work).unwrap();
+    let body = resp.into_body();
+    let body = hyper::body::to_bytes(body).await.unwrap();
+    let body = String::from_utf8(body.to_vec()).unwrap();
+    let lines: Vec<&str> = body.split_terminator('\n').collect();
+    for line in lines.iter() {
+        println!("{}", line);
+    }
 }
