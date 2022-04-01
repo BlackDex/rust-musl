@@ -55,10 +55,10 @@ ENV TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1n" \
     CURL_VER="7.82.0" \
-    ZLIB_VER="1.2.11" \
+    ZLIB_VER="1.2.12" \
     PQ_11_VER="11.15" \
     PQ_14_VER="14.2" \
-    SQLITE_VER="3380100" \
+    SQLITE_VER="3380200" \
     MARIADB_VER="3.2.6"
 
 WORKDIR /tmp
@@ -100,8 +100,14 @@ RUN echo "OpenSSL" && \
     CC="${TARGET_CC} -fPIC -pie -static --static" \
     ./Configure \
       ${OPENSSL_ARCH} \
+      no-dso \
       no-shared \
       no-ssl3 \
+      no-unit-test \
+      no-comp \
+      no-zlib \
+      no-zlib-dynamic \
+      no-async \
       -fPIC -pie -static --static \
       --openssldir="${TARGET_PREFIX}/ssl" \
       --prefix="${TARGET_PREFIX}" && \

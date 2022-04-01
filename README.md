@@ -4,11 +4,11 @@ This project generates docker images to build static musl binaries using the Rus
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* ZLib (`v1.2.11`)
+* ZLib (`v1.2.12`)
 * OpenSSL (`v1.1.1n`)
 * cURL (`v7.82.0`)
 * PostgreSQL lib (`v11.15`)
-* SQLite (`v3.38.1`)
+* SQLite (`v3.38.2`)
 * MariaDB Connector/C (`v3.2.6`) (MySQL Compatible)
 
 Since 2022-01-19 there is also support for PostreSQL lib `v14`.<br>
