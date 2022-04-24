@@ -72,7 +72,7 @@ jobs:
             profile: minimal
 
       - name: Cache previous rustc stable hash
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         if: ${{ !env.ACT }}
         with:
           path: ~/rustc-stable.hash

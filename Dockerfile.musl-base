@@ -8,7 +8,7 @@ ARG IMAGE_TAG=x86_64-musl
 FROM blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
 
 # Start building the musl-base
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

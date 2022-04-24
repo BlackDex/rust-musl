@@ -3,6 +3,9 @@
 This project generates docker images to build static musl binaries using the Rust language.
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
+These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build both the toolchains and the libraries.<br>
+Depending if the MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.
+
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.12`)
 * OpenSSL (`v1.1.1n`)
