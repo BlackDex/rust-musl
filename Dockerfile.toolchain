@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:20.04@sha256:7cc0576c7c0ec2384de5cbf245f41567e922aab1b075f3e8ad565f508032df17
+FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -20,7 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
-        gcc-10 g++-10 cpp-10 \
+        gcc g++ cpp \
         cmake \
         libtool \
         pkg-config \
@@ -29,20 +29,15 @@ RUN apt-get update && \
         ca-certificates \
         --no-install-recommends \
         && \
-    # Configure GCC/G++ to use v10
-    update-alternatives \
-      --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
-      --slave /usr/bin/g++ g++ /usr/bin/g++-10 \
-      --slave /usr/bin/gcov gcov /usr/bin/gcov-10 && \
     # Cleanup apt
     apt-get autoremove -y --purge && \
     apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/* /var/lib/apt/lists/* && \
     # Default cleanups
     find /var/log -type f -delete
 
 ARG TARGET=x86_64-unknown-linux-musl
-ARG MUSL_CROSS_MAKE_HASH=0f22991b8d47837ef8dd60a0c43cf40fcf76217a
+ARG MUSL_CROSS_MAKE_HASH=fe915821b652a7fa37b34a596f47d8e20bc72338
 ARG MUSL_CROSS_MAKE_CONFIG=config.mak
 ARG ARCH_COMMON_CONFIG=""
 

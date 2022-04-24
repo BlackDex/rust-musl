@@ -45,7 +45,7 @@ jobs:
             ARCH_COMMON_CONFIG: "--with-arch=armv5te --with-float=soft --with-mode=arm"
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
@@ -63,7 +63,7 @@ jobs:
       # Do not login when using `act`
       - name: Login to DockerHub
         if: ${{ !env.ACT }}
-        uses: docker/login-action@v1
+        uses: docker/login-action@v1.14.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
