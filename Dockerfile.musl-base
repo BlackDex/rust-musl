@@ -35,7 +35,8 @@ RUN apt-get update && \
         --no-install-recommends \
         && \
     # Cleanup apt
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    apt-get clean -y && \
+    rm -rf /var/cache/* /var/lib/apt/lists/* && \
     # Default cleanups
     find /var/log -type f -delete
 
@@ -54,11 +55,11 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1n" \
-    CURL_VER="7.82.0" \
+    CURL_VER="7.83.0" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.15" \
     PQ_14_VER="14.2" \
-    SQLITE_VER="3380200" \
+    SQLITE_VER="3380300" \
     MARIADB_VER="3.2.6"
 
 WORKDIR /tmp
