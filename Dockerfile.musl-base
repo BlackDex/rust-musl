@@ -54,7 +54,7 @@ ENV TARGET="${TARGET}" \
     TARGET_CXX="${TARGET}-g++" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1n" \
+    SSL_VER="1.1.1o" \
     CURL_VER="7.83.0" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.15" \
