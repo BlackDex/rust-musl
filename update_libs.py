@@ -136,7 +136,7 @@ def rustup_version():
 if __name__ == '__main__':
     PACKAGES = {
         'SSL': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d\w+', 'openssl-', r''),
-        'CURL': pkgver('curl'),
+        'CURL': mirrorver('https://curl.se/download/', r'download\/curl-7\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': pkgver('zlib'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
@@ -145,6 +145,7 @@ if __name__ == '__main__':
         '---': '---', # Also print some other version or from other resources just to compare.
         'SSL3': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
         'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
+        'CURL_ARCH': pkgver('curl'),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),

@@ -55,11 +55,11 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1o" \
-    CURL_VER="7.83.0" \
+    CURL_VER="7.83.1" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.15" \
     PQ_14_VER="14.2" \
-    SQLITE_VER="3380300" \
+    SQLITE_VER="3380500" \
     MARIADB_VER="3.2.6"
 
 WORKDIR /tmp
