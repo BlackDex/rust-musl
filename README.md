@@ -8,15 +8,15 @@ Depending if the MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.12`)
-* OpenSSL (`v1.1.1n`)
-* cURL (`v7.83.0`)
-* PostgreSQL lib (`v11.15`)
-* SQLite (`v3.38.3`)
+* OpenSSL (`v1.1.1o`)
+* cURL (`v7.83.1`)
+* PostgreSQL lib (`v11.16`)
+* SQLite (`v3.38.5`)
 * MariaDB Connector/C (`v3.2.6`) (MySQL Compatible)
 
 Since 2022-01-19 there is also support for PostreSQL lib `v14`.<br>
 See below on how to use this version instead of the current default `v11`.
-* PostgreSQL lib (`v14.2`)
+* PostgreSQL lib (`v14.3`)
 
 ## Available architectures
 Both stable and nightly builds are available.
