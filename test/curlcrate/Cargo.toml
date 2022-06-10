@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "curlcrate"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 resolver = "2"
 
@@ -11,3 +11,13 @@ vendored_openssl = ["openssl/vendored"]
 [dependencies]
 openssl = { version = "*", optional = true }
 curl = "*"
+
+# Strip symbols from the release builds
+# https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
+# https://doc.rust-lang.org/stable/cargo/reference/profiles.html#strip
+# Also enable thin LTO for some optimizations
+# https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#lto
+# https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
+[profile.release]
+strip = "symbols"
+lto = "thin"

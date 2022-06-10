@@ -52,6 +52,7 @@ ENV TARGET="${TARGET}" \
     TARGET_AR="${TARGET}-ar" \
     TARGET_CC="${TARGET}-gcc" \
     TARGET_CXX="${TARGET}-g++" \
+    TARGET_RANLIB="${TARGET}-ranlib" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1o" \
@@ -60,7 +61,7 @@ ENV TARGET="${TARGET}" \
     PQ_11_VER="11.16" \
     PQ_14_VER="14.3" \
     SQLITE_VER="3380500" \
-    MARIADB_VER="3.2.6"
+    MARIADB_VER="3.2.7"
 
 WORKDIR /tmp
 
@@ -75,10 +76,11 @@ RUN echo "zlib" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
     ./configure \
       --static \
       --prefix="${TARGET_PREFIX}" && \
@@ -87,7 +89,7 @@ RUN echo "zlib" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Build openssl (used in curl, pq and mariadb)
+# Build OpenSSL (used in curl, pq and mariadb)
 # hadolint ignore=DL3003
 RUN echo "OpenSSL" && \
     curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
@@ -95,10 +97,11 @@ RUN echo "OpenSSL" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIC -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIC -pie -static --static" \
     ./Configure \
       ${OPENSSL_ARCH} \
       no-dso \
@@ -129,10 +132,11 @@ RUN echo "libcurl" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
     ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -160,10 +164,11 @@ RUN echo "PostgreSQL v11" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -188,10 +193,11 @@ RUN echo "PostgreSQL v14" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -235,10 +241,11 @@ RUN echo "SQLite3" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
     CFLAGS="-DSQLITE_CORE -D_POSIX_THREAD_SAFE_FUNCTIONS -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_API_ARMOR -DSQLITE_DEFAULT_FOREIGN_KEYS=1 -DHAVE_USLEEP=1 -DSQLITE_ENABLE_MEMORY_MANAGEMENT" \
     CFLAGS+=" -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_RTREE" \
     CFLAGS+=" -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
@@ -263,19 +270,25 @@ RUN echo "SQLite3" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Building mariadb
+# Building MariaDB
+# It seems that MariaDB has some issues when compiled with LTO enabled https://jira.mariadb.org/browse/MDEV-25633
+# Therefor i will not compile MariaDB with LTO, but -O2 should help a bit in getting some better performance.
+# Also, building v3.3.1 works fine, but there seems to be a linking issue when using mysqlclient-sys, there we will stay at v3.2.x
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
     curl -sSL "https://ftp.nluug.nl/db/mariadb/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
+    # Fix an issue with building the static ed25519 auth plugin in v3.2.7
+    sed -i 's@#include "crypto_sign.h"@#include "ref10/crypto_sign.h"@' plugins/auth/ed25519_common.h && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="-L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fPIE -pie -static --static" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
