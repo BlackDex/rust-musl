@@ -55,7 +55,7 @@ ENV TARGET="${TARGET}" \
     TARGET_RANLIB="${TARGET}-ranlib" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1o" \
+    SSL_VER="1.1.1p" \
     CURL_VER="7.83.1" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.16" \
