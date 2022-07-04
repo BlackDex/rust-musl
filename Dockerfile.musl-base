@@ -56,7 +56,7 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1p" \
-    CURL_VER="7.83.1" \
+    CURL_VER="7.84.0" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.16" \
     PQ_14_VER="14.4" \
@@ -129,6 +129,9 @@ RUN echo "OpenSSL" && \
 RUN echo "libcurl" && \
     curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
+    # Download patch for v7.84.0 which causes 32bit arch compile issues.
+    curl -sSL --retry 3 -o easy_lock.patch https://git.alpinelinux.org/aports/plain/main/curl/easy_lock.patch?id=6563fb7e3ebc3647789b9c02f22565bd115ac507 && \
+    git apply --verbose easy_lock.patch && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \

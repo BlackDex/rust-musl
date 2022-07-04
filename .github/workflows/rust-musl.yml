@@ -53,6 +53,8 @@ jobs:
       nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
       stable_trigger: ${{ steps.build_vars.outputs.stable_trigger }}
       stable_version: ${{ steps.build_vars.outputs.stable_version }}
+      # Special version to match the vaultwarden stable version currently used in master
+      vaultwarden_version: ${{ steps.build_vars.outputs.vaultwarden_version }}
       # We also append the value of workflow input fresh_stable here.
       # This will ensure we do trigger a fresh rustup.
       stable_rustc_hash: "${{ steps.rust_stable.outputs.rustc_hash }}${{ github.event.inputs.fresh_stable }}"
@@ -126,6 +128,11 @@ jobs:
           export RUST_VER="$( echo "${{ steps.rust_stable.outputs.rustc }}" | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]" )"
           echo "set-output name=stable_version::${RUST_VER}"
           echo "::set-output name=stable_version::${RUST_VER}"
+
+          # Get the Vaultwarden stable version from the `rust-toolchain` file.
+          export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
+          echo "set-output name=vaultwarden_version::${VW_RUST_VER}"
+          echo "::set-output name=vaultwarden_version::${VW_RUST_VER}"
 
           #
           # Determine nightly date
@@ -253,9 +260,9 @@ jobs:
           #
 
       # ###
-      # Rust Stable
+      # Rust Current Stable
 
-      - name: Docker Build - Rust Stable
+      - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v3
@@ -277,7 +284,7 @@ jobs:
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
-      - name: Test Docker Image - Rust Stable
+      - name: Test Docker Image - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         run: |
@@ -290,7 +297,7 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ14) - Rust Stable
+      - name: Test Docker Image (PQ14) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         continue-on-error: true
@@ -305,7 +312,7 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Docker Push - Rust Stable
+      - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v3
@@ -332,6 +339,83 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+
+      # ###
+      # Rust Vaultwarden Stable
+
+      - name: Docker Build - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ (needs.build_vars.outputs.stable_trigger && needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version) || !needs.build_vars.outputs.nightly_trigger }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          # Set load to true so that we can test the builded image in the next step
+          load: ${{ !env.ACT }}
+          # Do not push the image just yet, we first want to test it
+          push: false
+          file: ./Dockerfile.musl-base
+          build-args: |
+            TARGET=${{ matrix.env.TARGET }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
+            RUST_CHANNEL=${{ needs.build_vars.outputs.vaultwarden_version }}
+          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test
+          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+      - name: Test Docker Image - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
+        run: |
+          # Clean leftover files from previous run if they exists
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          # Run the test
+          docker run --rm \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -e RUST_BACKTRACE=1 \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ14) - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
+        continue-on-error: true
+        run: |
+          # Clean leftover files from previous run if they exists
+          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          # Run the test
+          docker run --rm \
+            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Docker Push - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          # Disable load, because we are going to push the image here
+          load: false
+          # Run this step also when using `act`, but do not push the images when build locally
+          push: ${{ !env.ACT }}
+          file: ./Dockerfile.musl-base
+          build-args: |
+            TARGET=${{ matrix.env.TARGET }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
+            RUST_CHANNEL=${{ needs.build_vars.outputs.vaultwarden_version }}
+          tags: |
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}-${{ needs.build_vars.outputs.current_date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}
+          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
 
       # ###
       # Rust Nightly
