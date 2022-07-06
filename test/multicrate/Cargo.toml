@@ -25,7 +25,7 @@ diesel = { version = "1.4.*", features = ["sqlite", "mysql", "postgres", "chrono
 diesel_migrations = { version = "1.4.*", features = ["sqlite", "mysql", "postgres"] }
 
 # Deps for curl testing
-curl = "*"
+curl = { version = "*", default-features = false }
 
 # Deps for serde testing
 serde = { version = "1.0.*", features = ["derive"] }

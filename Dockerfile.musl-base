@@ -54,9 +54,10 @@ ENV TARGET="${TARGET}" \
     TARGET_CXX="${TARGET}-g++" \
     TARGET_RANLIB="${TARGET}-ranlib" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
+    SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1p" \
-    CURL_VER="7.84.0" \
+    SSL_VER="1.1.1q" \
+    CURL_VER="7.83.1" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.16" \
     PQ_14_VER="14.4" \
@@ -77,7 +78,7 @@ RUN echo "zlib" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -98,7 +99,7 @@ RUN echo "OpenSSL" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIC -pie -static --static" \
@@ -129,24 +130,24 @@ RUN echo "OpenSSL" && \
 RUN echo "libcurl" && \
     curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
-    # Download patch for v7.84.0 which causes 32bit arch compile issues.
-    curl -sSL --retry 3 -o easy_lock.patch https://git.alpinelinux.org/aports/plain/main/curl/easy_lock.patch?id=6563fb7e3ebc3647789b9c02f22565bd115ac507 && \
-    git apply --verbose easy_lock.patch && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
     ./configure \
+      --with-sysroot="${SYSROOT}" \
       --host="${TARGET}" \
       --target="${TARGET}" \
-      --enable-shared=no \
-      --enable-static=ssl \
+      --disable-shared \
+      --enable-static \
+      --enable-ipv6 \
       --with-zlib \
       --with-openssl \
+      --disable-ldap \
       --enable-optimize \
       --with-ca-path=/etc/ssl/certs/ \
       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
@@ -168,7 +169,7 @@ RUN echo "PostgreSQL v11" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -197,7 +198,7 @@ RUN echo "PostgreSQL v14" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -245,7 +246,7 @@ RUN echo "SQLite3" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -253,6 +254,7 @@ RUN echo "SQLite3" && \
     CFLAGS+=" -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_RTREE" \
     CFLAGS+=" -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
     ./configure \
+      --with-sysroot="${SYSROOT}" \
       --host="${TARGET}" \
       --target="${TARGET}" \
       --disable-shared \
@@ -288,7 +290,7 @@ RUN echo "MariaDB Connector/C" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-L${TARGET_PREFIX}/lib" \
+    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -fPIE -pie -static --static" \
@@ -348,7 +350,6 @@ RUN chmod 755 /root/ && \
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
 
 ENV HOST="x86_64-unknown-linux-gnu" \
-    SYSROOT="/usr/local/musl/${TARGET}" \
     PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_ALL_STATIC=1 \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \

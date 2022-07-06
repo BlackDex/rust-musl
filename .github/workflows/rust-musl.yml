@@ -131,8 +131,14 @@ jobs:
 
           # Get the Vaultwarden stable version from the `rust-toolchain` file.
           export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
-          echo "set-output name=vaultwarden_version::${VW_RUST_VER}"
-          echo "::set-output name=vaultwarden_version::${VW_RUST_VER}"
+          # Check if the version matches X.YY.Z, if not use the RUST_VER variable
+          if [[ "${VW_RUST_VER}" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1}$ ]]; then
+            echo "set-output name=vaultwarden_version::${VW_RUST_VER}"
+            echo "::set-output name=vaultwarden_version::${VW_RUST_VER}"
+          else
+            echo "set-output name=vaultwarden_version::${RUST_VER}"
+            echo "::set-output name=vaultwarden_version::${RUST_VER}"
+          fi
 
           #
           # Determine nightly date

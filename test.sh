@@ -51,7 +51,7 @@ docker_build_armv7() {
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}\n"
-  qemu-arm -cpu cortex-a7 ./target/armv7-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu cortex-a7 ./target/armv7-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
   file "target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}"
   ldd "target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}"
@@ -75,7 +75,7 @@ docker_build_aarch64() {
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}\n"
-  qemu-aarch64 -cpu cortex-a53 ./target/aarch64-unknown-linux-musl/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-aarch64-static -cpu cortex-a53 ./target/aarch64-unknown-linux-musl/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
   file "target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}"
   ldd "target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}"
@@ -100,7 +100,7 @@ docker_build_arm() {
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}\n"
-  qemu-arm -cpu arm1176 ./target/arm-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu arm1176 ./target/arm-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
   file "target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}"
   ldd "target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}"
@@ -124,7 +124,7 @@ docker_build_armhf() {
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}\n"
-  qemu-arm -cpu arm1136 ./target/arm-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu arm1136 ./target/arm-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
   file "target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}"
   ldd "target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}"
@@ -147,7 +147,7 @@ docker_build_armv5te() {
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}\n"
-  qemu-arm -cpu arm926 ./target/armv5te-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu arm926 ./target/armv5te-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
   file "target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}"
   ldd "target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}"
