@@ -152,7 +152,6 @@ if __name__ == '__main__':
         'PQ_12': mirrorver('https://ftp.postgresql.org/pub/source/', r'v12\.', 'v'),
         'PQ_13': mirrorver('https://ftp.postgresql.org/pub/source/', r'v13\.', 'v'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
-        'MARIADB_AUR': aurver('mariadb-connector-c'),
         'MARIADB_3_3': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.3\.', 'connector-c-'),
         'MARIADB_3_1': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
     }
