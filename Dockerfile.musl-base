@@ -61,7 +61,7 @@ ENV TARGET="${TARGET}" \
     ZLIB_VER="1.2.12" \
     PQ_11_VER="11.17" \
     PQ_14_VER="14.5" \
-    SQLITE_VER="3390200" \
+    SQLITE_VER="3390300" \
     MARIADB_VER="3.2.7"
 
 WORKDIR /tmp

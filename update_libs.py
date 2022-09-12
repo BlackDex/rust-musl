@@ -22,8 +22,8 @@ from natsort import natsorted
 def convert_openssl_version(version):
     """Convert OpenSSL package versions to match upstream's format
 
-    >>> convert_openssl_version('1.1.1.m')
-    '1.1.1m'
+    >>> convert_openssl_version('1.1.1.q')
+    '1.1.1q'
     """
 
     return re.sub(r'(.+)\.([a-z])', r'\1\2', version)
@@ -32,11 +32,13 @@ def convert_openssl_version(version):
 def convert_sqlite_version(version):
     """Convert SQLite package versions to match upstream's format
 
-    >>> convert_sqlite_version('3.37.2')
-    '3370200'
+    >>> convert_sqlite_version('3.39.3')
+    '3390300'
+    >>> convert_sqlite_version('3_39_3')
+    '3390300'
     """
 
-    matches = re.match(r'(\d+)\.(\d+)\.(\d+)', version)
+    matches = re.match(r'(\d+)[\._](\d+)[\._](\d+)', version)
     return f'{int(matches.group(1)):d}{int(matches.group(2)):02d}{int(matches.group(3)):02d}00'
 
 
@@ -45,7 +47,7 @@ def pkgver(package):
     API documentation: https://wiki.archlinux.org/index.php/Official_repositories_web_interface
 
     >>> str(pkgver('zlib'))
-    '1.2.11'
+    '1.2.12'
     """
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
@@ -64,7 +66,7 @@ def aurver(package):
     API documentation: https://wiki.archlinux.org/title/Aurweb_RPC_interface
 
     >>> str(aurver('mariadb-connector-c'))
-    '3.2.4'
+    '3.3.1'
     """
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
@@ -82,7 +84,7 @@ def alpinever(package):
     """Retrieve the current version of the package in Alpine repos
 
     >>> str(alpinever('mariadb-connector-c'))
-    '3.1.13'
+    '3.2.7'
     """
 
     try:
@@ -102,8 +104,10 @@ def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
     # pylint: disable=anomalous-backslash-in-string
     """Retrieve the current version of the package in Alpine repos
 
-    # >>> str(mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'))
-    # '3.1.15'
+    >>> str(mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'))
+    '3.2.7'
+    >>> str(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html'))
+    '3_39_3'
     """
 
     try:
@@ -135,22 +139,27 @@ def rustup_version():
 
 if __name__ == '__main__':
     PACKAGES = {
+        # Print the latest versions available from there main mirrors/release-pages
         'SSL': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d\w+', 'openssl-', r''),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-7\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
-        'ZLIB': pkgver('zlib'),
+        'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
-        'SQLITE': convert_sqlite_version(pkgver('sqlite')),
+        'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
         'MARIADB': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'),
-        '---': '---', # Also print some other version or from other resources just to compare.
+        # Also print some other version or from other resources just to compare
+        '---': '---',
         'SSL3': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
         'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
         'CURL_ARCH': pkgver('curl'),
+        'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),
         'PQ_12': mirrorver('https://ftp.postgresql.org/pub/source/', r'v12\.', 'v'),
         'PQ_13': mirrorver('https://ftp.postgresql.org/pub/source/', r'v13\.', 'v'),
+        'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
+        'MARIADB_ARCH': aurver('mariadb-connector-c'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
         'MARIADB_3_3': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.3\.', 'connector-c-'),
         'MARIADB_3_1': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
