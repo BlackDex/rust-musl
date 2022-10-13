@@ -18,7 +18,7 @@ on:
         default: ""
 
   schedule:
-    - cron: '30 9 * * *' # everyday at 9:30am
+    - cron: '30 9 * * *' # everyday at 09:30 UTC
 
 ## ##
 ## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
@@ -58,7 +58,6 @@ jobs:
       # We also append the value of workflow input fresh_stable here.
       # This will ensure we do trigger a fresh rustup.
       stable_rustc_hash: "${{ steps.rust_stable.outputs.rustc_hash }}${{ github.event.inputs.fresh_stable }}"
-      act: ${{ steps.build_vars.outputs.act }}
 
     steps:
       - name: Checkout Repo
@@ -66,7 +65,7 @@ jobs:
 
       - name: Get Rust stable info
         id: rust_stable
-        uses: actions-rs/toolchain@v1
+        uses: caizixian/toolchain@8315e9dcd45d877a46e21fdcba5411cd16ebbcaf # revert back to actions-rs/toolchain@v1 once it's been updated to node16
         with:
             toolchain: stable
             override: true
@@ -87,16 +86,20 @@ jobs:
         id: build_vars
         run: |
           #
-          # Add env.ACT as an output since GHA does not support env within if checks on some locations
-          # See: https://github.com/actions/runner/issues/480
-          echo "set-output name=act::${ACT}"
-          echo "::set-output name=act::${ACT}"
+          # Special function to either use set-output or echo >> GITHUB_OUTPUT
+          function set_output () {
+            if [[ -z "${ACT}" ]]; then
+              echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
+            else
+              echo "set-output name=${1}::${2}"
+              echo "::set-output name=${1}::${2}"
+            fi
+          }
 
           #
           # Date
           export DATE=$(date +'%Y-%m-%d')
-          echo "set-output name=current_date::${DATE}"
-          echo "::set-output name=current_date::${DATE}"
+          set_output "current_date" "${DATE}"
 
           #
           # Since `act` doesn't support actions/cache (yet) we check some env vars here.
@@ -110,15 +113,12 @@ jobs:
           # Determine if we need to update the stable version
           export RUSTC_STABLE_HASH_CACHED="$( cat ~/rustc-stable.hash 2>/dev/null )"
           if [[ -n "${{ github.event.inputs.fresh_stable }}" ]]; then
-            echo "set-output name=stable_trigger::true"
-            echo "::set-output name=stable_trigger::true"
+            set_output "stable_trigger" "true"
           elif [[ "${RUSTC_STABLE_HASH_CACHED}" != ${{ steps.rust_stable.outputs.rustc_hash }} ]]; then
             echo "Cached: '${RUSTC_STABLE_HASH_CACHED}' - Current: '${{ steps.rust_stable.outputs.rustc_hash }}'"
-            echo "set-output name=stable_trigger::true"
-            echo "::set-output name=stable_trigger::true"
+            set_output "stable_trigger" "true"
           else
-            echo "set-output name=stable_trigger::"
-            echo "::set-output name=stable_trigger::"
+            set_output "stable_trigger" ""
           fi
           # Store the current stable hash in GHA Cache
           echo "${{ steps.rust_stable.outputs.rustc_hash }}" | tee ~/rustc-stable.hash
@@ -126,41 +126,34 @@ jobs:
           #
           # Extract rust stable version
           export RUST_VER="$( echo "${{ steps.rust_stable.outputs.rustc }}" | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]" )"
-          echo "set-output name=stable_version::${RUST_VER}"
-          echo "::set-output name=stable_version::${RUST_VER}"
+          set_output "stable_version" "${RUST_VER}"
 
           # Get the Vaultwarden stable version from the `rust-toolchain` file.
           export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
           # Check if the version matches X.YY.Z, if not use the RUST_VER variable
           if [[ "${VW_RUST_VER}" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1}$ ]]; then
-            echo "set-output name=vaultwarden_version::${VW_RUST_VER}"
-            echo "::set-output name=vaultwarden_version::${VW_RUST_VER}"
+            set_output "vaultwarden_version" "${VW_RUST_VER}"
           else
-            echo "set-output name=vaultwarden_version::${RUST_VER}"
-            echo "::set-output name=vaultwarden_version::${RUST_VER}"
+            set_output "vaultwarden_version" "${RUST_VER}"
           fi
 
           #
           # Determine nightly date
           # If this is triggered by a workflow dispatch and a date is filled use that, else use the current date
           if [[ -z "${{ github.event.inputs.nightly_date }}" ]]; then
-            echo "set-output name=nightly_date::${DATE}"
-            echo "::set-output name=nightly_date::${DATE}"
+            set_output "nightly_date" "${DATE}"
 
             # Set an empty nightly_tag_postfix because we are building the current nightly
-            echo "set-output name=nightly_tag_postfix::"
-            echo "::set-output name=nightly_tag_postfix::"
+            set_output "nightly_tag_postfix" ""
 
           # When there is a custom nightly_date set, lets first validate it.
           elif [[ "${{ github.event.inputs.nightly_date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
             && date +'%Y-%m-%d' -d'${{ github.event.inputs.nightly_date }}' >/dev/null 2>&1 \
             && [[ $(date +%s -d "00:00:00") -ge $(date +%s -d'${{ github.event.inputs.nightly_date }}') ]] ; then
-              echo "set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
-              echo "::set-output name=nightly_date::${{ github.event.inputs.nightly_date }}"
+              set_output "nightly_date" "${{ github.event.inputs.nightly_date }}"
 
               # To prevent tagging an older nightly version, we set a postfix here which is used by the nightly build/push action
-              echo "set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
-              echo "::set-output name=nightly_tag_postfix::-${{ github.event.inputs.nightly_date }}"
+              set_output "nightly_tag_postfix" "-${{ github.event.inputs.nightly_date }}"
 
           # If there was a workflow run, and it had an invalid date, stop the whole workflow
           else
@@ -174,11 +167,9 @@ jobs:
           # We want this either when the cron is triggered
           # Or if we trigger a manual workflow
           if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]] || [[ "${{ github.event.schedule }}" == '30 9 * * *' ]]; then
-            echo "set-output name=nightly_trigger::true"
-            echo "::set-output name=nightly_trigger::true"
+            set_output "nightly_trigger" "true"
           else
-            echo "set-output name=nightly_trigger::"
-            echo "::set-output name=nightly_trigger::"
+            set_output "nightly_trigger" ""
           fi
 
   # ###
@@ -251,17 +242,24 @@ jobs:
         id: docker_cache
         run: |
           #
+          # Special function to either use set-output or echo >> GITHUB_OUTPUT
+          function set_output () {
+            if [[ -z "${ACT}" ]]; then
+              echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
+            else
+              echo "set-output name=${1}::${2}"
+              echo "::set-output name=${1}::${2}"
+            fi
+          }
+
+          #
           # Check if we are running this via act or not and determine the caching method
           if [[ -n "${ACT}" ]]; then
-            echo "set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
-            echo "::set-output name=cache_from::blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
-            echo "set-output name=cache_to::"
-            echo "::set-output name=cache_to::"
+            set_output "cache_from" "blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
+            set_output "cache_to" ""
           else
-            echo "set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "::set-output name=cache_from::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            echo "::set-output name=cache_to::type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            set_output "cache_from" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            set_output "cache_to" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
           fi
           #
 
