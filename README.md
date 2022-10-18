@@ -7,7 +7,7 @@ These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build 
 Depending if the MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* ZLib (`v1.2.12`)
+* ZLib (`v1.2.13`)
 * OpenSSL (`v1.1.1q`)
 * cURL (`v7.85.0`)
 * PostgreSQL lib (`v11.17`)

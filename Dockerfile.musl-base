@@ -58,7 +58,7 @@ ENV TARGET="${TARGET}" \
     # Library versions
     SSL_VER="1.1.1q" \
     CURL_VER="7.85.0" \
-    ZLIB_VER="1.2.12" \
+    ZLIB_VER="1.2.13" \
     PQ_11_VER="11.17" \
     PQ_14_VER="14.5" \
     SQLITE_VER="3390400" \

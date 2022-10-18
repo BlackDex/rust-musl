@@ -91,7 +91,7 @@ jobs:
             if [[ -z "${ACT}" ]]; then
               echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
             else
-              echo "set-output name=${1}::${2}"
+              echo "set_output name=${1}::${2}"
               echo "::set-output name=${1}::${2}"
             fi
           }
@@ -247,7 +247,7 @@ jobs:
             if [[ -z "${ACT}" ]]; then
               echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
             else
-              echo "set-output name=${1}::${2}"
+              echo "set_output name=${1}::${2}"
               echo "::set-output name=${1}::${2}"
             fi
           }
