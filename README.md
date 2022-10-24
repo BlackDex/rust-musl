@@ -12,7 +12,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * cURL (`v7.85.0`)
 * PostgreSQL lib (`v11.17`)
 * SQLite (`v3.39.4`)
-* MariaDB Connector/C (`v3.2.7`) (MySQL Compatible)
+* MariaDB Connector/C (`v3.3.2`) (MySQL Compatible)
 
 Since 2022-01-19 there is also support for PostreSQL lib `v14`.<br>
 See below on how to use this version instead of the current default `v11`.

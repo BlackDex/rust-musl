@@ -146,7 +146,7 @@ if __name__ == '__main__':
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
-        'MARIADB': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.2\.', 'connector-c-'),
+        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3\.', 'connector-c-', r'\/\?.*'),
         # Also print some other version or from other resources just to compare
         '---': '---',
         'SSL3': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
@@ -156,13 +156,10 @@ if __name__ == '__main__':
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),
-        'PQ_12': mirrorver('https://ftp.postgresql.org/pub/source/', r'v12\.', 'v'),
-        'PQ_13': mirrorver('https://ftp.postgresql.org/pub/source/', r'v13\.', 'v'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
         'MARIADB_ARCH': aurver('mariadb-connector-c'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
-        'MARIADB_3_3': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.3\.', 'connector-c-'),
-        'MARIADB_3_1': mirrorver('https://ftp.nluug.nl/db/mariadb/', r'connector-c-3\.1\.', 'connector-c-'),
+        'MARIADB_3_2': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.2\.', 'connector-c-', r'\/\?.*'),
     }
 
     # Show a list of packages with current versions

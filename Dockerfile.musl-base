@@ -62,7 +62,7 @@ ENV TARGET="${TARGET}" \
     PQ_11_VER="11.17" \
     PQ_14_VER="14.5" \
     SQLITE_VER="3390400" \
-    MARIADB_VER="3.2.7"
+    MARIADB_VER="3.3.2"
 
 WORKDIR /tmp
 
@@ -108,6 +108,10 @@ RUN echo "OpenSSL" && \
       no-dso \
       no-shared \
       no-ssl3 \
+      no-rc5 \
+      no-md2 \
+      no-mdc2 \
+      no-idea \
       no-unit-test \
       no-comp \
       no-zlib \
@@ -258,6 +262,7 @@ RUN echo "SQLite3" && \
       --host="${TARGET}" \
       --target="${TARGET}" \
       --disable-shared \
+      --enable-static \
       --enable-threadsafe \
       --enable-fts3 \
       --enable-fts4 \
@@ -281,10 +286,8 @@ RUN echo "SQLite3" && \
 # Also, building v3.3.1 works fine, but there seems to be a linking issue when using mysqlclient-sys, there we will stay at v3.2.x
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
-    curl -sSL "https://ftp.nluug.nl/db/mariadb/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
+    curl -sSL "https://archive.mariadb.org/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
-    # Fix an issue with building the static ed25519 auth plugin in v3.2.7
-    sed -i 's@#include "crypto_sign.h"@#include "ref10/crypto_sign.h"@' plugins/auth/ed25519_common.h && \
     mkdir build && cd build && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
@@ -302,7 +305,7 @@ RUN echo "MariaDB Connector/C" && \
       -DINSTALL_LIBDIR=lib \
       -DINSTALL_INCLUDEDIR=include/mysql \
       -DCMAKE_BUILD_TYPE=MINSIZEREL \
-      -DWITH_EXTERNAL_ZLIB=ON \
+      -DWITH_EXTERNAL_ZLIB=OFF \
       -DWITH_SSL=OPENSSL \
       -DWITH_MYSQLCOMPAT=ON \
       -DWITH_UNIT_TESTS=OFF \
