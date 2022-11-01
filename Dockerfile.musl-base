@@ -56,8 +56,8 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1q" \
-    CURL_VER="7.85.0" \
+    SSL_VER="1.1.1s" \
+    CURL_VER="7.86.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.17" \
     PQ_14_VER="14.5" \
