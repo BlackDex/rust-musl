@@ -1,6 +1,10 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
 
+use mimalloc::MiMalloc;
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 fn main() {
     println!("\n## Start testing Diesel SQLite");
     test_sqlite();
@@ -63,7 +67,7 @@ mod models {
 
     // apparently this can be done without heap storage, but lifetimes spread far..
     #[derive(Insertable)]
-    #[table_name = "posts"]
+    #[diesel(table_name = posts)]
     pub struct NewPost {
         pub title: String,
         pub body: String,

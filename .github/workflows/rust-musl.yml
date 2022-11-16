@@ -338,9 +338,11 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -350,7 +352,7 @@ jobs:
 
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
-        if: ${{ (needs.build_vars.outputs.stable_trigger && needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version) || !needs.build_vars.outputs.nightly_trigger }}
+        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
         uses: docker/build-push-action@v3
         with:
           context: .

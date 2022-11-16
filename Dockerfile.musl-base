@@ -59,10 +59,10 @@ ENV TARGET="${TARGET}" \
     SSL_VER="1.1.1s" \
     CURL_VER="7.86.0" \
     ZLIB_VER="1.2.13" \
-    PQ_11_VER="11.17" \
-    PQ_14_VER="14.5" \
-    SQLITE_VER="3390400" \
-    MARIADB_VER="3.3.2"
+    PQ_11_VER="11.18" \
+    PQ_14_VER="14.6" \
+    SQLITE_VER="3400000" \
+    MARIADB_VER="3.3.3"
 
 WORKDIR /tmp
 
@@ -347,6 +347,9 @@ RUN chmod 755 /root/ && \
     rustup set profile minimal && \
     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
     find "/root/.rustup/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
+    # When the Rust channel is stable, we create a symlink to the stable folder with the version number
+    # This prevents cargo from downloading the same stuff twice if someone overrules the version with a version number instead of stable
+    if [[ "${RUST_CHANNEL}" == "stable" ]] ; then STABLE_VER=$(rustc -V | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]") ; ln -vfsr "/root/.rustup/toolchains/stable-$(uname -m)-unknown-linux-gnu" "/root/.rustup/toolchains/${STABLE_VER}-$(uname -m)-unknown-linux-gnu" ; fi && \
     echo -ne "[build]\ntarget = \"$RUST_MUSL_CROSS_TARGET\"\n\n[target.$RUST_MUSL_CROSS_TARGET]\nlinker = \"$RUST_MUSL_CROSS_TARGET-gcc\"\n\n" > /root/.cargo/config && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command

@@ -1,14 +1,14 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "hypercrate"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 hyper = { version = "0.14", features = ["full"] }
-hyper-openssl = "0.9"
+hyper-tls = "0.5"
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

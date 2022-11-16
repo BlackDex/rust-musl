@@ -1,28 +1,25 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
 
-use hyper_openssl::HttpsConnector;
+use hyper::{body::HttpBody as _, Body, Client, Uri};
+use hyper_tls::HttpsConnector;
+use tokio::io::{self, AsyncWriteExt as _};
 
 #[tokio::main]
 async fn main() {
-    let url: hyper::Uri =
+    let url: Uri =
         "https://raw.githubusercontent.com/BlackDex/rust-musl/main/test/hypercrate/Cargo.toml"
             .parse()
             .unwrap();
 
-    let tls_connector = HttpsConnector::new().unwrap();
-    let client: hyper::Client<_, hyper::Body> = hyper::Client::builder().build(tls_connector);
+    let https = HttpsConnector::new();
+    let client = Client::builder().build::<_, Body>(https);
 
-    let resp = client.get(url).await.unwrap();
+    let mut res = client.get(url).await.unwrap();
+    assert_eq!(res.status(), 200);
 
-    println!("Response: {}\n", resp.status());
-    assert!(resp.status().is_success());
-
-    let body = resp.into_body();
-    let body = hyper::body::to_bytes(body).await.unwrap();
-    let body = String::from_utf8(body.to_vec()).unwrap();
-    let lines: Vec<&str> = body.split_terminator('\n').collect();
-    for line in lines.iter() {
-        println!("{}", line);
+    while let Some(next) = res.data().await {
+        let chunk = next.unwrap();
+        io::stdout().write_all(&chunk).await.unwrap();
     }
 }

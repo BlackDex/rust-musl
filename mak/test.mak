@@ -32,6 +32,8 @@ test-zlib:
 	./test.sh zlib
 test-hyper:
 	./test.sh hyper
+test-rustls:
+	./test.sh rustls
 
 clean-lock:
 	sudo find . -iname Cargo.lock -exec rm {} \;
@@ -42,6 +44,6 @@ clean-builds:
 
 clean: clean-lock clean-builds
 
-test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
 
-.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql

@@ -1,4 +1,4 @@
-FROM balenalib/aarch64-alpine:3.15
+FROM balenalib/aarch64-alpine:3.16
 
 ENV SSL_CERT_DIR=/etc/ssl/certs
 

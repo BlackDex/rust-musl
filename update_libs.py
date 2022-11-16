@@ -113,7 +113,7 @@ def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
     try:
         url = f'{site}'
         req = request.urlopen(url)
-        site_html = req.read(10240).decode('utf-8')
+        site_html = req.read(20480).decode('utf-8')
         req.close()
 
         matches = re.findall(fr'href=\"({href_prefix}.*?){re_postfix}', site_html, re.MULTILINE)

@@ -26,7 +26,7 @@ fn compress(input_file: &str, output_file: PathBuf) -> io::Result<()> {
     use flate2::Compression;
     use tar::Builder;
 
-    let file = File::create(&output_file)?;
+    let file = File::create(output_file)?;
     let mut encoder = GzEncoder::new(file, Compression::default());
     let mut builder = Builder::new(&mut encoder);
 
