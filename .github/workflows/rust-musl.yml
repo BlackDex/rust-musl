@@ -199,19 +199,21 @@ jobs:
             OPENSSL_ARCH: linux-aarch64
             ARCH_CPPFLAGS: "-mno-outline-atomics"
             TEST_CRATE: multicrate
-            # XTRA_RUSTFLAGS: "-Clinker=rust-lld "
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
             TEST_CRATE: multicrate
+            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a "
           - IMAGE_TAG: arm-musleabihf
             TARGET: arm-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
             TEST_CRATE: multicrate
+            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabihf/lib/libatomic.a "
           - IMAGE_TAG: armv5te-musleabi
             TARGET: armv5te-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
-            TEST_CRATE: dieselmulticrate
+            TEST_CRATE: multicrate
+            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a "
 
     steps:
       - name: Checkout Repo

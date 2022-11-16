@@ -75,11 +75,29 @@ rust-musl-builder cargo build --release
 docker run --rm -it -v "$(pwd)":/home/rust/src blackdex/rust-musl:aarch64-musl cargo build --release
 ```
 
+<br>
+
 ## Testing
 
 During the automatic build workflow the images are first tested on a Rust projects which test all build C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-build libraries.
 
 If the test fails, the image will not be pushed to docker hub.
+
+<br>
+
+## Linking issues (atomic)
+
+Because of some strange bugs/quirks it sometimes happens that on some platforms it reports missing `__atomic*` libraries. The strange thing is, these are available, but for some reason ignored by the linker or rustc (If someone knows a good solution here, please share).<br>
+<br>
+Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides the correct location of the c archive `.a` file.<br>
+<br>
+This for example happens when using the `mimalloc` crate.
+
+| Cross Target                   |  RUSTFLAG                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------- |
+| arm-unknown-linux-musleabi     | `-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a`     |
+| arm-unknown-linux-musleabihf   | `-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabihf/lib/libatomic.a`   |
+| armv5te-unknown-linux-musleabi | `-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a` |
 
 <br>
 
