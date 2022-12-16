@@ -121,6 +121,8 @@ def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
         return f'{latest_version}'
     except urllib.error.HTTPError:
         return 'Package not found'
+    except IndexError:
+        return 'No version found'
 
 
 def rustup_version():
@@ -149,7 +151,8 @@ if __name__ == '__main__':
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3\.', 'connector-c-', r'\/\?.*'),
         # Also print some other version or from other resources just to compare
         '---': '---',
-        'SSL3': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
+        'SSL3_0': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.0\.\d', 'openssl-', r''),
+        'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
         'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),
