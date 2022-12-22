@@ -57,7 +57,7 @@ ENV TARGET="${TARGET}" \
     SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
     SSL_VER="1.1.1s" \
-    CURL_VER="7.86.0" \
+    CURL_VER="7.87.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.18" \
     PQ_14_VER="14.6" \
