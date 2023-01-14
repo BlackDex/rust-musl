@@ -80,8 +80,7 @@ jobs:
         shell: bash
         run: |
           # Get the current date
-          echo "set-output name=TAG_DATE::$(date +'-%Y-%m-%d')"
-          echo "::set-output name=TAG_DATE::$(date +'-%Y-%m-%d')"
+          echo "TAG_DATE=$(date +'-%Y-%m-%d')" | tee -a "${GITHUB_OUTPUT}"
 
       - name: Docker Build
         uses: docker/build-push-action@v3

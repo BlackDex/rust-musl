@@ -1,5 +1,6 @@
 # Shared config between 64bit and 32bit
 GCC_VER = 11.2.0
+LINUX_VER = 5.8.5
 #
 DL_CMD = curl -w"%{stderr}URL: %{url_effective}\\nTime: %{time_total}\\nSize: %{size_download}\\n" --retry 3 -sSfL -C - -o
 #

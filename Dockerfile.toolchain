@@ -26,6 +26,8 @@ RUN apt-get update && \
         pkg-config \
         curl \
         file \
+        rsync \
+        texinfo \
         ca-certificates \
         --no-install-recommends \
         && \
