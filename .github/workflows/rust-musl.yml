@@ -170,45 +170,47 @@ jobs:
   # ###
   # Building the final MUSL Based images including the rust toolchain.
   musl-base:
-    name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }}
+    name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }} - (OpenSSL v${{ matrix.openssl_version }})
     needs: [build_vars]
     runs-on: ubuntu-latest
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
-      # max-parallel: 1 # Use this when using `act` and buildx, else there are some strange buildx issues.
+      # max-parallel: 3 # Use this when using `act`, since this could use a lot of resources
       fail-fast: false
       matrix:
+        openssl_version:
+          - "1.1.1s"
+          - "3.0.7"
+        include:
+          - openssl_version: "1.1.1s"
+            openssl_docker_tag: ""
+          - openssl_version: "3.0.7"
+            openssl_docker_tag: "-openssl3"
         env:
           - IMAGE_TAG: x86_64-musl
             TARGET: x86_64-unknown-linux-musl
             OPENSSL_ARCH: "linux-x86_64 enable-ec_nistp_64_gcc_128"
-            TEST_CRATE: multicrate
           - IMAGE_TAG: armv7-musleabihf
             TARGET: armv7-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
-            TEST_CRATE: multicrate
           # The aarch64 musl does not support outline-atomics and needs to be disabled
           # We need to provide some extra CPPFLAGS to prevent errors during the compilation of the Rust project
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
             OPENSSL_ARCH: linux-aarch64
             ARCH_CPPFLAGS: "-mno-outline-atomics"
-            TEST_CRATE: multicrate
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
-            TEST_CRATE: multicrate
-            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a "
+            XTRA_RUSTFLAGS: "-Clink-args=-latomic "
           - IMAGE_TAG: arm-musleabihf
             TARGET: arm-unknown-linux-musleabihf
             OPENSSL_ARCH: linux-armv4
-            TEST_CRATE: multicrate
-            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabihf/lib/libatomic.a "
+            XTRA_RUSTFLAGS: "-Clink-args=-latomic "
           - IMAGE_TAG: armv5te-musleabi
             TARGET: armv5te-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
-            TEST_CRATE: multicrate
-            XTRA_RUSTFLAGS: "-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a "
+            XTRA_RUSTFLAGS: "-Clink-args=-latomic "
 
     steps:
       - name: Checkout Repo
@@ -247,11 +249,11 @@ jobs:
           #
           # Check if we are running this via act or not and determine the caching method
           if [[ -n "${ACT}" ]]; then
-            github_output "cache_from" "blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}"
+            github_output "cache_from" "blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}"
             github_output "cache_to" ""
           else
-            github_output "cache_from" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
-            github_output "cache_to" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}-musl"
+            github_output "cache_from" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}"
+            github_output "cache_to" "type=gha,scope=${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}"
           fi
           #
 
@@ -273,10 +275,11 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
-          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test
+          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -285,28 +288,32 @@ jobs:
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ14) - Rust Current Stable
+      - name: Test Docker Image (PQ15) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         continue-on-error: true
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+            -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
@@ -323,18 +330,19 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
           tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -357,9 +365,10 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=${{ needs.build_vars.outputs.vaultwarden_version }}
-          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test
+          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-vw-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -368,28 +377,32 @@ jobs:
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ14) - Rust Vaultwarden Stable
+      - name: Test Docker Image (PQ15) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
         continue-on-error: true
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+            -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
@@ -406,11 +419,12 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=${{ needs.build_vars.outputs.vaultwarden_version }}
           tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}-${{ needs.build_vars.outputs.current_date }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -431,35 +445,40 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=nightly-${{ needs.build_vars.outputs.nightly_date }}
-          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test
+          tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ matrix.openssl_docker_tag }}-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image - Rust Nightly
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ14) - Rust Nightly
+      - name: Test Docker Image (PQ15) - Rust Nightly
         continue-on-error: true
         run: |
           # Clean leftover files from previous run if they exists
-          rm -vf "$(pwd)/test/${{ matrix.env.TEST_CRATE }}/Cargo.lock"
+          rm -vf "$(pwd)/test/multicrate/Cargo.lock"
           # Run the test
           docker run --rm \
-            -v "$(pwd)/test/${{ matrix.env.TEST_CRATE }}":/home/rust/src \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+            -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
         uses: docker/build-push-action@v3
@@ -474,10 +493,11 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
+            OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=nightly-${{ needs.build_vars.outputs.nightly_date }}
           tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ needs.build_vars.outputs.nightly_tag_postfix }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.nightly_date }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ needs.build_vars.outputs.nightly_tag_postfix }}${{ matrix.openssl_docker_tag }}
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.nightly_date }}${{ matrix.openssl_docker_tag }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}

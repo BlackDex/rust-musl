@@ -146,7 +146,7 @@ if __name__ == '__main__':
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-7\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
-        'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
+        'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3\.', 'connector-c-', r'\/\?.*'),
         # Also print some other version or from other resources just to compare
@@ -157,6 +157,7 @@ if __name__ == '__main__':
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
+        'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),

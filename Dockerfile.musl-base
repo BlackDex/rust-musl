@@ -43,6 +43,7 @@ RUN apt-get update && \
 # Define the target and openssl architecture to use during build
 ARG TARGET=x86_64-unknown-linux-musl
 ARG OPENSSL_ARCH=linux-x86_64
+ARG OPENSSL_VERSION="1.1.1s"
 ARG ARCH_CPPFLAGS=
 
 ENV TARGET="${TARGET}" \
@@ -53,21 +54,22 @@ ENV TARGET="${TARGET}" \
     TARGET_CC="${TARGET}-gcc" \
     TARGET_CXX="${TARGET}-g++" \
     TARGET_RANLIB="${TARGET}-ranlib" \
+    TARGET_LDFLAGS="-flto -s -pie -static -L/usr/local/musl/lib" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
-    SSL_VER="1.1.1s" \
+    SSL_VER="${OPENSSL_VERSION}" \
     CURL_VER="7.87.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.18" \
-    PQ_14_VER="14.6" \
-    SQLITE_VER="3400000" \
+    PQ_15_VER="15.1" \
+    SQLITE_VER="3400100" \
     MARIADB_VER="3.3.3"
 
 WORKDIR /tmp
 
 RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
-COPY --from=musl-toolchain /usr/local/musl/$TARGET ${TARGET_PREFIX}
+COPY --from=musl-toolchain "/usr/local/musl/${TARGET}" "${TARGET_PREFIX}"
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
 # hadolint ignore=DL3003
@@ -78,7 +80,7 @@ RUN echo "zlib" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -99,7 +101,7 @@ RUN echo "OpenSSL" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIC -pie -static --static" \
@@ -119,6 +121,7 @@ RUN echo "OpenSSL" && \
       no-async \
       -fPIC -pie -static --static \
       --openssldir="${TARGET_PREFIX}/ssl" \
+      --libdir="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}" && \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" make -j"$(nproc)" depend && \
     make -j"$(nproc)" && \
@@ -138,7 +141,7 @@ RUN echo "libcurl" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -173,7 +176,7 @@ RUN echo "PostgreSQL v11" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -193,16 +196,16 @@ RUN echo "PostgreSQL v11" && \
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 
-# Build libpq v14
+# Build libpq v15
 # hadolint ignore=DL3003
-RUN echo "PostgreSQL v14" && \
-    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_14_VER}/postgresql-${PQ_14_VER}.tar.gz" | tar xz && \
-    cd "postgresql-${PQ_14_VER}" && \
+RUN echo "PostgreSQL v15" && \
+    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.gz" | tar xz && \
+    cd "postgresql-${PQ_15_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -213,7 +216,7 @@ RUN echo "PostgreSQL v14" && \
       --with-openssl \
       --disable-rpath \
       --with-system-tzdata=/usr/share/zoneinfo \
-      --prefix="${TARGET_PREFIX}/pq14" && \
+      --prefix="${TARGET_PREFIX}/pq15" && \
     # build common, port and libpq only
     cd src/common && \
       make -j"$(nproc)" all && \
@@ -225,7 +228,7 @@ RUN echo "PostgreSQL v14" && \
       make -j"$(nproc)" all-static-lib && \
       make -j"$(nproc)" install-lib-pc install-lib-static && \
     # Merge these libraries so pq-sys will work without using pkg-config
-    cd "${TARGET_PREFIX}/pq14/lib" && \
+    cd "${TARGET_PREFIX}/pq15/lib" && \
       mkdir -v merge && cd merge && \
       # Extract the generated .a files
       "${TARGET_AR}" x ../libpq.a && \
@@ -237,9 +240,9 @@ RUN echo "PostgreSQL v14" && \
       mv -vf libpq.a ../libpq.a && \
       cd ../ && rm -rf merge pkgconfig libpgcommon* libpgport* && \
     # Remove the source
-    cd /tmp && rm -rf "postgresql-${PQ_14_VER}" && \
+    cd /tmp && rm -rf "postgresql-${PQ_15_VER}" && \
     # Default cleanups
-    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/pq14/share/man"
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/pq15/share/man"
 
 # Build libsqlite3
 # hadolint ignore=DL3003
@@ -250,7 +253,7 @@ RUN echo "SQLite3" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
@@ -293,7 +296,7 @@ RUN echo "MariaDB Connector/C" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
     RANLIB="${TARGET_RANLIB}" \
-    LDFLAGS="-static -L${TARGET_PREFIX}/lib" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
     CC="${TARGET_CC} -O2 -fPIE -pie -static --static" \
@@ -350,16 +353,24 @@ RUN chmod 755 /root/ && \
     # When the Rust channel is stable, we create a symlink to the stable folder with the version number
     # This prevents cargo from downloading the same stuff twice if someone overrules the version with a version number instead of stable
     if [[ "${RUST_CHANNEL}" == "stable" ]] ; then STABLE_VER=$(rustc -V | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]") ; ln -vfsr "/root/.rustup/toolchains/stable-$(uname -m)-unknown-linux-gnu" "/root/.rustup/toolchains/${STABLE_VER}-$(uname -m)-unknown-linux-gnu" ; fi && \
-    echo -ne "[build]\ntarget = \"$RUST_MUSL_CROSS_TARGET\"\n\n[target.$RUST_MUSL_CROSS_TARGET]\nlinker = \"$RUST_MUSL_CROSS_TARGET-gcc\"\n\n" > /root/.cargo/config && \
+    echo -ne "[build]\ntarget = \"$RUST_MUSL_CROSS_TARGET\"\n\n[target.$RUST_MUSL_CROSS_TARGET]\nlinker = \"$RUST_MUSL_CROSS_TARGET-ld\"\n\n" > /root/.cargo/config && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
 
 ENV HOST="x86_64-unknown-linux-gnu" \
+    # General
+    CARGO_BUILD_TARGET="${TARGET}" \
+    BINDGEN_EXTRA_CLANG_ARGS="--sysroot=${SYSROOT}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
+    TARGET_C_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
     PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_ALL_STATIC=1 \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    PKG_CONFIG_LIBDIR="${TARGET_PKG_CONFIG_PATH}" \
+    TARGET_PKG_CONFIG_ALLOW_CROSS=1 \
     TARGET_PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+    TARGET_PKG_CONFIG_LIBDIR="${TARGET_PKG_CONFIG_PATH}" \
     # pq-sys (PosgreSQL) support
     PQ_LIB_STATIC=1 \
     PQ_LIB_DIR="${TARGET_PREFIX}/lib" \

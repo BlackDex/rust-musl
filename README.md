@@ -8,15 +8,17 @@ Depending if the MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.13`)
-* OpenSSL (`v1.1.1s`)
+* OpenSSL v1.1 (`v1.1.1s`) and OpenSSL v3.0 (`v3.0.7`)
 * cURL (`v7.87.0`)
 * PostgreSQL lib (`v11.18`)
-* SQLite (`v3.40.0`)
+* SQLite (`v3.40.1`)
 * MariaDB Connector/C (`v3.3.3`) (MySQL Compatible)
 
-Since 2022-01-19 there is also support for PostreSQL lib `v14`.<br>
+Since 2023-01-14 there is also support for PostreSQL lib `v15`.<br>
+Previous images were providing `v14` as an extra lib.<br>
 See below on how to use this version instead of the current default `v11`.
-* PostgreSQL lib (`v14.6`)
+* PostgreSQL lib (`v15.1`)
+
 
 ## Available architectures
 Both stable and nightly builds are available.
@@ -26,6 +28,11 @@ Nightly's are build every morning around 9:30 UTC.
 For stable you can just use the tags listed below, or add `-stable` to it.
 If you want to be sure that you are using a specific stable version you can use `-X.Y.Z` or `-stable-X.Y.Z`.
 Stables builds are automatically triggered if there is a new version available.
+
+### OpenSSL v3.0
+If you want to use the OpenSSL v3.0 versions, you need to add `-openssl3` as the last postfix for the tag.
+The images without an extra postfix are using the default v1.1 version.
+
 
 ## Usage
 |        Cross Target            |    Docker Tag    |
@@ -39,6 +46,7 @@ Stables builds are automatically triggered if there is a new version available.
 
 To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
 
+
 ### Using a Dockerfile
 
 ```dockerfile
@@ -46,8 +54,8 @@ FROM blackdex/rust-musl:aarch64-musl as build
 
 COPY . /home/rust/src
 
-# If you want to use PostgreSQL v14 add and uncomment the following ENV
-# ENV PQ_LIB_DIR="/usr/local/musl/pq14/lib"
+# If you want to use PostgreSQL v15 add and uncomment the following ENV
+# ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"
 
 RUN cargo build --release
 
@@ -59,9 +67,10 @@ COPY --from=build /home/rust/src/target/aarch64-unknown-linux-musl/release/my-ap
 CMD ["/my-application-name"]
 ```
 
+
 ### Using the CLI
 
-If you want to use PostgreSQL `v14` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq14/lib"` before the `-v "$(pwd)"` argument.
+If you want to use PostgreSQL `v15` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` before the `-v "$(pwd)"` argument.
 
 ```bash
 # First pull the image:
@@ -77,6 +86,7 @@ docker run --rm -it -v "$(pwd)":/home/rust/src blackdex/rust-musl:aarch64-musl c
 
 <br>
 
+
 ## Testing
 
 During the automatic build workflow the images are first tested on a Rust projects which test all build C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-build libraries.
@@ -84,6 +94,7 @@ During the automatic build workflow the images are first tested on a Rust projec
 If the test fails, the image will not be pushed to docker hub.
 
 <br>
+
 
 ## Linking issues (atomic)
 
@@ -93,19 +104,21 @@ Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides 
 <br>
 This for example happens when using the `mimalloc` crate.
 
-| Cross Target                   |  RUSTFLAG                                                                   |
-| ------------------------------ | --------------------------------------------------------------------------- |
-| arm-unknown-linux-musleabi     | `-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a`     |
-| arm-unknown-linux-musleabihf   | `-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabihf/lib/libatomic.a`   |
-| armv5te-unknown-linux-musleabi | `-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a` |
+| Cross Target                   |  RUSTFLAG             |
+| ------------------------------ | --------------------- |
+| arm-unknown-linux-musleabi     | `-Clink-arg=-latomic` |
+| arm-unknown-linux-musleabihf   | `-Clink-arg=-latomic` |
+| armv5te-unknown-linux-musleabi | `-Clink-arg=-latomic` |
 
 <br>
 
+
 ## History
 
-I started this project to make it possible for [Vaultwarden](https://github.com/dani-garcia/vaultwarden) to be build statically with all database's supported. SQLite is not really an issue, since that has a bundled option. But PostgreSQL and MariaDB/MySQL were not.
+I started this project to make it possible for [Vaultwarden](https://github.com/dani-garcia/vaultwarden) to be build statically with all database's supported. SQLite is not really an issue, since that has a bundled option. But PostgreSQL and MariaDB/MySQL do not have a bundled/vendored feature available.
 
 I also wanted to get a better understanding of the whole musl toolchain and Github Actions, which i did.
+
 
 ## Credits
 
@@ -117,6 +130,7 @@ Some projects i got my inspiration from:
 Projects used to get this working:
 * https://github.com/richfelker/musl-cross-make
 * https://github.com/rust-embedded/cross
+
 
 ## Docker Hub:
 

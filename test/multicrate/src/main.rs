@@ -33,6 +33,10 @@ fn main() {
     println!("\n## Start testing ZLib");
     test_zlib();
     println!("## End testing ZLib\n");
+
+    println!("\n## Start testing MiMalloc");
+    test_mimalloc();
+    println!("## End testing MiMalloc\n");
 }
 
 // == Diesel Testing
@@ -78,7 +82,7 @@ use diesel::prelude::*;
 fn test_sqlite() {
     // Unsafe function to extract the library version
     let lib_version = unsafe { libsqlite3_sys::sqlite3_libversion_number() };
-    println!("sqlite3 lib version: {:?}", lib_version);
+    println!("sqlite3 lib version: {lib_version:?}",);
 
     let database_url = std::env::var("DATABASE_URL_SQLITE").unwrap_or_else(|_| "main.db".into());
     SqliteConnection::establish(&database_url).unwrap();
@@ -87,14 +91,14 @@ fn test_sqlite() {
 fn test_postgres() {
     // Unsafe function to extract the library version
     let lib_version = unsafe { pq_sys::PQlibVersion() };
-    println!("postgres lib version: {:?}", lib_version);
+    println!("postgres lib version: {lib_version:?}",);
 
     let database_url = std::env::var("DATABASE_URL_PG")
         .unwrap_or_else(|_| "postgres://localhost?connect_timeout=1&sslmode=require".into());
     match PgConnection::establish(&database_url) {
         Err(e) => {
             println!("Should fail to connect here:");
-            println!("{}", e);
+            println!("{e}");
         }
         Ok(_) => {
             unreachable!();
@@ -105,14 +109,14 @@ fn test_postgres() {
 fn test_mysql() {
     // Unsafe function to extract the library version
     let lib_version = unsafe { mysqlclient_sys::mysql_get_client_version() };
-    println!("mysql/mariadb lib version: {:?}", lib_version);
+    println!("mysql/mariadb lib version: {lib_version:?}",);
 
     let database_url = std::env::var("DATABASE_URL_MYSQL")
         .unwrap_or_else(|_| "mysql://localhost?connect_timeout=1&sslmode=require".into());
     match MysqlConnection::establish(&database_url) {
         Err(e) => {
             println!("Should fail to connect here:");
-            println!("{}", e);
+            println!("{e}");
         }
         Ok(_) => {
             unreachable!();
@@ -134,7 +138,7 @@ fn test_curl() {
     easy.write_function(|data| Ok(stdout().write(data).unwrap()))
         .unwrap();
     easy.perform().unwrap_or_else(|e| {
-        println!("Failed: {}", e);
+        println!("Failed: {e}");
         process::exit(1);
     });
 }
@@ -161,13 +165,13 @@ fn test_json() {
     let serialized = serde_json::to_string(&point).unwrap();
 
     // Prints serialized = {"x":1,"y":2}
-    println!("serialized = {}", serialized);
+    println!("serialized = {serialized}");
 
     // Convert the JSON string back to a Point.
     let deserialized: Point = serde_json::from_str(&serialized).unwrap();
 
     // Prints deserialized = Point { x: 1, y: 2 }
-    println!("deserialized = {:?}", deserialized);
+    println!("deserialized = {deserialized:?}");
 
     // Generate json via macro
     let json_macro = json!({
@@ -186,7 +190,7 @@ fn test_json() {
         "Float": 42.42,
         "String": "Hello World"
     });
-    println!("json_macro = {:#?}", json_macro);
+    println!("json_macro = {json_macro:#?}");
 }
 
 // == OpenSSL Testing
@@ -204,7 +208,7 @@ fn test_openssl() {
     println!("version: {}", version());
     println!("{}", platform());
     println!("{}", str::from_utf8(data).ok().unwrap());
-    println!("hash:  {:x?}", digest);
+    println!("hash:  {digest:x?}");
     println!("sha256sum: d7, 4d, a9, c1, a1, 35, 6a, 18, fd, d1, d7, 48, e8, d8, 8c, 4d, 3d, e2, b6, 3b, 20, 34, 82, ee, 3, 29, d7, 1, 4b, fc, 51, 77");
 }
 
@@ -223,9 +227,9 @@ fn test_zlib() {
     e.write_all(input.as_bytes()).unwrap();
     let bytes = e.finish().unwrap();
 
-    println!("input: {:?}", input);
+    println!("input: {input:?}");
     println!("input bytes: {:?}", input.as_bytes());
-    println!("compressed: {:?}", bytes);
+    println!("compressed: {bytes:?}");
     println!("decompressed: {:?}", test_zlib_decode(bytes).unwrap());
 }
 
@@ -236,4 +240,11 @@ fn test_zlib_decode(bytes: Vec<u8>) -> io::Result<String> {
     let mut s = String::new();
     z.read_to_string(&mut s)?;
     Ok(s)
+}
+
+// == MiMalloc Testing
+
+fn test_mimalloc() {
+    let lib_version = unsafe { libmimalloc_sys::mi_version() };
+    println!("mimalloc version: {lib_version:?}");
 }

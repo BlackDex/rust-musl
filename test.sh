@@ -9,8 +9,8 @@
 # Adding a custom CFLAG for a specific architecture
 # -e CFLAGS_aarch64_unknown_linux_musl="-mno-outline-atomics" \
 #
-# Use PostgreSQL v14
-# -e PQ_LIB_DIR="/usr/local/musl/pq14/lib" \
+# Use PostgreSQL v15
+# -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
 # ########################################
 
 docker_build() {
@@ -94,7 +94,7 @@ docker_build_arm() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabi/lib/libatomic.a -Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
     -it "blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
     bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabi ${cargo_arg}"
 
@@ -118,7 +118,7 @@ docker_build_armhf() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=/usr/local/musl/arm-unknown-linux-musleabihf/lib/libatomic.a -Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
     -it "blackdex/rust-musl:arm-musleabihf-${RUST_CHANNEL}" \
     bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}"
 
@@ -141,7 +141,7 @@ docker_build_armv5te() {
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=/usr/local/musl/armv5te-unknown-linux-musleabi/lib/libatomic.a -Clink-arg=-s' \
+    -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
     -it "blackdex/rust-musl:armv5te-musleabi-${RUST_CHANNEL}" \
     bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}"
 

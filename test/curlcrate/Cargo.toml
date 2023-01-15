@@ -6,11 +6,18 @@ edition = "2021"
 resolver = "2"
 
 [features]
+default = []
 vendored_openssl = ["openssl/vendored"]
 
 [dependencies]
 openssl = { version = "*", optional = true }
 curl = "*"
+
+# Use a patched version of rust-openssl until a newer version than 0.10.45 is released
+# The current version has issues with OpenSSL v3.x builds
+[patch.crates-io]
+openssl = { git = "https://github.com/sfackler/rust-openssl", package = "openssl", rev = "2e986986784f0136d6666a0ef354ff6bafee63eb"}
+openssl-sys = { git = "https://github.com/sfackler/rust-openssl", package = "openssl-sys", rev = "2e986986784f0136d6666a0ef354ff6bafee63eb"}
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

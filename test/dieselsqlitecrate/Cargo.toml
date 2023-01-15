@@ -6,6 +6,7 @@ edition = "2021"
 resolver = "2"
 
 [features]
+default = []
 bundled_sqlite = ["libsqlite3-sys"]
 
 [dependencies]
