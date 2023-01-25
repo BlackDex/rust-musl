@@ -32,6 +32,8 @@ RUN apt-get update && \
         git \
         tzdata \
         ca-certificates \
+        # Allow setcap to be used during image building
+        libcap2-bin \
         --no-install-recommends \
         && \
     # Cleanup apt
