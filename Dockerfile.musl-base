@@ -45,7 +45,7 @@ RUN apt-get update && \
 # Define the target and openssl architecture to use during build
 ARG TARGET=x86_64-unknown-linux-musl
 ARG OPENSSL_ARCH=linux-x86_64
-ARG OPENSSL_VERSION="1.1.1s"
+ARG OPENSSL_VERSION="1.1.1t"
 ARG ARCH_CPPFLAGS=
 
 ENV TARGET="${TARGET}" \
@@ -60,13 +60,15 @@ ENV TARGET="${TARGET}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
+    # Update the OpenSSL version in the rust-musl.yml workflow.
+    # Currently 1.1.1t / 3.0.8
     SSL_VER="${OPENSSL_VERSION}" \
     CURL_VER="7.87.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.18" \
     PQ_15_VER="15.1" \
     SQLITE_VER="3400100" \
-    MARIADB_VER="3.3.3"
+    MARIADB_VER="3.3.4"
 
 WORKDIR /tmp
 
