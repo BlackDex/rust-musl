@@ -63,7 +63,7 @@ ENV TARGET="${TARGET}" \
     # Update the OpenSSL version in the rust-musl.yml workflow.
     # Currently 1.1.1t / 3.0.8
     SSL_VER="${OPENSSL_VERSION}" \
-    CURL_VER="7.87.0" \
+    CURL_VER="7.88.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.19" \
     PQ_15_VER="15.2" \
@@ -87,7 +87,7 @@ RUN echo "zlib" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIE -pie -static --static" \
     ./configure \
       --static \
       --prefix="${TARGET_PREFIX}" && \
@@ -108,7 +108,7 @@ RUN echo "OpenSSL" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIC -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIC -pie -static --static" \
     ./Configure \
       ${OPENSSL_ARCH} \
       no-dso \
@@ -148,7 +148,7 @@ RUN echo "libcurl" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIE -pie -static --static" \
     ./configure \
       --with-sysroot="${SYSROOT}" \
       --host="${TARGET}" \
@@ -183,7 +183,7 @@ RUN echo "PostgreSQL v11" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIE -pie -static --static" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -212,7 +212,7 @@ RUN echo "PostgreSQL v15" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIE -pie -static --static" \
    ./configure \
       --host="${TARGET}" \
       --target="${TARGET}" \
@@ -260,7 +260,7 @@ RUN echo "SQLite3" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -flto -ffat-lto-objects -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fstack-protector-strong -flto -ffat-lto-objects -fPIE -pie -static --static" \
     CFLAGS="-DSQLITE_CORE -D_POSIX_THREAD_SAFE_FUNCTIONS -DSQLITE_THREADSAFE=1 -DSQLITE_ENABLE_API_ARMOR -DSQLITE_DEFAULT_FOREIGN_KEYS=1 -DHAVE_USLEEP=1 -DSQLITE_ENABLE_MEMORY_MANAGEMENT" \
     CFLAGS+=" -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_RTREE" \
     CFLAGS+=" -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_USE_URI -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_MAX_VARIABLE_NUMBER=250000 -DSQLITE_MAX_EXPR_DEPTH=10000" \
@@ -290,7 +290,6 @@ RUN echo "SQLite3" && \
 # Building MariaDB
 # It seems that MariaDB has some issues when compiled with LTO enabled https://jira.mariadb.org/browse/MDEV-25633
 # Therefor i will not compile MariaDB with LTO, but -O2 should help a bit in getting some better performance.
-# Also, building v3.3.1 works fine, but there seems to be a linking issue when using mysqlclient-sys, there we will stay at v3.2.x
 # hadolint ignore=DL3003
 RUN echo "MariaDB Connector/C" && \
     curl -sSL "https://archive.mariadb.org/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
@@ -303,7 +302,7 @@ RUN echo "MariaDB Connector/C" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -fPIE -pie -static --static" \
+    CC="${TARGET_CC} -O2 -fno-strict-aliasing -fstack-protector-strong -fPIE -pie -static --static" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
@@ -311,7 +310,7 @@ RUN echo "MariaDB Connector/C" && \
       -DCMAKE_HOST_SYSTEM_NAME=Linux \
       -DINSTALL_LIBDIR=lib \
       -DINSTALL_INCLUDEDIR=include/mysql \
-      -DCMAKE_BUILD_TYPE=MINSIZEREL \
+      -DCMAKE_BUILD_TYPE=MinSizeRel \
       -DWITH_EXTERNAL_ZLIB=OFF \
       -DWITH_SSL=OPENSSL \
       -DWITH_MYSQLCOMPAT=ON \
