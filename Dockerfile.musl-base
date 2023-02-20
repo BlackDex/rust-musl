@@ -63,7 +63,7 @@ ENV TARGET="${TARGET}" \
     # Update the OpenSSL version in the rust-musl.yml workflow.
     # Currently 1.1.1t / 3.0.8
     SSL_VER="${OPENSSL_VERSION}" \
-    CURL_VER="7.88.0" \
+    CURL_VER="7.88.1" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.19" \
     PQ_15_VER="15.2" \
