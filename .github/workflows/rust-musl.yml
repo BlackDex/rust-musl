@@ -182,7 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
-      # max-parallel: 3 # Use this when using `act`, since this could use a lot of resources
+      # max-parallel: 2 # Use this when using `act`, since this could use a lot of resources
       fail-fast: false
       matrix:
         openssl_version:
@@ -269,7 +269,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -324,7 +324,7 @@ jobs:
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Disable load, because we are going to push the image here
@@ -359,7 +359,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -413,7 +413,7 @@ jobs:
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Disable load, because we are going to push the image here
@@ -439,7 +439,7 @@ jobs:
       # Rust Nightly
 
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -487,7 +487,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # Disable load, because we are going to push the image here
