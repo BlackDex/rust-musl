@@ -10,6 +10,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     TERM=xterm-256color
 
+# Used for testing the GitHub workflow
+# RUN echo "Building musl toolchain for target ${TARGET}"
+
 # Make sure we have basic dev tools for building.
 # We only build the gcc musl based toolchain here
 # and use these compiled files later in other Docker builds.
@@ -71,4 +74,5 @@ LABEL maintainer="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
 LABEL org.opencontainers.image.licenses="Apache License 2.0"
-LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/musl-toolchain/"
+LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.description="MUSL Cross Build Toolchain for ${TARGET}"

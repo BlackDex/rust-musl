@@ -21,6 +21,10 @@ jobs:
   toolchain:
     name: Build Toolchain - ${{ matrix.env.IMAGE_TAG }}
     runs-on: ubuntu-latest
+    env:
+      HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      HAVE_QUAY_LOGIN: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
       # max-parallel: 2 # Use this when using `act`, since this could use a lot of memory
@@ -64,23 +68,57 @@ jobs:
         if: ${{ env.ACT }}
         shell: bash
         run: |
-          echo "DOCKER_BUILDKIT=1"
-          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
+          echo "DOCKER_BUILDKIT=1" | tee -a "${GITHUB_ENV}"
 
-      # Do not login when using `act`
+      - name: Determine Container Date Tag
+        shell: bash
+        run: |
+          # Get the current date
+          echo "TAG_DATE=$(date +'-%Y-%m-%d')" | tee -a "${GITHUB_ENV}"
+
       - name: Login to DockerHub
-        if: ${{ !env.ACT }}
+        if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Determine Docker Date Tag
-        id: vars
+      - name: Tags for DockerHub
+        if: ${{ env.ACT || env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         shell: bash
         run: |
-          # Get the current date
-          echo "TAG_DATE=$(date +'-%Y-%m-%d')" | tee -a "${GITHUB_OUTPUT}"
+          echo "tags=blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to ghcr.io
+        if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags for ghcr.io
+        if: ${{ env.ACT || env.HAVE_GHCR_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags=${tags:+${tags},}ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to quay.io
+        if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Tags for quay.io
+        if: ${{ env.ACT || env.HAVE_QUAY_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags=${tags:+${tags},}quay.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},quay.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
 
       - name: Docker Build
         uses: docker/build-push-action@v3
@@ -91,7 +129,5 @@ jobs:
             TARGET=${{ matrix.env.TARGET }}
             ARCH_COMMON_CONFIG=${{ matrix.env.ARCH_COMMON_CONFIG }}
             MUSL_CROSS_MAKE_CONFIG=${{ matrix.env.MUSL_CROSS_MAKE_CONFIG }}
-          tags: |
-            blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}
-            blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${{ steps.vars.outputs.TAG_DATE }}
+          tags: ${{ env.tags }}
           push: ${{ !env.ACT }}
