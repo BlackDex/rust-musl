@@ -102,7 +102,7 @@ jobs:
         if: ${{ env.ACT || env.HAVE_GHCR_LOGIN == 'true' }}
         shell: bash
         run: |
-          echo "tags=${tags:+${tags},}ghcr.io/blackdex/rust-musl:musl-toolchain-${{ matrix.env.IMAGE_TAG }},ghcr.io/blackdex/rust-musl:musl-toolchain-${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+          echo "tags=${tags:+${tags},}ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
             | tee -a "${GITHUB_ENV}"
 
       - name: Login to quay.io
