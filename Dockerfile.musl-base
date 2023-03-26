@@ -5,7 +5,7 @@ ARG IMAGE_TAG=x86_64-musl
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
+FROM ghcr.io/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
 
 # Start building the musl-base
 FROM ubuntu:22.04
@@ -409,4 +409,5 @@ LABEL maintainer="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
 LABEL org.opencontainers.image.licenses="Apache License 2.0"
-LABEL org.opencontainers.image.url="https://hub.docker.com/r/blackdex/rust-musl/"
+LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL, SQLite and MariaDB static libraries"

@@ -180,6 +180,10 @@ jobs:
     name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }} - (OpenSSL v${{ matrix.openssl_version }})
     needs: [build_vars]
     runs-on: ubuntu-latest
+    env:
+      HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      HAVE_QUAY_LOGIN: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
       # max-parallel: 2 # Use this when using `act`, since this could use a lot of resources
@@ -233,16 +237,83 @@ jobs:
         if: ${{ env.ACT }}
         shell: bash
         run: |
-          echo "DOCKER_BUILDKIT=1"
-          echo "DOCKER_BUILDKIT=1" >> $GITHUB_ENV
+          echo "DOCKER_BUILDKIT=1" | tee -a "${GITHUB_ENV}"
 
-      # Do not login when using `act`
+      - name: Generate base container tags
+        shell: bash
+        run: |
+            echo "base_tags_stable=" \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}," \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}," \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable${{ matrix.openssl_docker_tag }}," \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}" \
+            | tr -d ' ' | tee -a "${GITHUB_ENV}"
+
+            echo "base_tags_stable_vw=" \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}" \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}" \
+            | tr -d ' ' | tee -a "${GITHUB_ENV}"
+
+            echo "base_tags_nightly=" \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ needs.build_vars.outputs.nightly_tag_postfix }}${{ matrix.openssl_docker_tag }}," \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.nightly_date }}${{ matrix.openssl_docker_tag }}" \
+            | tr -d ' ' | tee -a "${GITHUB_ENV}"
+
       - name: Login to DockerHub
-        if: ${{ !env.ACT }}
+        if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tags for DockerHub
+        if: ${{ env.ACT || env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags_stable=$(echo "${base_tags_stable}" | sed 's#@RGSTRY@##g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_stable_vw=$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@##g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_nightly=$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@##g')" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to ghcr.io
+        if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags for ghcr.io
+        if: ${{ env.ACT || env.HAVE_GHCR_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags_stable=${tags_stable:+${tags_stable},}$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#ghcr.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_stable_vw=${tags_stable_vw:+${tags_stable_vw},}$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#ghcr.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_nightly=${tags_nightly:+${tags_nightly},}$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#ghcr.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to quay.io
+        if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Tags for quay.io
+        if: ${{ env.ACT || env.HAVE_QUAY_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags_stable=${tags_stable:+${tags_stable},}$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#quay.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_stable_vw=${tags_stable_vw:+${tags_stable_vw},}$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#quay.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
+          echo "tags_nightly=${tags_nightly:+${tags_nightly},}$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#quay.io/#g')" \
+            | tee -a "${GITHUB_ENV}"
 
       - name: Determine Docker Build Cache
         id: docker_cache
@@ -340,15 +411,7 @@ jobs:
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
-          tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.stable_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
+          tags: ${{ env.tags_stable }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -428,9 +491,7 @@ jobs:
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=${{ needs.build_vars.outputs.vaultwarden_version }}
-          tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}-${{ needs.build_vars.outputs.current_date }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}
+          tags: ${{ env.tags_stable_vw }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
@@ -502,8 +563,6 @@ jobs:
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=nightly-${{ needs.build_vars.outputs.nightly_date }}
-          tags: |
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ needs.build_vars.outputs.nightly_tag_postfix }}${{ matrix.openssl_docker_tag }}
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-${{ needs.build_vars.outputs.nightly_date }}${{ matrix.openssl_docker_tag }}
+          tags: ${{ env.tags_nightly }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
