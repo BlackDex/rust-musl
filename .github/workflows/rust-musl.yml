@@ -250,7 +250,7 @@ jobs:
             | tr -d ' ' | tee -a "${GITHUB_ENV}"
 
             echo "base_tags_stable_vw=" \
-            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}" \
+            "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}," \
             "@RGSTRY@blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-stable-${{ needs.build_vars.outputs.vaultwarden_version }}${{ matrix.openssl_docker_tag }}" \
             | tr -d ' ' | tee -a "${GITHUB_ENV}"
 
