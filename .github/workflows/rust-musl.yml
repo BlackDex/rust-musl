@@ -3,6 +3,7 @@ on:
     paths:
       - ".github/workflows/rust-musl.yml"
       - "Dockerfile.musl-base"
+      - "test/multicrate/**"
     branches:
       - main
 
