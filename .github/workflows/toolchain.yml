@@ -6,6 +6,7 @@ on:
       - "config.mak"
       - "config32.mak"
       - "shared.mak"
+      - "test/multicrate/**"
     branches:
       - main
 
