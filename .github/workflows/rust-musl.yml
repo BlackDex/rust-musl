@@ -183,7 +183,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
-      HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      # HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      HAVE_GHCR_LOGIN: false
       HAVE_QUAY_LOGIN: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
