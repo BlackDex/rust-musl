@@ -35,8 +35,8 @@ flate2 = "*"
 
 # Pin the mimalloc version since newer version seems to cause issues on musl builds
 # Deps for MiMalloc intergration
-mimalloc = { version = "=0.1.34", features = ["secure"] }
-libmimalloc-sys = { version = "=0.1.30", features = ["extended"] }
+mimalloc = { version = "*", features = ["secure"] }
+libmimalloc-sys = { version = "*", features = ["extended"] }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
