@@ -35,14 +35,18 @@ The images without an extra postfix are using the default v1.1 version.
 
 
 ## Usage
+
+As of 2023-04-23 I stopped building `arm-unknown-linux-musleabihf` and `armv5te-unknown-linux-musleabi`.<br>
+They do not seem to be used at all. If someone is using them, please open an issue and let me know.<br>
+
 |        Cross Target            |    Docker Tag    |
 | ------------------------------ | ---------------- |
 | x86\_64-unknown-linux-musl     | x86\_64-musl     |
 | armv7-unknown-linux-musleabihf | armv7-musleabihf |
 | aarch64-unknown-linux-musl     | aarch64-musl     |
 | arm-unknown-linux-musleabi     | arm-musleabi     |
-| arm-unknown-linux-musleabihf   | arm-musleabihf   |
-| armv5te-unknown-linux-musleabi | armv5te-musleabi |
+| ~~arm-unknown-linux-musleabihf~~   | ~~arm-musleabihf~~   |
+| ~~armv5te-unknown-linux-musleabi~~ | ~~armv5te-musleabi~~ |
 
 To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
 
@@ -107,8 +111,8 @@ This for example happens when using the `mimalloc` crate.
 | Cross Target                   |  RUSTFLAG             |
 | ------------------------------ | --------------------- |
 | arm-unknown-linux-musleabi     | `-Clink-arg=-latomic` |
-| arm-unknown-linux-musleabihf   | `-Clink-arg=-latomic` |
-| armv5te-unknown-linux-musleabi | `-Clink-arg=-latomic` |
+| ~~arm-unknown-linux-musleabihf~~   | ~~`-Clink-arg=-latomic`~~ |
+| ~~armv5te-unknown-linux-musleabi~~ | ~~`-Clink-arg=-latomic`~~ |
 
 <br>
 
