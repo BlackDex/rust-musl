@@ -395,20 +395,15 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      # Help prevent docker push issues by trying to not upload too many images at the same time
-      - name: Random sleep for max 15 seconds
-        if: ${{ !env.ACT && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        shell: bash
-        run: sleep $((RANDOM % 15))s
-
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@v4
         with:
           context: .
-          # Disable load, because we are going to push the image here
-          load: false
+          # Enable load on GHA, this should prevent push issues.
+          # See: https://github.com/moby/buildkit/issues/2713#issuecomment-1068540101
+          load: ${{ !env.ACT }}
           # Run this step also when using `act`, but do not push the images when build locally
           push: ${{ !env.ACT }}
           file: ./Dockerfile.musl-base
@@ -482,20 +477,15 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-vw-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      # Help prevent docker push issues by trying to not upload too many images at the same time
-      - name: Random sleep for max 15 seconds
-        if: ${{ !env.ACT && (needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger)) }}
-        shell: bash
-        run: sleep $((RANDOM % 15))s
-
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
         uses: docker/build-push-action@v4
         with:
           context: .
-          # Disable load, because we are going to push the image here
-          load: false
+          # Enable load on GHA, this should prevent push issues.
+          # See: https://github.com/moby/buildkit/issues/2713#issuecomment-1068540101
+          load: ${{ !env.ACT }}
           # Run this step also when using `act`, but do not push the images when build locally
           push: ${{ !env.ACT }}
           file: ./Dockerfile.musl-base
@@ -562,18 +552,13 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly${{ matrix.openssl_docker_tag }}-test bash -c 'cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      # Help prevent docker push issues by trying to not upload too many images at the same time
-      - name: Random sleep for max 15 seconds
-        if: ${{ !env.ACT }}
-        shell: bash
-        run: sleep $((RANDOM % 15))s
-
       - name: Docker Push - Rust Nightly
         uses: docker/build-push-action@v4
         with:
           context: .
-          # Disable load, because we are going to push the image here
-          load: false
+          # Enable load on GHA, this should prevent push issues.
+          # See: https://github.com/moby/buildkit/issues/2713#issuecomment-1068540101
+          load: ${{ !env.ACT }}
           # Run this step also when using `act`, but do not push the images when build locally
           push: ${{ !env.ACT }}
           file: ./Dockerfile.musl-base
