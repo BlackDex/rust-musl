@@ -560,7 +560,7 @@ jobs:
 
       # Help prevent docker push issues by trying to not upload too many images at the same time
       - name: Random sleep for max 30 seconds
-        if: ${{ !env.ACT && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
+        if: ${{ !env.ACT }}
         shell: bash
         run: sleep $((10 + RANDOM % 20))s
 
