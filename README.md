@@ -10,14 +10,14 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * ZLib (`v1.2.13`)
 * OpenSSL v1.1 (`v1.1.1t`) and OpenSSL v3.0 (`v3.0.8`)
 * cURL (`v8.0.1`)
-* PostgreSQL lib (`v11.19`)
+* PostgreSQL lib (`v11.20`)
 * SQLite (`v3.41.2`)
 * MariaDB Connector/C (`v3.3.4`) (MySQL Compatible)
 
 Since 2023-01-14 there is also support for PostreSQL lib `v15`.<br>
 Previous images were providing `v14` as an extra lib.<br>
 See below on how to use this version instead of the current default `v11`.
-* PostgreSQL lib (`v15.2`)
+* PostgreSQL lib (`v15.3`)
 
 
 ## Available architectures
