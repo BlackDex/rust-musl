@@ -8,7 +8,7 @@ ARG IMAGE_TAG=x86_64-musl
 FROM ghcr.io/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
 
 # Start building the musl-base
-FROM ubuntu:22.04
+FROM docker.io/library/ubuntu:22.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -32,8 +32,6 @@ RUN apt-get update && \
         git \
         tzdata \
         ca-certificates \
-        # Allow setcap to be used during image building
-        libcap2-bin \
         --no-install-recommends \
         && \
     # Cleanup apt
@@ -63,11 +61,11 @@ ENV TARGET="${TARGET}" \
     # Update the OpenSSL version in the rust-musl.yml workflow.
     # Currently 1.1.1t / 3.0.8
     SSL_VER="${OPENSSL_VERSION}" \
-    CURL_VER="8.0.1" \
+    CURL_VER="8.1.0" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.20" \
     PQ_15_VER="15.3" \
-    SQLITE_VER="3410200" \
+    SQLITE_VER="3420000" \
     MARIADB_VER="3.3.4"
 
 WORKDIR /tmp
