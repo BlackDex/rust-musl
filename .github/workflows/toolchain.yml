@@ -20,7 +20,7 @@ name: Build Toolchains
 jobs:
   toolchain:
     name: Build Toolchain - ${{ matrix.env.IMAGE_TAG }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
@@ -39,6 +39,10 @@ jobs:
             TARGET: armv7-unknown-linux-musleabihf
             MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
+          - IMAGE_TAG: armv7-musleabihf-musl-v1.2
+            TARGET: armv7-unknown-linux-musleabihf
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
           - IMAGE_TAG: aarch64-musl
             TARGET: aarch64-unknown-linux-musl
             MUSL_CROSS_MAKE_CONFIG: config.mak
@@ -46,22 +50,28 @@ jobs:
             TARGET: arm-unknown-linux-musleabi
             MUSL_CROSS_MAKE_CONFIG: config32.mak
             ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=soft --with-mode=arm"
-          - IMAGE_TAG: arm-musleabihf
-            TARGET: arm-unknown-linux-musleabihf
-            MUSL_CROSS_MAKE_CONFIG: config32.mak
-            ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=hard --with-mode=arm --with-fpu=vfp"
-          - IMAGE_TAG: armv5te-musleabi
-            TARGET: armv5te-unknown-linux-musleabi
-            MUSL_CROSS_MAKE_CONFIG: config32.mak
-            ARCH_COMMON_CONFIG: "--with-arch=armv5te --with-float=soft --with-mode=arm"
+          - IMAGE_TAG: arm-musleabi-musl-v1.2
+            TARGET: arm-unknown-linux-musleabi
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=soft --with-mode=arm"
+          # 2023-04-22: Stop building armv6-hf images, the do not seem to be used at all.
+          # - IMAGE_TAG: arm-musleabihf
+          #   TARGET: arm-unknown-linux-musleabihf
+          #   MUSL_CROSS_MAKE_CONFIG: config32.mak
+          #   ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=hard --with-mode=arm --with-fpu=vfp"
+          # 2023-04-22: Stop building armv5te images, the do not seem to be used at all.
+          # - IMAGE_TAG: armv5te-musleabi
+          #   TARGET: armv5te-unknown-linux-musleabi
+          #   MUSL_CROSS_MAKE_CONFIG: config32.mak
+          #   ARCH_COMMON_CONFIG: "--with-arch=armv5te --with-float=soft --with-mode=arm"
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
         if: ${{ !env.ACT }}
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
 
       # Use the DOCKER_BUILDKIT=1 env when using `act`
       - name: Setup Docker Buildx (DOCKER_BUILDKIT=1)
@@ -78,7 +88,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -92,7 +102,7 @@ jobs:
 
       - name: Login to ghcr.io
         if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -107,7 +117,7 @@ jobs:
 
       - name: Login to quay.io
         if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -121,7 +131,7 @@ jobs:
             | tee -a "${GITHUB_ENV}"
 
       - name: Docker Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
         with:
           context: .
           file: ./Dockerfile.toolchain
