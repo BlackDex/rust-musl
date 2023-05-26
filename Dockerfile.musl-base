@@ -61,12 +61,12 @@ ENV TARGET="${TARGET}" \
     # Update the OpenSSL version in the rust-musl.yml workflow.
     # Currently 1.1.1t / 3.0.8
     SSL_VER="${OPENSSL_VERSION}" \
-    CURL_VER="8.1.0" \
+    CURL_VER="8.1.1" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.20" \
     PQ_15_VER="15.3" \
     SQLITE_VER="3420000" \
-    MARIADB_VER="3.3.4"
+    MARIADB_VER="3.3.5"
 
 WORKDIR /tmp
 
@@ -139,6 +139,11 @@ RUN echo "OpenSSL" && \
 RUN echo "libcurl" && \
     curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
     cd "curl-${CURL_VER}" && \
+    # Start Temporary patch to fix building - See: https://github.com/curl/curl/pull/11180 && https://github.com/curl/curl/issues/11189
+    sed -i 's#CC=$CC#CC=\\"$CC\\"#' configure.ac && \
+    sed -i 's#LD_LIBRARY_PATH=$LD_LIBRARY_PATH#LD_LIBRARY_PATH=\\"$LD_LIBRARY_PATH\\"#' configure.ac && \
+    autoreconf -fi && \
+    # End Temporary patch to fix building
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
@@ -157,7 +162,7 @@ RUN echo "libcurl" && \
       --with-zlib \
       --with-openssl \
       --disable-ldap \
-      --enable-optimize \
+      # --enable-optimize \
       --with-ca-path=/etc/ssl/certs/ \
       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
       --with-ca-fallback \
