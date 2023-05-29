@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "multicrate"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 resolver = "2"
 
@@ -20,8 +20,8 @@ libsqlite3-sys = "*"
 
 # Deps for Diesel / SQLite / MySQL/MariaDB / PostgreSQL testing
 # Tell diels to use all these features.
-diesel = { version = "2.0.*", features = ["sqlite", "mysql", "postgres", "chrono", "r2d2"] }
-diesel_migrations = { version = "2.0.*", features = ["sqlite", "mysql", "postgres"] }
+diesel = { version = "2.1.*", features = ["sqlite", "mysql", "postgres", "chrono", "r2d2"] }
+diesel_migrations = { version = "2.1.*", features = ["sqlite", "mysql", "postgres"] }
 
 # Deps for curl testing
 curl = { version = "*", default-features = false }
@@ -30,13 +30,14 @@ curl = { version = "*", default-features = false }
 serde = { version = "1.0.*", features = ["derive"] }
 serde_json = "1.0.*"
 
-# Deps for zlib testing
-flate2 = "*"
-
-# Pin the mimalloc version since newer version seems to cause issues on musl builds
 # Deps for MiMalloc intergration
 mimalloc = { version = "*", features = ["secure"] }
 libmimalloc-sys = { version = "*", features = ["extended"] }
+
+# Deps for zlib testing
+[dependencies.flate2]
+version = "*"
+features = ["zlib"]
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

@@ -1,13 +1,21 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "zlibcrate"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
-flate2 = "*"
 tar = "*"
+git2 = "*"
+
+# Deps for zlib testing
+[dependencies.flate2]
+version = "*"
+features = ["zlib"]
+
+# [patch.crates-io]
+# libz-sys = { path = "./libz-sys" }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

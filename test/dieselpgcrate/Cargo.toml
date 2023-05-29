@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselpgcrate"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 resolver = "2"
 
@@ -13,8 +13,8 @@ vendored_openssl = ["openssl/vendored"]
 openssl = "*"
 pq-sys = { version = "*", optional = true }
 
-diesel = { version = "2.0.*", features = ["postgres", "chrono", "r2d2"] }
-diesel_migrations = { version = "2.0.*", features = ["postgres"] }
+diesel = { version = "2.1.*", features = ["postgres", "chrono", "r2d2"] }
+diesel_migrations = { version = "2.1.*", features = ["postgres"] }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
