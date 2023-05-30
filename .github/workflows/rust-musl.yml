@@ -194,9 +194,9 @@ jobs:
           - "1.1.1t"
           - "3.0.8"
         include:
-          - openssl_version: "1.1.1t"
+          - openssl_version: "1.1.1u"
             openssl_docker_tag: ""
-          - openssl_version: "3.0.8"
+          - openssl_version: "3.0.9"
             openssl_docker_tag: "-openssl3"
         env:
           - IMAGE_TAG: x86_64-musl
