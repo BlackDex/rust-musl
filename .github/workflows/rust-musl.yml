@@ -191,8 +191,8 @@ jobs:
       fail-fast: false
       matrix:
         openssl_version:
-          - "1.1.1t"
-          - "3.0.8"
+          - "1.1.1u"
+          - "3.0.9"
         include:
           - openssl_version: "1.1.1u"
             openssl_docker_tag: ""
@@ -215,16 +215,6 @@ jobs:
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
             XTRA_RUSTFLAGS: "-Clink-args=-latomic "
-          # 2023-04-22: Stop building armv6-hf images, the do not seem to be used at all.
-          # - IMAGE_TAG: arm-musleabihf
-          #   TARGET: arm-unknown-linux-musleabihf
-          #   OPENSSL_ARCH: linux-armv4
-          #   XTRA_RUSTFLAGS: "-Clink-args=-latomic "
-          # 2023-04-22: Stop building armv5te images, the do not seem to be used at all.
-          # - IMAGE_TAG: armv5te-musleabi
-          #   TARGET: armv5te-unknown-linux-musleabi
-          #   OPENSSL_ARCH: linux-armv4
-          #   XTRA_RUSTFLAGS: "-Clink-args=-latomic "
 
     steps:
       - name: Checkout Repo
