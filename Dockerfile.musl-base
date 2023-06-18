@@ -237,7 +237,7 @@ RUN echo "PostgreSQL v15" && \
       "${TARGET_AR}" x ../libpgcommon.a && \
       "${TARGET_AR}" x ../libpgport.a && \
       # Merge all these files again into one libpq.a file
-      "${TARGET_AR}" csr libpq.a *.o && \
+      "${TARGET_AR}" csr libpq.a ./*.o && \
       # Move and cleanup
       mv -vf libpq.a ../libpq.a && \
       cd ../ && rm -rf merge pkgconfig libpgcommon* libpgport* && \
