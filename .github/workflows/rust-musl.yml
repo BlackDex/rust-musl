@@ -46,7 +46,7 @@ name: Rust MUSL
 jobs:
   build_vars:
     name: Generate Build Variables
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       current_date: ${{ steps.build_vars.outputs.current_date }}
       nightly_date: ${{ steps.build_vars.outputs.nightly_date }}
@@ -180,7 +180,7 @@ jobs:
   musl-base:
     name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }} - (OpenSSL v${{ matrix.openssl_version }})
     needs: [build_vars]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
