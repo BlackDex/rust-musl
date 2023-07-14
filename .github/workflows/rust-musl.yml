@@ -53,40 +53,83 @@ jobs:
       nightly_tag_postfix: ${{ steps.build_vars.outputs.nightly_tag_postfix }}
       nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
       stable_trigger: ${{ steps.build_vars.outputs.stable_trigger }}
-      stable_version: ${{ steps.build_vars.outputs.stable_version }}
-      # Special version to match the vaultwarden stable version currently used in master
-      vaultwarden_version: ${{ steps.build_vars.outputs.vaultwarden_version }}
+      # Musl v1.2 postfix
+      stable_toolchain_postfix: ${{ steps.build_vars.outputs.stable_toolchain_postfix }}
+      nightly_toolchain_postfix: ${{ steps.build_vars.outputs.nightly_toolchain_postfix }}
+      vaultwarden_toolchain_postfix: ${{ steps.build_vars.outputs.vaultwarden_toolchain_postfix }}
+      #
+      # Set versions extacted during the rust_versions step
+      stable_version: ${{ steps.rust_versions.outputs.stable_version }}
+      stable_semver: ${{ steps.rust_versions.outputs.stable_semver }}
       # We also append the value of workflow input fresh_stable here.
       # This will ensure we do trigger a fresh rustup.
-      stable_rustc_hash: "${{ steps.rust_stable.outputs.rustc_hash }}${{ github.event.inputs.fresh_stable }}"
+      stable_hash: "${{ steps.rust_versions.outputs.stable_hash }}${{ github.event.inputs.fresh_stable }}"
+      #
+      # Nightly version
+      nightly_version: ${{ steps.rust_versions.outputs.nightly_version }}
+      nightly_semver: ${{ steps.rust_versions.outputs.nightly_semver }}
+      #
+      # Special version to match the vaultwarden stable version currently used in master
+      vaultwarden_version: ${{ steps.rust_versions.outputs.vaultwarden_version }}
+      vaultwarden_semver: ${{ steps.rust_versions.outputs.vaultwarden_semver }}
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@07a68733c10c6a230a22a9c7d3dbaeaf4d00544f # stable @ Mar 28, 2023, 6:32 PM GMT+2
+        uses: dtolnay/rust-toolchain@4f366e621dc8fa63f557ca04b8f4361824a35a45 # stable @ June 25, 2023, 1:30 AM GMT+2
 
-      - name: Get Rust stable info
-        id: rust_stable
+      - name: Get Rust version info
+        id: rust_versions
         run: |
           #
           function github_output () {
             echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
           }
 
-          RUSTC_VERSION_STRING=$(rustc -V)
-          RUSTC_VERSION=$(echo "${RUSTC_VERSION_STRING}" | grep -oP '\S+\s(\K\S+)(?=\s)')
-          github_output "rustc" "${RUSTC_VERSION}"
-          RUSTC_HASH=$(echo "${RUSTC_VERSION_STRING}" | grep -oP '\s\((\K\S+)(?=\s)')
-          github_output "rustc_hash" "${RUSTC_HASH}"
+          # Get the Rust stable version info
+          STABLE_VERSION_STRING=$(rustc -V)
+          STABLE_VERSION=$(echo "${STABLE_VERSION_STRING}" | grep -oP '\S+\s(\K\S+)(?=\s)')
+          github_output "stable_version" "${STABLE_VERSION}"
+
+          STABLE_HASH=$(echo "${STABLE_VERSION_STRING}" | grep -oP '\s\((\K\S+)(?=\s)')
+          github_output "stable_hash" "${STABLE_HASH}"
+
+          STABLE_SEMVER=${STABLE_VERSION//.}
+          github_output "stable_semver" "${STABLE_SEMVER}"
+
+          # Get the Rust nightly version info
+          rustup install --profile minimal nightly
+
+          NIGHTLY_VERSION_STRING=$(rustc +nightly -V)
+          NIGHTLY_VERSION=$(echo "${NIGHTLY_VERSION_STRING}" | grep -oP '\S+\s(\K\S+)(?=\s)')
+          github_output "nightly_version" "${NIGHTLY_VERSION}"
+
+          NIGHTLY_HASH=$(echo "${NIGHTLY_VERSION_STRING}" | grep -oP '\s\((\K\S+)(?=\s)')
+          github_output "nightly_hash" "${NIGHTLY_HASH}"
+
+          NIGHTLY_SEMVER=$(echo "${NIGHTLY_VERSION//.}" | grep -oP '(\K\d{4})')
+          github_output "nightly_semver" "${NIGHTLY_SEMVER}"
+
+          # Get the Vaultwarden Rust version from the `rust-toolchain` file.
+          export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
+          # Check if the version matches X.YY.Z, if not use the STABLE_VERSION instead
+          if [[ "${VW_RUST_VER}" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1}$ ]]; then
+            github_output "vaultwarden_version" "${VW_RUST_VER}"
+            VAULTWARDEN_SEMVER=${VW_RUST_VER//.}
+            github_output "vaultwarden_semver" "${VAULTWARDEN_SEMVER}"
+          else
+            github_output "vaultwarden_version" "${STABLE_VERSION}"
+            github_output "vaultwarden_semver" "${STABLE_SEMVER}"
+          fi
 
       - name: Cache previous rustc stable hash
         uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
         if: ${{ !env.ACT }}
         with:
           path: ~/rustc-stable.hash
-          key: build-vars-rustc-stable-${{ steps.rust_stable.outputs.rustc_hash }}
+          key: build-vars-rustc-stable-${{ steps.rust_versions.outputs.stable_hash }}
           restore-keys: |
             build-vars-rustc-stable-
 
@@ -117,28 +160,14 @@ jobs:
           export RUSTC_STABLE_HASH_CACHED="$( cat ~/rustc-stable.hash 2>/dev/null )"
           if [[ -n "${{ github.event.inputs.fresh_stable }}" ]]; then
             github_output "stable_trigger" "true"
-          elif [[ "${RUSTC_STABLE_HASH_CACHED}" != ${{ steps.rust_stable.outputs.rustc_hash }} ]]; then
-            echo "Cached: '${RUSTC_STABLE_HASH_CACHED}' - Current: '${{ steps.rust_stable.outputs.rustc_hash }}'"
+          elif [[ "${RUSTC_STABLE_HASH_CACHED}" != ${{ steps.rust_versions.outputs.stable_hash }} ]]; then
+            echo "Cached: '${RUSTC_STABLE_HASH_CACHED}' - Current: '${{ steps.rust_versions.outputs.stable_hash }}'"
             github_output "stable_trigger" "true"
           else
             github_output "stable_trigger" ""
           fi
           # Store the current stable hash in GHA Cache
-          echo "${{ steps.rust_stable.outputs.rustc_hash }}" | tee ~/rustc-stable.hash
-
-          #
-          # Extract rust stable version
-          export RUST_VER="$( echo "${{ steps.rust_stable.outputs.rustc }}" | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]" )"
-          github_output "stable_version" "${RUST_VER}"
-
-          # Get the Vaultwarden stable version from the `rust-toolchain` file.
-          export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
-          # Check if the version matches X.YY.Z, if not use the RUST_VER variable
-          if [[ "${VW_RUST_VER}" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1}$ ]]; then
-            github_output "vaultwarden_version" "${VW_RUST_VER}"
-          else
-            github_output "vaultwarden_version" "${RUST_VER}"
-          fi
+          echo "${{ steps.rust_versions.outputs.stable_hash }}" | tee ~/rustc-stable.hash
 
           #
           # Determine nightly date
@@ -173,6 +202,27 @@ jobs:
             github_output "nightly_trigger" "true"
           else
             github_output "nightly_trigger" ""
+          fi
+
+          #
+          # Check if we need to use the v1.2.3 MUSL builds for the 32bit based arch's
+          # Rust supports musl v1.2.3 since v1.71.0
+          if [ ${{ steps.rust_versions.outputs.stable_semver }} -ge 1710 ]; then
+            github_output "stable_toolchain_postfix" "-musl-v1.2"
+          else
+            github_output "stable_toolchain_postfix" ""
+          fi
+          # Nightly
+          if [ ${{ steps.rust_versions.outputs.nightly_semver }} -ge 1710 ]; then
+            github_output "nightly_toolchain_postfix" "-musl-v1.2"
+          else
+            github_output "nightly_toolchain_postfix" ""
+          fi
+          # Vaultwarden
+          if [ ${{ steps.rust_versions.outputs.vaultwarden_semver }} -ge 1710 ]; then
+            github_output "vaultwarden_toolchain_postfix" "-musl-v1.2"
+          else
+            github_output "vaultwarden_toolchain_postfix" ""
           fi
 
   # ###
@@ -218,12 +268,12 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
         if: ${{ !env.ACT }}
-        uses: docker/setup-buildx-action@ecf95283f03858871ff00b787d79c419715afc34 # v2.7.0
+        uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
         # https://github.com/moby/buildkit/issues/3969
         with:
           driver-opts: |
@@ -258,7 +308,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -276,7 +326,7 @@ jobs:
 
       - name: Login to ghcr.io
         if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -295,7 +345,7 @@ jobs:
 
       - name: Login to quay.io
         if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -334,10 +384,16 @@ jobs:
       # ###
       # Rust Current Stable
 
+      - name: Determine Toolchain Postfix - Rust Current Stable
+        if: ${{ matrix.env.IMAGE_TAG == 'armv7-musleabihf' || matrix.env.IMAGE_TAG == 'arm-musleabi' }}
+        shell: bash
+        run: |
+          echo "STABLE_TOOLCHAIN_POSTFIX=${{ needs.build_vars.outputs.stable_toolchain_postfix }}" | tee -a "${GITHUB_ENV}"
+
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -347,12 +403,12 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.STABLE_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
             RUST_CHANNEL=stable
-            RUSTC_HASH=${{ needs.build_vars.outputs.stable_rustc_hash }}
+            RUSTC_HASH=${{ needs.build_vars.outputs.stable_hash }}
           tags: blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}${{ matrix.openssl_docker_tag }}-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
@@ -398,7 +454,7 @@ jobs:
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -406,7 +462,7 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.STABLE_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
@@ -420,10 +476,16 @@ jobs:
       # ###
       # Rust Vaultwarden Stable
 
+      - name: Determine Toolchain Postfix - Rust Vaultwarden Stable
+        if: ${{ matrix.env.IMAGE_TAG == 'armv7-musleabihf' || matrix.env.IMAGE_TAG == 'arm-musleabi' }}
+        shell: bash
+        run: |
+          echo "VAULTWARDEN_TOOLCHAIN_POSTFIX=${{ needs.build_vars.outputs.vaultwarden_toolchain_postfix }}" | tee -a "${GITHUB_ENV}"
+
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -433,7 +495,7 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.VAULTWARDEN_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
@@ -483,7 +545,7 @@ jobs:
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -491,7 +553,7 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.VAULTWARDEN_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
@@ -504,8 +566,14 @@ jobs:
       # ###
       # Rust Nightly
 
+      - name: Determine Toolchain Postfix - Rust Vaultwarden Stable
+        if: ${{ matrix.env.IMAGE_TAG == 'armv7-musleabihf' || matrix.env.IMAGE_TAG == 'arm-musleabi' }}
+        shell: bash
+        run: |
+          echo "NIGHTLY_TOOLCHAIN_POSTFIX=${{ needs.build_vars.outputs.nightly_toolchain_postfix }}" | tee -a "${GITHUB_ENV}"
+
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -515,7 +583,7 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.NIGHTLY_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
@@ -559,7 +627,7 @@ jobs:
       #   run: sleep $((10 + RANDOM % 20))s
 
       - name: Docker Push - Rust Nightly
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671 # v4.0.0
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -567,7 +635,7 @@ jobs:
           file: ./Dockerfile.musl-base
           build-args: |
             TARGET=${{ matrix.env.TARGET }}
-            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}
+            IMAGE_TAG=${{ matrix.env.IMAGE_TAG }}${{ env.NIGHTLY_TOOLCHAIN_POSTFIX }}
             OPENSSL_ARCH=${{ matrix.env.OPENSSL_ARCH }}
             OPENSSL_VERSION=${{ matrix.openssl_version }}
             ARCH_CPPFLAGS=${{ matrix.env.ARCH_CPPFLAGS }}
