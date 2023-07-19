@@ -157,13 +157,11 @@ if __name__ == '__main__':
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
-        'PQ_14': mirrorver('https://ftp.postgresql.org/pub/source/', r'v14\.', 'v'),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql14'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
         'MARIADB_ARCH': aurver('mariadb-connector-c'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
-        'MARIADB_3_2': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.2\.', 'connector-c-', r'\/\?.*'),
     }
 
     # Show a list of packages with current versions

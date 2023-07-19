@@ -4,12 +4,13 @@ This project generates docker images to build static musl binaries using the Rus
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
 These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build both the toolchains and the libraries.<br>
-Depending if the MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.
+Depending if the Rust version and if MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.<br>
+All versions of Rust v1.71.0 or higher will all be build with MUSL v1.2.3 since all targets now support this version.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.13`)
 * OpenSSL v1.1 (`v1.1.1u`) and OpenSSL v3.0 (`v3.0.9`)
-* cURL (`v8.1.2`)
+* cURL (`v8.2.0`)
 * PostgreSQL lib (`v11.20`)
 * SQLite (`v3.42.0`)
 * MariaDB Connector/C (`v3.3.5`) (MySQL Compatible)
@@ -28,6 +29,7 @@ Nightly's are build every morning around 9:30 UTC.
 For stable you can just use the tags listed below, or add `-stable` to it.
 If you want to be sure that you are using a specific stable version you can use `-X.Y.Z` or `-stable-X.Y.Z`.
 Stables builds are automatically triggered if there is a new version available.
+
 
 ### OpenSSL v3.0
 If you want to use the OpenSSL v3.0 versions, you need to add `-openssl3` as the last postfix for the tag.
@@ -51,10 +53,21 @@ They do not seem to be used at all. If someone is using them, please open an iss
 To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
 
 
+### Container registries
+
+The images are pushed to multiple container registries.
+
+|                       Container Registry                       |
+|----------------------------------------------------------------|
+| https://hub.docker.com/r/blackdex/rust-musl                    |
+| https://quay.io/repository/blackdex/rust-musl?tab=info         |
+| https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl |
+
+
 ### Using a Dockerfile
 
 ```dockerfile
-FROM blackdex/rust-musl:aarch64-musl as build
+FROM docker.io/blackdex/rust-musl:aarch64-musl as build
 
 COPY . /home/rust/src
 
@@ -78,14 +91,14 @@ If you want to use PostgreSQL `v15` client library add `-e PQ_LIB_DIR="/usr/loca
 
 ```bash
 # First pull the image:
-docker pull blackdex/rust-musl:aarch64-musl
+docker pull docker.io/blackdex/rust-musl:aarch64-musl
 
 # Then you could either create an alias
-alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src blackdex/rust-musl:aarch64-musl'
+alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarch64-musl'
 rust-musl-builder cargo build --release
 
 # Or use it directly
-docker run --rm -it -v "$(pwd)":/home/rust/src blackdex/rust-musl:aarch64-musl cargo build --release
+docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarch64-musl cargo build --release
 ```
 
 <br>
