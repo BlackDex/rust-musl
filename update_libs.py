@@ -142,8 +142,8 @@ def rustup_version():
 if __name__ == '__main__':
     PACKAGES = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL1_1': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d\w+', 'openssl-', r''),
-        'SSL3_0': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.0\.\d', 'openssl-', r''),
+        'SSL1_1': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d+\w+', 'openssl-', r''),
+        'SSL3_0': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.0\.\d+', 'openssl-', r''),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/\?.*'),
         # Also print some other version or from other resources just to compare
         '---': '---',
-        'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d', 'openssl-', r''),
+        'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),
         'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),

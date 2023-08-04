@@ -44,8 +44,8 @@ RUN apt-get update && \
 ARG TARGET=x86_64-unknown-linux-musl
 ARG OPENSSL_ARCH=linux-x86_64
 # Update the OpenSSL version in the rust-musl.yml workflow.
-# Currently 1.1.1u / 3.0.9
-ARG OPENSSL_VERSION="1.1.1u"
+# Currently 1.1.1v / 3.0.10
+ARG OPENSSL_VERSION="1.1.1v"
 ARG ARCH_CPPFLAGS=
 
 ENV TARGET="${TARGET}" \
@@ -61,7 +61,7 @@ ENV TARGET="${TARGET}" \
     SYSROOT="/usr/local/musl/${TARGET}" \
     # Library versions
     SSL_VER="${OPENSSL_VERSION}" \
-    CURL_VER="8.2.0" \
+    CURL_VER="8.2.1" \
     ZLIB_VER="1.2.13" \
     PQ_11_VER="11.20" \
     PQ_15_VER="15.3" \

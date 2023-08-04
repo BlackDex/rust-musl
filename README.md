@@ -1,3 +1,10 @@
+<a href='https://github.com/repo-reviews/repo-reviews.github.io/blob/main/create.md' target="_blank"><img alt='Github' src='https://img.shields.io/badge/review_me-100000?style=flat&logo=Github&logoColor=white&labelColor=888888&color=555555'/></a>
+[![Build](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml/badge.svg)](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-blue)](https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl)
+[![Docker Pulls](https://img.shields.io/docker/pulls/vaultwarden/server.svg)](https://hub.docker.com/r/blackdex/rust-musl)
+[![Quay.io](https://img.shields.io/badge/Quay.io-download-blue)](https://quay.io/repository/blackdex/rust-musl)
+
+
 # rust-musl
 
 This project generates docker images to build static musl binaries using the Rust language.
@@ -5,12 +12,12 @@ It has several pre-build C/C++ libraries to either speedup the compile time of t
 
 These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build both the toolchains and the libraries.<br>
 Depending if the Rust version and if MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.<br>
-All versions of Rust v1.71.0 or higher will all be build with MUSL v1.2.3 since all targets now support this version.
+All versions of Rust v1.71.0 and above will all be build with MUSL v1.2.3 since all targets now support this version.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.2.13`)
-* OpenSSL v1.1 (`v1.1.1u`) and OpenSSL v3.0 (`v3.0.9`)
-* cURL (`v8.2.0`)
+* OpenSSL v1.1 (`v1.1.1v`) and OpenSSL v3.0 (`v3.0.10`)
+* cURL (`v8.2.1`)
 * PostgreSQL lib (`v11.20`)
 * SQLite (`v3.42.0`)
 * MariaDB Connector/C (`v3.3.5`) (MySQL Compatible)
@@ -60,7 +67,7 @@ The images are pushed to multiple container registries.
 |                       Container Registry                       |
 |----------------------------------------------------------------|
 | https://hub.docker.com/r/blackdex/rust-musl                    |
-| https://quay.io/repository/blackdex/rust-musl?tab=info         |
+| https://quay.io/repository/blackdex/rust-musl                  |
 | https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl |
 
 
