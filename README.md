@@ -18,14 +18,9 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * ZLib (`v1.2.13`)
 * OpenSSL v1.1 (`v1.1.1v`) and OpenSSL v3.0 (`v3.0.10`)
 * cURL (`v8.2.1`)
-* PostgreSQL lib (`v11.20`)
+* PostgreSQL lib (`v11.21`) and PostgreSQL lib (`v15.4`)
 * SQLite (`v3.42.0`)
 * MariaDB Connector/C (`v3.3.5`) (MySQL Compatible)
-
-Since 2023-01-14 there is also support for PostreSQL lib `v15`.<br>
-Previous images were providing `v14` as an extra lib.<br>
-See below on how to use this version instead of the current default `v11`.
-* PostgreSQL lib (`v15.3`)
 
 
 ## Available architectures
@@ -41,6 +36,13 @@ Stables builds are automatically triggered if there is a new version available.
 ### OpenSSL v3.0
 If you want to use the OpenSSL v3.0 versions, you need to add `-openssl3` as the last postfix for the tag.
 The images without an extra postfix are using the default v1.1 version.
+
+
+### PostgreSQL v15
+The default PostgreSQL lib used is v11, this might change in the future.<br>
+If you want to use v15 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
+<br>
+Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build.
 
 
 ## Usage

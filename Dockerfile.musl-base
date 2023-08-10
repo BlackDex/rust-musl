@@ -63,8 +63,8 @@ ENV TARGET="${TARGET}" \
     SSL_VER="${OPENSSL_VERSION}" \
     CURL_VER="8.2.1" \
     ZLIB_VER="1.2.13" \
-    PQ_11_VER="11.20" \
-    PQ_15_VER="15.3" \
+    PQ_11_VER="11.21" \
+    PQ_15_VER="15.4" \
     SQLITE_VER="3420000" \
     MARIADB_VER="3.3.5"
 
