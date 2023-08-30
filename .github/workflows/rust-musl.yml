@@ -112,8 +112,18 @@ jobs:
           NIGHTLY_SEMVER=$(echo "${NIGHTLY_VERSION//.}" | grep -oP '(\K\d{4})')
           github_output "nightly_semver" "${NIGHTLY_SEMVER}"
 
-          # Get the Vaultwarden Rust version from the `rust-toolchain` file.
-          export VW_RUST_VER="$(curl -sSL https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
+          # Get the Vaultwarden Rust version from the `rust-toolchain` or `rust-toolchain.toml` file.
+          VW_RUST_VER="UNKNOWN"
+          CODE="$(curl -sSL -w '%{http_code}' -o /tmp/rust-toolchain https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain)"
+          if [[ "$CODE" =~ ^2 ]]; then
+            VW_RUST_VER="$(cat /tmp/rust-toolchain)"
+          elif [[ "$CODE" = 404 ]]; then
+            CODE="$(curl -sSL -w '%{http_code}' -o /tmp/rust-toolchain.toml https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain.toml)"
+            if [[ "$CODE" =~ ^2 ]]; then
+              VW_RUST_VER="$(grep -oP 'channel.*"(\K.*?)(?=")' /tmp/rust-toolchain.toml)"
+            fi
+          fi
+
           # Check if the version matches X.YY.Z, if not use the STABLE_VERSION instead
           if [[ "${VW_RUST_VER}" =~ ^[0-9]{1}\.[0-9]{2}\.[0-9]{1}$ ]]; then
             github_output "vaultwarden_version" "${VW_RUST_VER}"
