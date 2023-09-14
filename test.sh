@@ -110,52 +110,6 @@ docker_build_arm() {
 }
 
 
-# docker_build_armhf() {
-#   local -r crate="$1"crate
-#   local -r cargo_arg="${2}"
-
-#   docker run --rm \
-#     -v "$PWD/test/${crate}:/home/rust/src" \
-#     -v cargo-cache:/root/.cargo/registry \
-#     -e RUST_BACKTRACE=1 \
-#     -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
-#     -it "blackdex/rust-musl:arm-musleabihf-${RUST_CHANNEL}" \
-#     bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabihf ${cargo_arg}"
-
-#   cd "test/${crate}" || return
-#   echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}\n"
-#   qemu-arm-static -cpu arm1136 ./target/arm-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
-#   set -x
-#   file "target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}"
-#   ldd "target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}"
-#   checksec --file="target/arm-unknown-linux-musleabihf/${RELTYPE}/${crate}"
-#   set +x
-#   exit 0
-# }
-
-# docker_build_armv5te() {
-#   local -r crate="$1"crate
-#   local -r cargo_arg="${2}"
-
-#   docker run --rm \
-#     -v "$PWD/test/${crate}:/home/rust/src" \
-#     -v cargo-cache:/root/.cargo/registry \
-#     -e RUST_BACKTRACE=1 \
-#     -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
-#     -it "blackdex/rust-musl:armv5te-musleabi-${RUST_CHANNEL}" \
-#     bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv5te-unknown-linux-musleabi ${cargo_arg}"
-
-#   cd "test/${crate}" || return
-#   echo -ne "\n\nTESTING: /target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}\n"
-#   qemu-arm-static -cpu arm926 ./target/armv5te-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
-#   set -x
-#   file "target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}"
-#   ldd "target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}"
-#   checksec --file="target/armv5te-unknown-linux-musleabi/${RELTYPE}/${crate}"
-#   set +x
-#   exit 0
-# }
-
 # ###
 
 if [[ -n "${VERBOSE}" ]]; then
@@ -179,11 +133,11 @@ fi
 
 if [[ "${ARCH}" == "armv7" ]]; then
   docker_build_armv7 "${1}" "${CARGO_ARG}"
-elif [[ "${ARCH}" == "aarch64" ]]; then
+elif [[ "${ARCH}" == "aarch64" || "${ARCH}" == "arm64" ]]; then
   docker_build_aarch64 "${1}" "${CARGO_ARG}"
 # elif [[ "${ARCH}" == "armhf" ]]; then
 #   docker_build_armhf "${1}" "${CARGO_ARG}"
-elif [[ "${ARCH}" == "arm" ]]; then
+elif [[ "${ARCH}" == "armv6" || "${ARCH}" == "arm" ]]; then
   docker_build_arm "${1}" "${CARGO_ARG}"
 # elif [[ "${ARCH}" == "armv5te" ]]; then
 #   docker_build_armv5te "${1}" "${CARGO_ARG}"

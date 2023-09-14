@@ -12,6 +12,7 @@ vendored_openssl = ["openssl/vendored"]
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
 openssl = "*"
+openssl-sys = "=0.9.92" # Use this specific version to prevent armv6 linking issues
 
 # To get the library version used during the test
 pq-sys = "*"
