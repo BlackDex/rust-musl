@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
 
       - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@7270583354e7defc2a2693a5656e481365434ba2 # stable @ Sep 7, 2023, 10:25 AM GMT+2
+        uses: dtolnay/rust-toolchain@d76c2a93c593483c9892fd8d2538734f73ed8588 # stable @ Sep 19, 2023, 5:32 PM GMT+2
 
       - name: Get Rust version info
         id: rust_versions
@@ -252,11 +252,11 @@ jobs:
       matrix:
         openssl_version:
           - "1.1.1w"
-          - "3.0.10"
+          - "3.0.11"
         include:
           - openssl_version: "1.1.1w"
             openssl_docker_tag: ""
-          - openssl_version: "3.0.10"
+          - openssl_version: "3.0.11"
             openssl_docker_tag: "-openssl3"
         env:
           - IMAGE_TAG: x86_64-musl
