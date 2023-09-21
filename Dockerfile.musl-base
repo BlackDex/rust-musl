@@ -66,7 +66,7 @@ ENV TARGET="${TARGET}" \
     PQ_11_VER="11.21" \
     PQ_15_VER="15.4" \
     SQLITE_VER="3430100" \
-    MARIADB_VER="3.3.7"
+    MARIADB_VER="3.3.5"
 
 WORKDIR /tmp
 
@@ -300,8 +300,7 @@ RUN echo "MariaDB Connector/C" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    # Added -Wno-error=cpp to prevent a warning causing the building to stop
-    CC="${TARGET_CC} -O2 -fno-strict-aliasing -fstack-protector-strong -fPIE -pie -static --static -Wno-error=cpp" \
+    CC="${TARGET_CC} -O2 -fno-strict-aliasing -fstack-protector-strong -fPIE -pie -static --static" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
