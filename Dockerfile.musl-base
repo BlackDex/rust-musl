@@ -300,7 +300,8 @@ RUN echo "MariaDB Connector/C" && \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="-I${TARGET_PREFIX}/include ${ARCH_CPPFLAGS}" \
     C_INCLUDE_PATH="${TARGET_PREFIX}/include" \
-    CC="${TARGET_CC} -O2 -fno-strict-aliasing -fstack-protector-strong -fPIE -pie -static --static" \
+    # Added -Wno-error=cpp to prevent a warning causing the building to stop
+    CC="${TARGET_CC} -O2 -fno-strict-aliasing -fstack-protector-strong -fPIE -pie -static --static -Wno-error=cpp" \
     cmake \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
