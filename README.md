@@ -16,11 +16,11 @@ All versions of Rust v1.71.0 and above will all be build with MUSL v1.2.3 since 
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.3`)
-* OpenSSL v1.1 (`v1.1.1w`) and OpenSSL v3.0 (`v3.0.11`)
+* OpenSSL v3.0 (`v3.0.11`)
 * cURL (`v8.3.0`)
 * PostgreSQL lib (`v11.21`) and PostgreSQL lib (`v15.4`)
 * SQLite (`v3.43.1`)
-* MariaDB Connector/C (`v3.3.5`) (MySQL Compatible)
+* MariaDB Connector/C (`v3.3.7`) (MySQL Compatible)
 
 
 ## Available architectures
@@ -34,8 +34,8 @@ Stables builds are automatically triggered if there is a new version available.
 
 
 ### OpenSSL v3.0
-If you want to use the OpenSSL v3.0 versions, you need to add `-openssl3` as the last postfix for the tag.
-The images without an extra postfix are using the default v1.1 version.
+Since 2023-09-29 i stopped building OpenSSL v1.1.1 since it's EOL.<br>
+Now only OpenSSL v3.0 is being build, the tags will be kept for a while.
 
 
 ### PostgreSQL v15
@@ -56,8 +56,6 @@ They do not seem to be used at all. If someone is using them, please open an iss
 | armv7-unknown-linux-musleabihf | armv7-musleabihf |
 | aarch64-unknown-linux-musl     | aarch64-musl     |
 | arm-unknown-linux-musleabi     | arm-musleabi     |
-| ~~arm-unknown-linux-musleabihf~~   | ~~arm-musleabihf~~   |
-| ~~armv5te-unknown-linux-musleabi~~ | ~~armv5te-musleabi~~ |
 
 To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
 
@@ -133,8 +131,6 @@ This for example happens when using the `mimalloc` crate.
 | Cross Target                   |  RUSTFLAG             |
 | ------------------------------ | --------------------- |
 | arm-unknown-linux-musleabi     | `-Clink-arg=-latomic` |
-| ~~arm-unknown-linux-musleabihf~~   | ~~`-Clink-arg=-latomic`~~ |
-| ~~armv5te-unknown-linux-musleabi~~ | ~~`-Clink-arg=-latomic`~~ |
 
 <br>
 

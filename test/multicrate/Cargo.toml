@@ -9,10 +9,13 @@ resolver = "2"
 default = []
 vendored_openssl = ["openssl/vendored"]
 
+[target.arm-unknown-linux-musleabi.dependencies.openssl-sys]
+version = "=0.9.92" # Fixed to v0.9.92 to prevent building issues with armv6
+
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
 openssl = "*"
-openssl-sys = "=0.9.92" # Use this specific version to prevent armv6 linking issues
+openssl-sys = "*"
 
 # To get the library version used during the test
 pq-sys = "*"
@@ -34,6 +37,7 @@ serde_json = "1.0.*"
 # Deps for MiMalloc intergration
 mimalloc = { version = "*", features = ["secure"] }
 libmimalloc-sys = { version = "*", features = ["extended"] }
+
 
 # Deps for zlib testing
 [dependencies.flate2]

@@ -18,3 +18,4 @@ Dockerfile**
 Makefile**
 render_template
 **/Cargo.lock
+Cargo.lock
