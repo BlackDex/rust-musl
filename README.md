@@ -19,8 +19,8 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * cURL (`v8.4.0`)
 * ZLib (`v1.3`)
 * PostgreSQL lib (`v11.21`) and PostgreSQL lib (`v15.4`)
-* SQLite (`v3.43.2`)
-* MariaDB Connector/C (`v3.3.7`) (MySQL Compatible)
+* SQLite (`v3.44.0`)
+* MariaDB Connector/C (`v3.3.5`) (MySQL Compatible)
 
 
 ## Available architectures

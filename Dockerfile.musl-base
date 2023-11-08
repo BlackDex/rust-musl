@@ -62,8 +62,8 @@ ENV TARGET="${TARGET}" \
     ZLIB_VER="1.3" \
     PQ_11_VER="11.21" \
     PQ_15_VER="15.4" \
-    SQLITE_VER="3430200" \
-    MARIADB_VER="3.3.7"
+    SQLITE_VER="3440000" \
+    MARIADB_VER="3.3.5"
 
 WORKDIR /tmp
 
@@ -351,14 +351,14 @@ RUN echo "SQLite3" && \
 RUN echo "MariaDB Connector/C" && \
     curl -sSL "https://archive.mariadb.org/connector-c-${MARIADB_VER}/mariadb-connector-c-${MARIADB_VER}-src.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}-src" && \
-    # Download patches for mariadb from Alpine to fix building issues
-    curl -sSL --retry 3 -o arm32-shift-count.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/arm32-shift-count.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
-    curl -sSL --retry 3 -o incorrect-sys-poll.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/incorrect-sys-poll.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
-    curl -sSL --retry 3 -o unused-parameter.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/unused-parameter.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
-    # Apply these patches
-    git apply --verbose arm32-shift-count.patch && \
-    git apply --verbose incorrect-sys-poll.patch && \
-    git apply --verbose unused-parameter.patch && \
+    # # Download patches for mariadb from Alpine to fix building issues
+    # curl -sSL --retry 3 -o arm32-shift-count.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/arm32-shift-count.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
+    # curl -sSL --retry 3 -o incorrect-sys-poll.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/incorrect-sys-poll.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
+    # curl -sSL --retry 3 -o unused-parameter.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/unused-parameter.patch?id=9c5788682c99a0a102c340293d573d1f45823de5 && \
+    # # Apply these patches
+    # git apply --verbose arm32-shift-count.patch && \
+    # git apply --verbose incorrect-sys-poll.patch && \
+    # git apply --verbose unused-parameter.patch && \
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then \
       echo -e "%rename libgcc old_libgcc\n*libgcc:\n-latomic %(old_libgcc)" > /tmp/gcc-atomic-patch.specs && \
       export _GCC_SPECS="-specs=/tmp/gcc-atomic-patch.specs" ; \
