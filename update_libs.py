@@ -148,7 +148,7 @@ if __name__ == '__main__':
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
-        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/\?.*'),
+        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
         # Also print some other version or from other resources just to compare
         '---': '---',
         'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),

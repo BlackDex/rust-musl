@@ -402,7 +402,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -452,7 +452,7 @@ jobs:
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -482,7 +482,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -531,7 +531,7 @@ jobs:
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -558,7 +558,7 @@ jobs:
           echo "NIGHTLY_TOOLCHAIN_POSTFIX=${{ needs.build_vars.outputs.nightly_toolchain_postfix }}" | tee -a "${GITHUB_ENV}"
 
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -601,7 +601,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
