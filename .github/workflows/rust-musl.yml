@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@d76c2a93c593483c9892fd8d2538734f73ed8588 # stable @ Sep 19, 2023, 5:32 PM GMT+2
+        uses: dtolnay/rust-toolchain@78c6b5541adb5849f5d72d15da722aedb26327ca # stable @ Dec 7, 2023, 10:23 PM GMT+1
 
       - name: Get Rust version info
         id: rust_versions
@@ -135,7 +135,7 @@ jobs:
           fi
 
       - name: Cache previous rustc stable hash
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c # v3.3.3
         if: ${{ !env.ACT }}
         with:
           path: ~/rustc-stable.hash
