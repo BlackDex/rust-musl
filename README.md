@@ -17,7 +17,7 @@ All versions of Rust v1.71.0 and above will all be build with MUSL v1.2.3 since 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL v3.0 (`v3.0.12`)
 * cURL (`v8.5.0`)
-* ZLib (`v1.3`)
+* ZLib (`v1.3.1`)
 * PostgreSQL lib (`v11.22`) and PostgreSQL lib (`v15.5`)
 * SQLite (`v3.45.0`)
 * MariaDB Connector/C (`v3.3.8`) (MySQL Compatible)

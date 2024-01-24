@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "multicrate"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 resolver = "2"
 
@@ -9,8 +9,8 @@ resolver = "2"
 default = []
 vendored_openssl = ["openssl/vendored"]
 
-[target.arm-unknown-linux-musleabi.dependencies.openssl-sys]
-version = "=0.9.92" # Fixed to v0.9.92 to prevent building issues with armv6
+# [target.arm-unknown-linux-musleabi.dependencies.openssl-sys]
+# version = "=0.9.92" # Fixed to v0.9.92 to prevent building issues with armv6
 
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
@@ -47,9 +47,9 @@ features = ["zlib"]
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#strip
-# Also enable thin LTO for some optimizations
+# Also enable fat LTO for some optimizations
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#lto
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+lto = "fat"
