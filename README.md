@@ -15,11 +15,11 @@ Depending if the Rust version and if MUSL target is 32bit or 64bit it is using M
 All versions of Rust v1.71.0 and above will all be build with MUSL v1.2.3 since all targets now support this version.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* OpenSSL v3.0 (`v3.0.12`)
-* cURL (`v8.5.0`)
+* OpenSSL v3.0 (`v3.0.13`)
+* cURL (`v8.6.0`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v11.22`) and PostgreSQL lib (`v15.5`)
-* SQLite (`v3.45.0`)
+* SQLite (`v3.45.1`)
 * MariaDB Connector/C (`v3.3.8`) (MySQL Compatible)
 
 
