@@ -1,0 +1,494 @@
+# syntax=docker/dockerfile:1
+
+# Which Toolchain Tag to use
+ARG IMAGE_TAG=x86_64-musl
+
+# Extract the pre-build toolchain from the musl-toolchain image
+# This doesn't need to be build everytime since not much will change
+# FROM ghcr.io/blackdex/musl-toolchain-ng:${IMAGE_TAG} AS musl-toolchain
+
+# Start building the musl-base
+FROM docker.io/library/alpine:edge
+
+# SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    TERM=xterm-256color \
+    # PATH="/usr/bin:/root/.cargo/bin:${PATH}" \
+    TZ=UTC
+
+# hadolint ignore=DL3008
+RUN apk update && \
+    apk add -u \
+        build-base \
+        linux-headers \
+        autoconf \
+        automake \
+        cmake \
+        libtool \
+        pkgconfig pkgconf \
+        curl \
+        file \
+        git \
+        tzdata \
+        ca-certificates \
+        && \
+    # Default cleanups
+    find /var/log -type f -delete
+
+# Define the target and openssl architecture to use during build
+ARG TARGET=x86_64-alpine-linux-musl
+ARG OPENSSL_ARCH=linux-x86_64
+ARG ARCH_CPPFLAGS=
+
+ENV TARGET="${TARGET}" \
+    TARGET_PREFIX=/mussel \
+    TARGET_PKG_CONFIG_PATH=/usr/lib/pkgconfig \
+    TARGET_LD="ld" \
+    TARGET_AR="${TARGET}-gcc-ar" \
+    TARGET_CC="${TARGET}-gcc" \
+    TARGET_CXX="${TARGET}-g++" \
+    TARGET_RANLIB="${TARGET}-gcc-ranlib" \
+    TARGET_LDFLAGS="-flto=auto -s -pie -L/mussel/lib -L/usr/lib" \
+    SHARED_CFLAGS="-O2 -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpic --static -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wl,-z,pack-relative-relocs -Wa,--noexecstack" \
+    RUST_MUSL_CROSS_TARGET="x86_64-unknown-linux-musl" \
+    SYSROOT="/usr" \
+    # Host pkg-config
+    PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/share/pkgconfig" \
+    PKG_CONFIG_SYSROOT_DIR="/usr" \
+    # Library versions
+    SSL_VER="3.0.13" \
+    CURL_VER="8.6.0" \
+    ZLIB_VER="1.3.1" \
+    PQ_11_VER="11.22" \
+    PQ_15_VER="15.6" \
+    SQLITE_VER="3450100" \
+    MARIADB_VER="3.3.8"
+
+WORKDIR /tmp
+
+RUN mkdir -p "${TARGET_PREFIX}/tbin" "${SYSROOT}" /home/rust/src
+# COPY --from=musl-toolchain "/usr" "${TARGET_PREFIX}"
+# COPY --from=musl-toolchain "/mussel/sysroot" "${SYSROOT}"
+
+# Build zlib (used in openssl, curl, pq, sqlite and mariadb)
+# hadolint ignore=DL3003
+RUN echo "zlib" && \
+    curl -sSL "https://zlib.net/zlib-${ZLIB_VER}.tar.gz" | tar xz && \
+    cd "zlib-${ZLIB_VER}" && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+    ./configure \
+      --static \
+      --prefix="${TARGET_PREFIX}" && \
+    make -j"$(nproc)" && make install && \
+    cd /tmp && rm -rf "zlib-${ZLIB_VER}" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Build OpenSSL (used in curl, pq and mariadb)
+# hadolint ignore=DL3003
+RUN echo "OpenSSL" && \
+    curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
+    cd "openssl-${SSL_VER}" && \
+    # Download patches for openssl from Alpine to fix CVE's
+    # curl -sSL --retry 3 -o CVE-2023-5678.patch https://git.alpinelinux.org/aports/plain/main/openssl/CVE-2023-5678.patch?h=23d17714028463345b828a18b551172bdddd4eb3 && \
+    # Apply these patches
+    # git apply --verbose CVE-2023-5678.patch && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    # We can't enable `-flto=auto -ffat-lto-objects` this generates an error which causes other libraries to also fail subsequently.
+    # See: https://github.com/openssl/openssl/issues/18663
+    CFLAGS="${SHARED_CFLAGS}" \
+    CC="${TARGET_CC}" \
+    ./Configure \
+      # Disable several features, either insecure or not working that well on musl libc or not needed at all
+      no-dso \
+      no-shared \
+      no-ssl3 \
+      no-tests \
+      no-unit-test \
+      no-comp \
+      no-zlib \
+      no-zlib-dynamic \
+      ## rust-openssl currently enables legacy, lets do the same here
+      # no-legacy \
+      no-md2 \
+      no-rc5 \
+      no-weak-ssl-ciphers \
+      no-camellia \
+      no-idea \
+      no-seed \
+      no-engine \
+      no-async \
+      # Some Alpine defined configure arguments
+      no-mdc2 \
+      no-ec2m \
+      # Set which OpenSSL Architecture needs to be used
+      ${OPENSSL_ARCH} \
+      --openssldir="${TARGET_PREFIX}/ssl" \
+      --libdir="${TARGET_PREFIX}/lib" \
+      --prefix="${TARGET_PREFIX}" && \
+    make -j"$(nproc)" depend && \
+    make -j"$(nproc)" build_libs && \
+    make -j"$(nproc)" build_programs && \
+    make install_dev install_runtime && \
+    cd /tmp && rm -rf "openssl-${SSL_VER}" && \
+    # # Fix libcrypto for armv6 which does not have libatomic by default
+    # cd /usr/lib && \
+    # mkdir -v libcrypto_merge && cd libcrypto_merge && \
+    # # Extract the generated .a files
+    # "${TARGET_AR}" x "${SYSROOT}/lib/libatomic.a" && \
+    # "${TARGET_AR}" x ../libcrypto.a && \
+    # # Merge all these files again into one libcrypto.a file
+    # "${TARGET_AR}" csr libcrypto.a ./*.o && \
+    # # Move and cleanup
+    # mv -vf libcrypto.a ../libcrypto.a && \
+    # Move the compiled binaries out off the main musl bin to tbin
+    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/openssl" "${TARGET_PREFIX}/bin/c_rehash" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Build curl (needs with-zlib and all this stuff to allow https)
+# hadolint ignore=DL3003
+RUN echo "libcurl" && \
+    curl -sSL "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
+    cd "curl-${CURL_VER}" && \
+    # mv -vf "/usr/${TARGET}/lib/libatomic.la" "/usr/${TARGET}/lib/libatomic.la_disabled" && \
+    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+    ./configure \
+      --with-sysroot="${SYSROOT}" \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
+      --disable-shared \
+      --enable-static \
+      --enable-ipv6 \
+      --with-zlib \
+      --with-openssl \
+      --disable-ldap \
+      --disable-manual \
+      --without-libpsl \
+      --without-libgsasl \
+      --without-libidn2 \
+      --without-libssh2 \
+      --enable-optimize \
+      --with-ca-path=/etc/ssl/certs/ \
+      --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+      --with-ca-fallback \
+      --prefix="${TARGET_PREFIX}" && \
+    make -j"$(nproc)" && make install && \
+    cd /tmp && rm -rf "curl-${CURL_VER}" && \
+    # Move the compiled binaries out off the main musl bin to tbin
+    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/curl" "${TARGET_PREFIX}/bin/curl-config" && \
+    # mv -vf "/usr/${TARGET}/lib/libatomic.la_disabled" "/usr/${TARGET}/lib/libatomic.la" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Build libpq v11
+# hadolint ignore=DL3003
+RUN echo "PostgreSQL v11" && \
+    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_11_VER}/postgresql-${PQ_11_VER}.tar.gz" | tar xz && \
+    cd "postgresql-${PQ_11_VER}" && \
+    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+   ./configure \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
+      --without-readline \
+      --with-openssl \
+      --disable-rpath \
+      --with-system-tzdata=/usr/share/zoneinfo \
+      --prefix="${TARGET_PREFIX}" && \
+    # build libpq only
+    cd src/interfaces/libpq && \
+      make -j"$(nproc)" all-static-lib && \
+      make -j"$(nproc)" install-lib-pc install-lib-static && \
+    cd /tmp && rm -rf "postgresql-${PQ_11_VER}" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Build libpq v15
+# hadolint ignore=DL3003
+RUN echo "PostgreSQL v15" && \
+    curl -sSL "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.gz" | tar xz && \
+    cd "postgresql-${PQ_15_VER}" && \
+    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+   ./configure \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
+      --without-readline \
+      --with-ssl=openssl \
+      --disable-rpath \
+      --with-system-tzdata=/usr/share/zoneinfo \
+      --prefix="${TARGET_PREFIX}/pq15" && \
+    # build common, port and libpq only
+    cd src/common && \
+      make -j"$(nproc)" all && \
+      make -j"$(nproc)" install && \
+    cd ../../src/port && \
+      make -j"$(nproc)" all && \
+      make -j"$(nproc)" install && \
+    cd ../../src/interfaces/libpq && \
+      make -j"$(nproc)" all-static-lib && \
+      make -j"$(nproc)" install-lib-pc install-lib-static && \
+    # Merge these libraries so pq-sys will work without using pkg-config
+    cd "${TARGET_PREFIX}/pq15/lib" && \
+      mkdir -v merge && cd merge && \
+      # Extract the generated .a files
+      "${TARGET_AR}" x ../libpq.a && \
+      "${TARGET_AR}" x ../libpgcommon.a && \
+      "${TARGET_AR}" x ../libpgport.a && \
+      # Merge all these files again into one libpq.a file
+      # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
+      "${TARGET_AR}" csr libpq.a ./*.o && \
+      # Move and cleanup
+      mv -vf libpq.a ../libpq.a && \
+      cd ../ && rm -rf merge pkgconfig libpgcommon* libpgport* && \
+    # Remove the source
+    cd /tmp && rm -rf "postgresql-${PQ_15_VER}" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/pq15/share/man"
+
+# Build libsqlite3
+# hadolint ignore=DL3003
+RUN echo "SQLite3" && \
+    curl -sSL "https://www.sqlite.org/2024/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
+    cd "sqlite-autoconf-${SQLITE_VER}" && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+    # libsqlite3-sys crate default flags
+    CFLAGS="${CFLAGS} -DSQLITE_CORE" \
+    CFLAGS="${CFLAGS} -DSQLITE_DEFAULT_FOREIGN_KEYS=1" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_API_ARMOR" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_COLUMN_METADATA" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_DBSTAT_VTAB" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_FTS3" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_FTS3_PARENTHESIS" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_FTS5" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_JSON1" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_MEMORY_MANAGEMENT" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_RTREE" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_STAT2" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_STAT4" \
+    CFLAGS="${CFLAGS} -DSQLITE_SOUNDEX" \
+    CFLAGS="${CFLAGS} -DSQLITE_THREADSAFE=1" \
+    CFLAGS="${CFLAGS} -DSQLITE_USE_URI" \
+    CFLAGS="${CFLAGS} -DHAVE_USLEEP=1" \
+    CFLAGS="${CFLAGS} -D_POSIX_THREAD_SAFE_FUNCTIONS" \
+    CFLAGS="${CFLAGS} -DHAVE_ISNAN" \
+    CFLAGS="${CFLAGS} -DHAVE_LOCALTIME_R" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_UNLOCK_NOTIFY" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_PREUPDATE_HOOK" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_SESSION" \
+    # Alpine pkg default flags
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_FTS4" \
+    CFLAGS="${CFLAGS} -DSQLITE_MAX_VARIABLE_NUMBER=250000" \
+    CFLAGS="${CFLAGS} -DSQLITE_MAX_EXPR_DEPTH=10000" \
+    CFLAGS="${CFLAGS} -DSQLITE_ENABLE_GEOPOLY=1" \
+    ./configure \
+      --with-sysroot="${SYSROOT}" \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
+      --disable-shared \
+      --enable-static \
+      --enable-threadsafe \
+      --enable-fts3 \
+      --enable-fts4 \
+      --enable-fts5 \
+      --enable-rtree \
+      --enable-dynamic-extensions \
+      --prefix="${TARGET_PREFIX}" && \
+    # rpath removal - Same as Alpine
+    sed -i 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool && \
+    sed -i 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool && \
+    make && make install && \
+    cd /tmp && rm -rf "sqlite-autoconf-${SQLITE_VER}" && \
+    # Move the compiled binaries out off the main musl bin to tbin
+    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/sqlite3" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# Building MariaDB
+# It seems that MariaDB has some issues when compiled with LTO enabled https://jira.mariadb.org/browse/MDEV-25633
+# Therefor i will not compile MariaDB with LTO, but -O2 should help a bit in getting some better performance.
+# hadolint ignore=DL3003
+RUN echo "MariaDB Connector/C" && \
+    # curl -sSL "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v${MARIADB_VER}.tar.gz" | tar xz && \
+    curl -sSL "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v3.3.9.tar.gz" | tar xz && \
+    # cd "mariadb-connector-c-${MARIADB_VER}" && \
+    cd "mariadb-connector-c-3.3.9" && \
+    # Download patches for mariadb from Alpine to fix building issues
+    curl -sSL --retry 3 -o incorrect-sys-poll.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/incorrect-sys-poll.patch?id=4ffc8ac43d697be0f247461d09c40cc3940d1765 && \
+    curl -sSL --retry 3 -o unused-parameter.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/unused-parameter.patch?id=4ffc8ac43d697be0f247461d09c40cc3940d1765 && \
+    # Apply these patches
+    git apply --verbose incorrect-sys-poll.patch && \
+    git apply --verbose unused-parameter.patch && \
+    # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
+    sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt && \
+    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then \
+    #   echo -e "%rename libgcc old_libgcc\n*libgcc:\n-latomic %(old_libgcc)" > /tmp/gcc-atomic-patch.specs && \
+    #   export _GCC_SPECS="-specs=/tmp/gcc-atomic-patch.specs" ; \
+    # fi && \
+    # Build the patched version
+    mkdir build && cd build && \
+    AR="${TARGET_AR}" \
+    LD="${TARGET_LD}" \
+    RANLIB="${TARGET_RANLIB}" \
+    LDFLAGS="${TARGET_LDFLAGS}" \
+    CPPFLAGS="-I${TARGET_PREFIX}/include -I/usr/include ${ARCH_CPPFLAGS}" \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" \
+    CFLAGS="${_GCC_SPECS} ${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    CC="${TARGET_CC}" \
+    cmake \
+      -DCMAKE_IGNORE_PATH="/usr/include" \
+      -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DCMAKE_SYSTEM_NAME=Linux \
+      -DCMAKE_HOST_SYSTEM_NAME=Linux \
+      -DINSTALL_LIBDIR=lib \
+      -DINSTALL_INCLUDEDIR=include/mysql \
+      -DCMAKE_BUILD_TYPE=MinSizeRel \
+      -DWITH_EXTERNAL_ZLIB=ON \
+      -DWITH_SSL=OPENSSL \
+      -DWITH_MYSQLCOMPAT=ON \
+      -DWITH_UNIT_TESTS=OFF \
+      -DCLIENT_PLUGIN_DIALOG=STATIC \
+      -DCLIENT_PLUGIN_MYSQL_CLEAR_PASSWORD=STATIC \
+      -DCLIENT_PLUGIN_CACHING_SHA2_PASSWORD=STATIC \
+      -DCLIENT_PLUGIN_SHA256_PASSWORD=STATIC \
+      -DCLIENT_PLUGIN_CLIENT_ED25519=STATIC \
+      -DCLIENT_PLUGIN_REMOTE_IO=OFF \
+      -DDEFAULT_CHARSET=utf8mb4 \
+    ../ && \
+    C_INCLUDE_PATH="${TARGET_PREFIX}/include:/usr/include" make -j"$(nproc)" && make install && \
+    # cd /tmp && rm -rf "mariadb-connector-c-${MARIADB_VER}" && \
+    cd /tmp && rm -rf "mariadb-connector-c-3.3.9" && \
+    # Move the compiled binaries out off the main musl bin to tbin
+    mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/mariadb_config" && \
+    # Create some compatibilty symlinks so pkg-config and diesel can find all the correct files
+    ln -sfn "${TARGET_PREFIX}/include/mysql/mariadb_version.h" "${TARGET_PREFIX}/include/mysql/mysql_version.h" && \
+    # Create and fix the default pkg-config for mysqlclient using the libmariadb generated file
+    # We need the library to point to mysqlclient instead of mariadb, else mysqlclient-sys crate will not link it statically!
+    sed "s#Name: libmariadb#Name: mysqlclient#g" "${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc" | \
+      sed "s#${TARGET_PREFIX}/lib/lib##g" | \
+      sed 's#\.a##g' | \
+      sed 's#-ldl\s##g' | \
+      sed 's#-lmariadb#-lmysqlclient#g' > "${TARGET_PREFIX}/lib/pkgconfig/mysqlclient.pc" && \
+    # Default cleanups
+    find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
+
+# # Install the Rust toolchain and `musl` target.
+# ARG RUST_CHANNEL=stable
+# ARG RUSTC_HASH=
+
+# # Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
+# RUN chmod 755 /root/ && \
+#     echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '${RUSTC_HASH}'." && \
+#     # `--target` to musl so that our users don't need to keep overriding it manually.
+#     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
+#     curl --proto '=https' --tlsv1.2 -sqSf https://sh.rustup.rs | \
+#       sh -s -- -y --profile minimal --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
+#     rustup set profile minimal && \
+#     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
+#     find "/root/.rustup/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
+#     # When the Rust channel is stable, we create a symlink to the stable folder with the version number
+#     # This prevents cargo from downloading the same stuff twice if someone overrules the version with a version number instead of stable
+#     if [[ "${RUST_CHANNEL}" == "stable" ]] ; then STABLE_VER=$(rustc -V | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]") ; ln -vfsr "/root/.rustup/toolchains/stable-$(uname -m)-unknown-linux-gnu" "/root/.rustup/toolchains/${STABLE_VER}-$(uname -m)-unknown-linux-gnu" ; fi && \
+#     echo -ne "[build]\ntarget = \"$RUST_MUSL_CROSS_TARGET\"\n\n[target.$RUST_MUSL_CROSS_TARGET]\nlinker = \"$RUST_MUSL_CROSS_TARGET-ld\"\n\n" > /root/.cargo/config && \
+#     #
+#     # Link the strip command to musl-strip which is more widely used as the default strip command
+#     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
+
+# ENV HOST="x86_64-unknown-linux-gnu" \
+#     # General
+#     CARGO_BUILD_TARGET="${TARGET}" \
+#     BINDGEN_EXTRA_CLANG_ARGS="--sysroot=${SYSROOT}" \
+#     C_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
+#     TARGET_C_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
+#     PKG_CONFIG_ALLOW_CROSS=1 \
+#     PKG_CONFIG_ALL_STATIC=1 \
+#     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+#     PKG_CONFIG_LIBDIR="${TARGET_PKG_CONFIG_PATH}" \
+#     TARGET_PKG_CONFIG_ALLOW_CROSS=1 \
+#     TARGET_PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
+#     TARGET_PKG_CONFIG_LIBDIR="${TARGET_PKG_CONFIG_PATH}" \
+#     # pq-sys (PosgreSQL) support
+#     PQ_LIB_STATIC=1 \
+#     PQ_LIB_DIR="${TARGET_PREFIX}/lib" \
+#     # openssl-sys support
+#     OPENSSL_STATIC=1 \
+#     OPENSSL_DIR="${TARGET_PREFIX}" \
+#     OPENSSL_LIB_DIR="${TARGET_PREFIX}/lib" \
+#     OPENSSL_INCLUDE_DIR="${TARGET_PREFIX}/include" \
+#     DEP_OPENSSL_INCLUDE="${TARGET_PREFIX}/include" \
+#     SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+#     SSL_CERT_DIR=/etc/ssl/certs \
+#     # Rust libz-sys support
+#     LIBZ_SYS_STATIC=1 \
+#     ZLIB_STATIC=1 \
+#     # Rust curl-sys support
+#     LIBCURL_STATIC=1 \
+#     # Rust mysqlclient-sys support
+#     MYSQLCLIENT_STATIC=1 \
+#     # Rust libsqlite3-sys support
+#     SQLITE3_STATIC=1 \
+#     SQLITE3_LIB_DIR="${TARGET_PREFIX}/lib" \
+#     SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include" \
+#     # If the ARCH_CPPFLAGS is set, we probably also need to pass it on to Rust.
+#     # For example aarch64 needs `-mno-outline-atomic` set during builds.
+#     # Here we pass-on the ARCH_CPPFLAGS so that Rust is able to use the same
+#     # Also set the correct library path to make sure all pre-build libraries will be found.
+#     # And some hardening flags, the same as used above to keep the binary as secure as possible.
+#     TARGET_CFLAGS="-fstack-clash-protection -fstack-protector-strong -L${TARGET_PREFIX}/lib ${ARCH_CPPFLAGS}" \
+#     TARGET_CXXFLAGS="-fstack-clash-protection -fstack-protector-strong -L${TARGET_PREFIX}/lib ${ARCH_CPPFLAGS}" \
+#     # Tell some crates that we are cross compiling
+#     CROSS_COMPILE=1
+
+# WORKDIR /home/rust/src
+
+# LABEL maintainer="BlackDex <black.dex@gmail.com>"
+# LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+# LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+# LABEL org.opencontainers.image.licenses="Apache License 2.0"
+# LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
+# LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL, SQLite and MariaDB static libraries"

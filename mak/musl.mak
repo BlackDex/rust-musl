@@ -28,12 +28,14 @@ build-musl-armv5te: TAG=armv5te-musleabi
 # For the musl image we use multi-stage docker images.
 # So first we build the musl-base part, and after that we will build the the main image.
 build-musl-x86_64 build-musl-aarch64 build-musl-armv7 build-musl-arm build-musl-armhf build-musl-armv5te:
-	docker buildx build \
+	docker build \
 		--progress=plain \
 		--build-arg TARGET=$(TARGET) \
 		--build-arg IMAGE_TAG=$(TAG) \
 		--build-arg OPENSSL_ARCH=$(OPENSSL_ARCH) \
 		--build-arg RUST_CHANNEL=$(RUST_CHANNEL) \
+		-t docker.io/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
+		-t docker.io/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
 		-f Dockerfile.musl-base \

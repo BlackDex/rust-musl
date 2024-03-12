@@ -1,4 +1,4 @@
-TAG_POSTFIX=-stable
+TAG_POSTFIX?=-stable
 TAG_DATE=-$(shell date +"%Y-%m-%d")
 
 # Check if there is a specific rust nightly date given and adjust the variables accordingly

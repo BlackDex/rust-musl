@@ -11,6 +11,7 @@ test
 *.md
 *.py
 *.sh
+!additional_mussel.sh
 *.txt
 LICENSE
 .dockerignore

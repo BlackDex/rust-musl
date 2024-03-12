@@ -1,0 +1,146 @@
+on:
+  push:
+    paths:
+      - ".github/workflows/toolchain.yml"
+      - "Dockerfile.toolchain"
+      - "config.mak"
+      - "config32.mak"
+      - "shared.mak"
+    branches:
+      - main
+
+## ##
+## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
+## Full run
+##   act push -j toolchain
+## ##
+
+name: Build Toolchains
+
+jobs:
+  toolchain:
+    name: Build Toolchain - ${{ matrix.env.IMAGE_TAG }}
+    runs-on: ubuntu-22.04
+    env:
+      HAVE_DOCKERHUB_LOGIN: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+      HAVE_GHCR_LOGIN: ${{ github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      HAVE_QUAY_LOGIN: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
+    if: ${{ github.repository == 'BlackDex/rust-musl' }}
+    strategy:
+      # max-parallel: 2 # Use this when using `act`, since this could use a lot of memory
+      matrix:
+        # ARCH_COMMON_CONFIG are based upon the `"COMMON_CONFIG +=` additions extracted
+        # from the MUSL Dockerfiles here: https://github.com/rust-embedded/cross/tree/master/docker
+        env:
+          - IMAGE_TAG: x86_64-musl
+            TARGET: x86_64-unknown-linux-musl
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+          - IMAGE_TAG: armv7-musleabihf
+            TARGET: armv7-unknown-linux-musleabihf
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
+          - IMAGE_TAG: armv7-musleabihf-musl-v1.2
+            TARGET: armv7-unknown-linux-musleabihf
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
+          - IMAGE_TAG: aarch64-musl
+            TARGET: aarch64-unknown-linux-musl
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+          - IMAGE_TAG: arm-musleabi
+            TARGET: arm-unknown-linux-musleabi
+            MUSL_CROSS_MAKE_CONFIG: config32.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=soft --with-mode=arm"
+          - IMAGE_TAG: arm-musleabi-musl-v1.2
+            TARGET: arm-unknown-linux-musleabi
+            MUSL_CROSS_MAKE_CONFIG: config.mak
+            ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=soft --with-mode=arm"
+          # 2023-04-22: Stop building armv6-hf images, the do not seem to be used at all.
+          # - IMAGE_TAG: arm-musleabihf
+          #   TARGET: arm-unknown-linux-musleabihf
+          #   MUSL_CROSS_MAKE_CONFIG: config32.mak
+          #   ARCH_COMMON_CONFIG: "--with-arch=armv6 --with-float=hard --with-mode=arm --with-fpu=vfp"
+          # 2023-04-22: Stop building armv5te images, the do not seem to be used at all.
+          # - IMAGE_TAG: armv5te-musleabi
+          #   TARGET: armv5te-unknown-linux-musleabi
+          #   MUSL_CROSS_MAKE_CONFIG: config32.mak
+          #   ARCH_COMMON_CONFIG: "--with-arch=armv5te --with-float=soft --with-mode=arm"
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      # This action is messing with the host caching when using `act`
+      - name: Setup Docker Buildx (setup-buildx-action)
+        if: ${{ !env.ACT }}
+        uses: docker/setup-buildx-action@4c0219f9ac95b02789c1075625400b2acbff50b1 # v2.9.1
+        with:
+          driver-opts: |
+            network=host
+
+      # Use the DOCKER_BUILDKIT=1 env when using `act`
+      - name: Setup Docker Buildx (DOCKER_BUILDKIT=1)
+        if: ${{ env.ACT }}
+        shell: bash
+        run: |
+          echo "DOCKER_BUILDKIT=1" | tee -a "${GITHUB_ENV}"
+
+      - name: Determine Container Date Tag
+        shell: bash
+        run: |
+          # Get the current date
+          echo "TAG_DATE=$(date +'-%Y-%m-%d')" | tee -a "${GITHUB_ENV}"
+
+      - name: Login to DockerHub
+        if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tags for DockerHub
+        if: ${{ env.ACT || env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags=blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to ghcr.io
+        if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags for ghcr.io
+        if: ${{ env.ACT || env.HAVE_GHCR_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags=${tags:+${tags},}ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},ghcr.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Login to quay.io
+        if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2.2.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Tags for quay.io
+        if: ${{ env.ACT || env.HAVE_QUAY_LOGIN == 'true' }}
+        shell: bash
+        run: |
+          echo "tags=${tags:+${tags},}quay.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }},quay.io/blackdex/musl-toolchain:${{ matrix.env.IMAGE_TAG }}${TAG_DATE}" \
+            | tee -a "${GITHUB_ENV}"
+
+      - name: Docker Build
+        uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825 # v4.1.1
+        with:
+          context: .
+          file: ./Dockerfile.toolchain
+          build-args: |
+            TARGET=${{ matrix.env.TARGET }}
+            ARCH_COMMON_CONFIG=${{ matrix.env.ARCH_COMMON_CONFIG }}
+            MUSL_CROSS_MAKE_CONFIG=${{ matrix.env.MUSL_CROSS_MAKE_CONFIG }}
+          tags: ${{ env.tags }}
+          push: ${{ !env.ACT }}

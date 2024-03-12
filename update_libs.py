@@ -153,7 +153,6 @@ if __name__ == '__main__':
         '---': '---',
         'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),
         'SSL3_1': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.1\.\d+', 'openssl-', r''),
-        'SSL1_1': mirrorver('https://ftp.openssl.org/source/', r'openssl-1\.\d\.\d+\w+', 'openssl-', r''),
         'SSL_ARCH': convert_openssl_version(pkgver('openssl')),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),

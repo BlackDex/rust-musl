@@ -3,12 +3,13 @@ FROM docker.io/library/ubuntu:22.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /tmp
+WORKDIR /
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     TZ=UTC \
-    TERM=xterm-256color
+    TERM=xterm-256color \
+    PATH="/mussel/toolchain/bin:${PATH}"
 
 # Used for testing the GitHub workflow
 # RUN echo "Building musl toolchain for target ${TARGET}"
@@ -22,53 +23,61 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y \
-        build-essential \
-        gcc g++ cpp \
-        cmake \
+        # build-essential \
+        gcc-12 g++-12 cpp-12 \
+        make \
         libtool \
         pkg-config \
         curl \
         file \
         rsync \
         texinfo \
+        bison \
+        bzip2 \
+        gawk \
+        git \
+        patch \
+        xz-utils \
         ca-certificates \
         --no-install-recommends \
         && \
+    # Set the alternatives
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 12 && \
+    update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-12 12 && \
     # Cleanup apt
     apt-get autoremove -y --purge && \
     apt-get clean -y && \
     rm -rf /var/cache/* /var/lib/apt/lists/* && \
     # Default cleanups
-    find /var/log -type f -delete
+    find /var/log -type f -delete && \
+    # Pre-Create the /mussel directory
+    mkdir -pv /mussel
 
 ARG TARGET=x86_64-unknown-linux-musl
-ARG MUSL_CROSS_MAKE_HASH=fe915821b652a7fa37b34a596f47d8e20bc72338
-ARG MUSL_CROSS_MAKE_CONFIG=config.mak
-ARG ARCH_COMMON_CONFIG=""
+ARG MUSSEL_HASH=additional_mussel
 
-COPY shared.mak /tmp/shared.mak
-COPY $MUSL_CROSS_MAKE_CONFIG /tmp/config.mak
+COPY additional_mussel.sh /mussel/additional_mussel.sh
 # hadolint ignore=DL3003
-RUN echo "Downloading musl-cross-make" && \
-    # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $MUSL_CROSS_MAKE_HASH
+RUN echo "Downloading mussel" && \
+    # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $MUSSEL_HASH
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
-      -sSL "https://codeload.github.com/richfelker/musl-cross-make/tar.gz/${MUSL_CROSS_MAKE_HASH}" | tar xz && \
-    mv musl-cross-make-* musl-cross-make && \
-    # Combine the Shared and Arch specific config files into one config.mak file.
-    cat /tmp/shared.mak /tmp/config.mak >> /tmp/musl-cross-make/config.mak && \
-    mkdir -p /usr/local/musl && \
-    #
+      -sSL "https://codeload.github.com/BlackDex/mussel/tar.gz/${MUSSEL_HASH}" | \
+      tar xzf - --strip-components=1 -C /mussel/ && \
     echo "Building musl toolchain for target ${TARGET}" && \
-    cd /tmp/musl-cross-make && \
-    # Build the actual toolchain here
-    # We store the toolchain in /usr/local/musl/${TARGET}
-    make install "-j$(nproc)" \
-    OUTPUT="/usr/local/musl/${TARGET}" > /dev/null && \
-    cd /tmp && \
-    rm -rf /tmp/musl-cross-make && \
+    cd /mussel && \
+    # Verify all tools are installed
+    ./check.sh && \
+    # Start mussel to build the toolchain
+    # The toolchain is stored in /mussel/toolchain (previously it was /usr/local/musl/${TARGET})
+    ./mussel.sh \
+        --enable-linux-headers \
+        --enable-openmp \
+        --parallel \
+        "${TARGET}" && \
+    # Cleanup mussel sources and builds
+    rm -rf /mussel/builds /mussel/sources && \
     echo "Finished building target ${TARGET}"
-
-WORKDIR /
 
 LABEL maintainer="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"

@@ -23,7 +23,7 @@ docker_build() {
     -e RUST_BACKTRACE=1 \
     -e RUSTFLAGS='-Clink-arg=-s' \
     -it "blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    bash -c "cargo -vV ; rustc -vV ; cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}"
+    bash -c "\${TARGET_CC} -v 2>&1 | grep 'gcc version' ; cargo -vV ; rustc -vV ; cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}"
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/x86_64-unknown-linux-musl/${RELTYPE}/${crate}\n"

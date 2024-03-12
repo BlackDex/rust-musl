@@ -6,4 +6,5 @@ test/zlibcrate/output
 test/*crate/main.db
 
 # Directories
-.vscode
+.vscode/
+ext/

@@ -34,6 +34,14 @@ fn main() {
     test_zlib();
     println!("## End testing ZLib\n");
 
+    println!("\n## Start testing libxml2");
+    test_libxml2();
+    println!("## End testing libxml2\n");
+
+    println!("\n## Start testing libpam");
+    test_libpam();
+    println!("## End testing libpam\n");
+
     println!("\n## Start testing MiMalloc");
     test_mimalloc();
     println!("## End testing MiMalloc\n");
@@ -127,7 +135,7 @@ fn test_mysql() {
 // == Curl Testing
 
 use curl::easy::Easy;
-use std::io::{stdout, Write};
+use std::io::stdout;
 use std::process;
 fn test_curl() {
     let url = "https://raw.githubusercontent.com/BlackDex/rust-musl/main/.gitignore";
@@ -240,6 +248,35 @@ fn test_zlib_decode(bytes: Vec<u8>) -> io::Result<String> {
     let mut s = String::new();
     z.read_to_string(&mut s)?;
     Ok(s)
+}
+
+// == libxml2 Testing
+
+use libxml::parser::Parser;
+use libxml::xpath::Context;
+
+// Read an xml file and output the node values
+fn test_libxml2() {
+    let parser = Parser::default();
+    let doc = parser.parse_file("test.xml").unwrap();
+    let context = Context::new(&doc).unwrap();
+    let result = context.evaluate("//child/text()").unwrap();
+
+    for node in &result.get_nodes_as_vec() {
+        println!("Found: {}", node.get_content());
+    }
+}
+
+// == PAM Testing
+
+// Include sudo_rs_sudo_main but do not use it.
+// This will at least trigger building sudo-rs which includes libpam
+fn test_libpam() {
+    #[allow(unused_imports)]
+    use sudo_rs::sudo_main;
+
+    println!("Loading sudo_rs::sudo_main works!");
+    println!("That indicates sudo-rs was able to link to libpam!");
 }
 
 // == MiMalloc Testing
