@@ -431,6 +431,8 @@ RUN echo "libxml" && \
     CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects -fno-semantic-interposition" \
     CC="${TARGET_CC}" \
     ./configure \
+      --host="${TARGET}" \
+      --target="${TARGET}" \
       --enable-static \
       --disable-shared \
       --with-python=no \
