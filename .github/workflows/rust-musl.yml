@@ -222,7 +222,7 @@ jobs:
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     strategy:
-      max-parallel: 1 # Use this when using `act`, since this could use a lot of memory or cause other issues
+      # max-parallel: 1 # Use this when using `act`, since this could use a lot of memory or cause other issues
       fail-fast: false
       matrix:
         env:
