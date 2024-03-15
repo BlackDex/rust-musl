@@ -1,8 +1,15 @@
-RUST_CHANNEL := "stable"
-ARCH=x86_64-musl
+# Default use localhost:5000, useful with a local registry for example
+# If you want to get the source from somewhere else use `make IMAGE_REGISTRY=ghcr.io test-multi` for example
+IMAGE_REGISTRY ?= localhost:5000
+RUST_CHANNEL ?= stable
+ARCH ?= x86_64
 VERBOSE=
 RELEASE=
 FEATURES=
+
+export IMAGE_REGISTRY
+export RUST_CHANNEL
+export ARCH
 
 test-plain:
 	./test.sh plain
@@ -34,6 +41,8 @@ test-hyper:
 	./test.sh hyper
 test-rustls:
 	./test.sh rustls
+test-xml:
+	./test.sh xml
 
 clean-lock:
 	sudo find . -iname Cargo.lock -exec rm {} \;
@@ -44,6 +53,6 @@ clean-builds:
 
 clean: clean-lock clean-builds
 
-test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql test-xml
 
-.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql
+.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql test-xml

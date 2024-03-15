@@ -16,22 +16,23 @@
 docker_build() {
   local -r crate="${1}"crate
   local -r cargo_arg="${2}"
+  local -r target=x86_64-unknown-linux-musl
 
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=-s' \
-    -it "blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    bash -c "cargo -vV ; rustc -vV ; cargo build --target=x86_64-unknown-linux-musl ${cargo_arg}"
+    -e RUSTFLAGS="-Clink-arg=-s ${RUSTFLAGS}" \
+    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
+    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${cargo_arg}"
 
   cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/x86_64-unknown-linux-musl/${RELTYPE}/${crate}\n"
-  ./target/x86_64-unknown-linux-musl/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
+  ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
-  file "target/x86_64-unknown-linux-musl/${RELTYPE}/${crate}"
-  ldd "target/x86_64-unknown-linux-musl/${RELTYPE}/${crate}"
-  checksec --file="target/x86_64-unknown-linux-musl/${RELTYPE}/${crate}"
+  file "target/${target}/${RELTYPE}/${crate}"
+  ldd "target/${target}/${RELTYPE}/${crate}"
+  checksec --file="target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -40,22 +41,23 @@ docker_build() {
 docker_build_armv7() {
   local -r crate="$1"crate
   local -r cargo_arg="${2}"
+  local -r target=armv7-unknown-linux-musleabihf
 
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=-s' \
-    -it "blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
-    bash -c "cargo -vV ; rustc -vV ; cargo build --target=armv7-unknown-linux-musleabihf ${cargo_arg}"
+    -e RUSTFLAGS="-Clink-arg=-s ${RUSTFLAGS}" \
+    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
+    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${cargo_arg}"
 
   cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu cortex-a7 ./target/armv7-unknown-linux-musleabihf/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
+  qemu-arm-static -cpu cortex-a7 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
-  file "target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}"
-  ldd "target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}"
-  checksec --file="target/armv7-unknown-linux-musleabihf/${RELTYPE}/${crate}"
+  file "target/${target}/${RELTYPE}/${crate}"
+  ldd "target/${target}/${RELTYPE}/${crate}"
+  checksec --file="target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -64,22 +66,23 @@ docker_build_armv7() {
 docker_build_aarch64() {
   local -r crate="$1"crate
   local -r cargo_arg="${2}"
+  local -r target=aarch64-unknown-linux-musl
 
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-arg=-s' \
-    -it "blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
-    bash -c "cargo -vV ; rustc -vV ; cargo build --target=aarch64-unknown-linux-musl ${cargo_arg}"
+    -e RUSTFLAGS="-Clink-arg=-s ${RUSTFLAGS}" \
+    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
+    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${cargo_arg}"
 
   cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}\n"
-  qemu-aarch64-static -cpu cortex-a53 ./target/aarch64-unknown-linux-musl/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
+  qemu-aarch64-static -cpu cortex-a53 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
-  file "target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}"
-  ldd "target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}"
-  checksec --file="target/aarch64-unknown-linux-musl/${RELTYPE}/${crate}"
+  file "target/${target}/${RELTYPE}/${crate}"
+  ldd "target/${target}/${RELTYPE}/${crate}"
+  checksec --file="target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -88,27 +91,26 @@ docker_build_aarch64() {
 docker_build_arm() {
   local -r crate="$1"crate
   local -r cargo_arg="${2}"
+  local -r target=arm-unknown-linux-musleabi
 
-  # We need the libatomic.a argument because of mimalloc testing
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS='-Clink-args=-latomic -Clink-arg=-s' \
-    -it "blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
-    bash -c "cargo -vV ; rustc -vV ; cargo build --target=arm-unknown-linux-musleabi ${cargo_arg}"
+    -e RUSTFLAGS="-Clink-arg=-s ${RUSTFLAGS}" \
+    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
+    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${cargo_arg}"
 
   cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu arm1176 ./target/arm-unknown-linux-musleabi/"${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
+  qemu-arm-static -cpu arm1176 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
   set -x
-  file "target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}"
-  ldd "target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}"
-  checksec --file="target/arm-unknown-linux-musleabi/${RELTYPE}/${crate}"
+  file "target/${target}/${RELTYPE}/${crate}"
+  ldd "target/${target}/${RELTYPE}/${crate}"
+  checksec --file="target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
-
 
 # ###
 
@@ -135,12 +137,10 @@ if [[ "${ARCH}" == "armv7" ]]; then
   docker_build_armv7 "${1}" "${CARGO_ARG}"
 elif [[ "${ARCH}" == "aarch64" || "${ARCH}" == "arm64" ]]; then
   docker_build_aarch64 "${1}" "${CARGO_ARG}"
-# elif [[ "${ARCH}" == "armhf" ]]; then
-#   docker_build_armhf "${1}" "${CARGO_ARG}"
 elif [[ "${ARCH}" == "armv6" || "${ARCH}" == "arm" ]]; then
+  # We need the libatomic because of mimalloc testing
+  RUSTFLAGS+=" -Clink-args=-latomic"
   docker_build_arm "${1}" "${CARGO_ARG}"
-# elif [[ "${ARCH}" == "armv5te" ]]; then
-#   docker_build_armv5te "${1}" "${CARGO_ARG}"
 else
   docker_build "${1}" "${CARGO_ARG}"
 fi

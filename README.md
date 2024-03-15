@@ -11,16 +11,16 @@ This project generates docker images to build static musl binaries using the Rus
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
 These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build both the toolchains and the libraries.<br>
-Depending if the Rust version and if MUSL target is 32bit or 64bit it is using MUSL v1.1.24 or v1.2.3. This because changes to `time_t`.<br>
-All versions of Rust v1.71.0 and above will all be build with MUSL v1.2.3 since all targets now support this version.
+Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com/richfelker/musl-cross-make.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* OpenSSL v3.0 (`v3.0.13`)
+* OpenSSL (`v3.0.13`)
 * cURL (`v8.6.0`)
 * ZLib (`v1.3.1`)
-* PostgreSQL lib (`v11.22`) and PostgreSQL lib (`v15.6`)
-* SQLite (`v3.45.1`)
-* MariaDB Connector/C (`v3.3.8`) (MySQL Compatible)
+* PostgreSQL lib (`v11.22`) and (`v15.6`)
+* SQLite (`v3.45.2`)
+* MariaDB Connector/C (`v3.3.9`) (MySQL Compatible)
+* libxml2 (`v2.12.6`)
 
 
 ## Available architectures
@@ -34,8 +34,10 @@ Stables builds are automatically triggered if there is a new version available.
 
 
 ### OpenSSL v3.0
-Since 2023-09-29 i stopped building OpenSSL v1.1.1 since it's EOL.<br>
-Now only OpenSSL v3.0 is being build, the tags will be kept for a while.
+Since 2023-09-29 I stopped building OpenSSL v1.1.1 since it's EOL.<br>
+Now only OpenSSL v3.0 is being build.
+
+Since 2024-03-15 I stopped adding the `-openssl3` postfix to the tags.
 
 
 ### PostgreSQL v15
@@ -44,6 +46,7 @@ If you want to use v15 you need to overwrite an environment variable so that the
 <br>
 Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build.
 
+<br>
 
 ## Usage
 
@@ -59,6 +62,7 @@ They do not seem to be used at all. If someone is using them, please open an iss
 
 To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
 
+<br>
 
 ### Container registries
 
@@ -70,6 +74,7 @@ The images are pushed to multiple container registries.
 | https://quay.io/repository/blackdex/rust-musl                  |
 | https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl |
 
+<br>
 
 ### Using a Dockerfile
 
@@ -91,6 +96,8 @@ COPY --from=build /home/rust/src/target/aarch64-unknown-linux-musl/release/my-ap
 CMD ["/my-application-name"]
 ```
 
+<br>
+
 
 ### Using the CLI
 
@@ -111,6 +118,15 @@ docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarc
 <br>
 
 
+## Tips
+
+Sometimes musl based binaries are slower than glibc based binaries.<br>
+This is mostly because of the Memory Allocator (malloc) which just isn't that fast.<br>
+One way to improve the performance is to use a different allocator within your Rust project.<br>
+For example, with Vaultwarden we use [MiMalloc](https://github.com/microsoft/mimalloc) via [mimalloc_rust](https://github.com/purpleprotocol/mimalloc_rust).<br>
+Other Memory Allocators exists too, just see which one fits your application the best.
+
+
 ## Testing
 
 During the automatic build workflow the images are first tested on a Rust projects which test all build C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-build libraries.
@@ -118,7 +134,6 @@ During the automatic build workflow the images are first tested on a Rust projec
 If the test fails, the image will not be pushed to docker hub.
 
 <br>
-
 
 ## Linking issues (atomic)
 
@@ -152,9 +167,3 @@ Some projects i got my inspiration from:
 Projects used to get this working:
 * https://github.com/richfelker/musl-cross-make
 * https://github.com/rust-embedded/cross
-
-
-## Docker Hub:
-
-All images can be found here:
-* https://hub.docker.com/r/blackdex/rust-musl/

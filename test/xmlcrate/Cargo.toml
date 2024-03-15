@@ -1,14 +1,12 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
-name = "zlibcrate"
-version = "0.4.0"
+name = "xmlcrate"
+version = "0.1.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
-
-# Deps for zlib testing
-flate2 = { version = "*", features = ["zlib-default"] }
+libxml = "*"
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

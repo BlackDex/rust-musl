@@ -34,6 +34,10 @@ fn main() {
     test_zlib();
     println!("## End testing ZLib\n");
 
+    println!("\n## Start testing libxml2");
+    test_libxml2();
+    println!("## End testing libxml2\n");
+
     println!("\n## Start testing MiMalloc");
     test_mimalloc();
     println!("## End testing MiMalloc\n");
@@ -240,6 +244,23 @@ fn test_zlib_decode(bytes: Vec<u8>) -> io::Result<String> {
     let mut s = String::new();
     z.read_to_string(&mut s)?;
     Ok(s)
+}
+
+// == libxml2 Testing
+
+use libxml::parser::Parser;
+use libxml::xpath::Context;
+
+// Read an xml file and output the node values
+fn test_libxml2() {
+    let parser = Parser::default();
+    let doc = parser.parse_file("test.xml").unwrap();
+    let context = Context::new(&doc).unwrap();
+    let result = context.evaluate("//child/text()").unwrap();
+
+    for node in &result.get_nodes_as_vec() {
+        println!("Found: {}", node.get_content());
+    }
 }
 
 // == MiMalloc Testing

@@ -1,16 +1,13 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "multicrate"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 resolver = "2"
 
 [features]
 default = []
 vendored_openssl = ["openssl/vendored"]
-
-# [target.arm-unknown-linux-musleabi.dependencies.openssl-sys]
-# version = "=0.9.92" # Fixed to v0.9.92 to prevent building issues with armv6
 
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
@@ -38,11 +35,11 @@ serde_json = "1.0.*"
 mimalloc = { version = "*", features = ["secure"] }
 libmimalloc-sys = { version = "*", features = ["extended"] }
 
-
 # Deps for zlib testing
-[dependencies.flate2]
-version = "*"
-features = ["zlib"]
+flate2 = { version = "*", features = ["zlib-default"] }
+
+# Deps for libxml2 testing
+libxml = "*"
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

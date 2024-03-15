@@ -1,2 +1,2 @@
-natsort==8.2.0
+natsort==8.4.0
 toml==0.10.2
