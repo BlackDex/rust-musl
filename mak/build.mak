@@ -22,10 +22,10 @@ include mak/toolchain.mak
 # MUSL Images Makefile
 include mak/musl.mak
 
-build: build-musl
-build-push: build-push-musl
+build: musl
+build-push: push-musl
 .PHONY: build build-push
 
-build-all: build-toolchains build-musl
-build-push-all: build-push-toolchains build-push-musl
+build-all: toolchains musl
+build-push-all: push-toolchains push-musl
 .PHONY: build-all build-push-all

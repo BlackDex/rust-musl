@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-FROM docker.io/library/ubuntu:22.04
+FROM docker.io/library/ubuntu:22.04 as build
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-WORKDIR /tmp
+WORKDIR /
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -39,36 +39,42 @@ RUN apt-get update && \
     apt-get clean -y && \
     rm -rf /var/cache/* /var/lib/apt/lists/* && \
     # Default cleanups
-    find /var/log -type f -delete
+    find /var/log -type f -delete && \
+    # Pre-Create the /musl-cross-make directory
+    mkdir -pv /musl-cross-make
 
 ARG TARGET=x86_64-unknown-linux-musl
-ARG MUSL_CROSS_MAKE_HASH=fe915821b652a7fa37b34a596f47d8e20bc72338
-ARG MUSL_CROSS_MAKE_CONFIG=config.mak
+ARG MUSL_CROSS_MAKE_HASH=e149c31c48b4f4a4c9349ddf7bc0027b90245afc
 ARG ARCH_COMMON_CONFIG=""
 
-COPY shared.mak /tmp/shared.mak
-COPY $MUSL_CROSS_MAKE_CONFIG /tmp/config.mak
+COPY config.mak /musl-cross-make/config.mak
 # hadolint ignore=DL3003
 RUN echo "Downloading musl-cross-make" && \
     # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $MUSL_CROSS_MAKE_HASH
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
-      -sSL "https://codeload.github.com/richfelker/musl-cross-make/tar.gz/${MUSL_CROSS_MAKE_HASH}" | tar xz && \
-    mv musl-cross-make-* musl-cross-make && \
-    # Combine the Shared and Arch specific config files into one config.mak file.
-    cat /tmp/shared.mak /tmp/config.mak >> /tmp/musl-cross-make/config.mak && \
+      -sSL "https://github.com/richfelker/musl-cross-make/archive/${MUSL_CROSS_MAKE_HASH}.tar.gz" | \
+      tar xzf - --strip-components=1 -C /musl-cross-make/ && \
     mkdir -p /usr/local/musl && \
     #
     echo "Building musl toolchain for target ${TARGET}" && \
-    cd /tmp/musl-cross-make && \
+    cd /musl-cross-make && \
     # Build the actual toolchain here
-    # We store the toolchain in /usr/local/musl/${TARGET}
-    make install "-j$(nproc)" \
-    OUTPUT="/usr/local/musl/${TARGET}" > /dev/null && \
-    cd /tmp && \
-    rm -rf /tmp/musl-cross-make && \
+    # We store the toolchain in /usr/local/musl
+    make install "-j$(nproc)" > /dev/null && \
+    # Fix symlink to libc.so
+    ln -sfrn "/usr/local/musl/${TARGET}/lib/libc.so" "$(ls -1 /usr/local/musl/${TARGET}/lib/ld-*.so.1)" && \
+    # Cleanup
+    cd / && \
+    rm -rf /musl-cross-make && \
     echo "Finished building target ${TARGET}"
 
+
+FROM docker.io/busybox:1.36.1-glibc
+
 WORKDIR /
+
+COPY --from=build /usr/local/musl /usr/local/musl
+ENV PATH="${PATH}:/usr/local/musl/bin"
 
 LABEL maintainer="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"

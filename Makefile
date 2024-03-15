@@ -32,12 +32,6 @@ info:
 	@echo
 .PHONY: info
 
-# Render Dockerfile.gnu-base and Dockerfile.musl-base via the jinja2 Dockerfile.j2 template
-# render:
-# 	./render_template Dockerfile.j2 '{"base": "gnu"}' > "Dockerfile.gnu-base"
-# 	./render_template Dockerfile.j2 '{"base": "musl"}' > "Dockerfile.musl-base"
-# .PHONY: render
-
 # Include main building make definitions
 include mak/build.mak
 

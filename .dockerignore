@@ -1,8 +1,9 @@
 # Directories
-**/target
-mak
-test
-.vscode
+**/target/
+mak/
+test/
+.vscode/
+.github/
 
 # git
 .git**
