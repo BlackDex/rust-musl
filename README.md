@@ -15,7 +15,7 @@ Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL (`v3.0.13`)
-* cURL (`v8.6.0`)
+* cURL (`v8.7.1`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v11.22`) and (`v15.6`)
 * SQLite (`v3.45.2`)
