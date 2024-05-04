@@ -474,7 +474,7 @@ RUN chmod 755 /root/ && \
       "\n"\
       "[target.${RUST_MUSL_CROSS_TARGET}]\n"\
       "linker = \"${RUST_MUSL_CROSS_TARGET}-ld\"\n"\
-      "\n" > /root/.cargo/config && \
+      "\n" > /root/.cargo/config.toml && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
