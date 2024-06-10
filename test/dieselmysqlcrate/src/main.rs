@@ -22,6 +22,7 @@ mod schema {
 
 mod models {
     use crate::schema::posts;
+    #[allow(dead_code)]
     #[derive(Queryable)]
     pub struct Post {
         pub id: i32,

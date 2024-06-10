@@ -65,6 +65,7 @@ mod schema {
 
 mod models {
     use crate::schema::posts;
+    #[allow(dead_code)]
     #[derive(Queryable)]
     pub struct Post {
         pub id: i32,
@@ -134,6 +135,9 @@ use curl::easy::Easy;
 use std::io::{stdout, Write};
 use std::process;
 fn test_curl() {
+    let version = curl::Version::get();
+    println!("version/features: \n{version:#?}");
+
     let url = "https://raw.githubusercontent.com/BlackDex/rust-musl/main/.gitignore";
 
     let mut easy = Easy::new();
@@ -204,14 +208,13 @@ fn test_openssl() {
         hash::{hash, MessageDigest},
         version::{platform, version},
     };
-    use std::str;
 
     let data: &[u8] = b"Hello, OpenSSL world";
     let digest = hash(MessageDigest::sha256(), data);
 
     println!("version: {}", version());
     println!("{}", platform());
-    println!("{}", str::from_utf8(data).ok().unwrap());
+    println!("{}", std::str::from_utf8(data).ok().unwrap());
     println!("hash:  {digest:x?}");
     println!("sha256sum: d7, 4d, a9, c1, a1, 35, 6a, 18, fd, d1, d7, 48, e8, d8, 8c, 4d, 3d, e2, b6, 3b, 20, 34, 82, ee, 3, 29, d7, 1, 4b, fc, 51, 77");
 }
@@ -231,6 +234,11 @@ fn test_zlib() {
     e.write_all(input.as_bytes()).unwrap();
     let bytes = e.finish().unwrap();
 
+    let lib_version = unsafe { libz_sys::zlibVersion() };
+    let version = unsafe { std::ffi::CStr::from_ptr(lib_version) };
+
+    println!("lib_version: {lib_version:?}");
+    println!("version: {version:?}");
     println!("input: {input:?}");
     println!("input bytes: {:?}", input.as_bytes());
     println!("compressed: {bytes:?}");
@@ -266,6 +274,6 @@ fn test_libxml2() {
 // == MiMalloc Testing
 
 fn test_mimalloc() {
-    let lib_version = unsafe { libmimalloc_sys::mi_version() };
-    println!("mimalloc version: {lib_version:?}");
+    let lib_version = MiMalloc.version();
+    println!("mimalloc version: {lib_version:}");
 }

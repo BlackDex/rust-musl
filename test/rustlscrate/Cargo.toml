@@ -1,15 +1,17 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "rustlscrate"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-hyper = { version = "0.14", features = ["full"] }
-hyper-rustls = "0.23.*"
-rustls = "*"
+hyper = { version = "1", features = ["full"] }
+hyper-rustls = { version = "*", features = ["webpki-tokio", "ring", "http1", "tls12"], default-features = false }
+hyper-util = { version = "*", features = ["client-legacy", "tokio", "http1"], default-features = false }
+rustls = { version = "*",  features = ["std", "tls12", "ring"], default-features = false}
+http-body-util = { version = "*" }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

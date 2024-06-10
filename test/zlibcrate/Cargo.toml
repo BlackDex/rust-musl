@@ -8,7 +8,9 @@ resolver = "2"
 [dependencies]
 
 # Deps for zlib testing
-flate2 = { version = "*", features = ["zlib-default"] }
+tar = { version = "*" }
+flate2 = { version = "*", features = ["zlib-default"], default-features = false  }
+libz-sys = { version = "*" }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

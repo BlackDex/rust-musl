@@ -1,14 +1,16 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "mimalloccrate"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
-rocket = { version = "0.5.0-rc.2", default-features = false }
+mimalloc = { version = "*", features = ["secure", "extended"] , default-features = false }
 
-mimalloc = { version = "*", features = ["secure"] }
+# Patch mimalloc for now until a new version is released
+[patch.crates-io]
+mimalloc = { git = "https://github.com/purpleprotocol/mimalloc_rust.git", rev="992c9da4c5afba7fbf4c5815c43c8f0fbd2a8da6" }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

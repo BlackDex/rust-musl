@@ -44,6 +44,12 @@ fn verify(res: io::Result<()>) {
 }
 
 fn main() {
+    let lib_version = unsafe { libz_sys::zlibVersion() };
+    let version = unsafe { std::ffi::CStr::from_ptr(lib_version) };
+
+    println!("lib_version: {lib_version:?}");
+    println!("version: {version:?}");
+
     let pwd = env::current_dir().unwrap();
     let data = "./data.txt";
     let tarpath = Path::new(&pwd).join("data.tar.gz");

@@ -1,36 +1,67 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
 
-use hyper::{Body, Client, Uri};
+// use http::Uri;
+use http_body_util::{BodyExt, Empty};
+use hyper::body::Bytes;
+use hyper_rustls::ConfigBuilderExt;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
+
+use std::io;
+
+fn main() {
+    // Set a process wide default crypto provider.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
+    // Send GET request and inspect result, with proper error handling.
+    if let Err(e) = run_client() {
+        eprintln!("FAILED: {}", e);
+        std::process::exit(1);
+    }
+}
+
+fn error(err: String) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, err)
+}
 
 #[tokio::main]
-async fn main() {
-    let url: Uri =
-        "https://raw.githubusercontent.com/BlackDex/rust-musl/main/test/hypercrate/Cargo.toml"
-            .parse()
-            .unwrap();
+async fn run_client() -> io::Result<()> {
+    // Prepare the TLS client config
+    let tls = rustls::ClientConfig::builder()
+        .with_webpki_roots()
+        .with_no_client_auth();
 
+    // Prepare the HTTPS connector
     let https = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .https_only()
+        .with_tls_config(tls)
+        .https_or_http()
         .enable_http1()
         .build();
 
-    let client: Client<_, Body> = Client::builder().build(https);
+    // Build the hyper client from the HTTPS connector.
+    let client: Client<_, Empty<Bytes>> = Client::builder(TokioExecutor::new()).build(https);
 
-    let resp = client.get(url).await.unwrap();
-    assert_eq!(resp.status(), 200);
+    // Prepare a chain of futures which sends a GET request, inspects
+    // the returned headers, collects the whole body and prints it to
+    // stdout.
+    let fut = async move {
+        let res = client
+            .get("https://raw.githubusercontent.com/BlackDex/rust-musl/main/test/hypercrate/Cargo.toml".parse().unwrap())
+            .await
+            .map_err(|e| error(format!("Could not get: {:?}", e)))?;
+        println!("Status:\n{}", res.status());
+        println!("Headers:\n{:#?}", res.headers());
 
-    let body = resp.into_body();
-    let body = hyper::body::to_bytes(body).await.unwrap();
-    let body = String::from_utf8(body.to_vec()).unwrap();
-    let lines: Vec<&str> = body.split_terminator('\n').collect();
-    for line in lines.iter() {
-        println!("{}", line);
-    }
+        let body = res
+            .into_body()
+            .collect()
+            .await
+            .map_err(|e| error(format!("Could not get body: {:?}", e)))?
+            .to_bytes();
+        println!("Body:\n{}", String::from_utf8_lossy(&body));
 
-    // while let Some(next) = res.data().await {
-    //     let chunk = next.unwrap();
-    //     io::stdout().write_all(&chunk).await.unwrap();
-    // }
+        Ok(())
+    };
+
+    fut.await
 }

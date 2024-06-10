@@ -6,6 +6,9 @@ use std::io::{stdout, Write};
 use std::process;
 
 fn main() {
+    let version = curl::Version::get();
+    println!("version/features: \n{version:#?}");
+
     let url = "https://raw.githubusercontent.com/clux/muslrust/master/test/curlcrate/src/main.rs";
 
     let mut easy = Easy::new();
@@ -17,5 +20,4 @@ fn main() {
         println!("Failed: {}", e);
         process::exit(1);
     });
-    // NB: This is a quine
 }

@@ -1,14 +1,17 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "hypercrate"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 resolver = "2"
 
 [dependencies]
+bytes = { version = "*" }
 tokio = { version = "1", features = ["full"] }
-hyper = { version = "0.14", features = ["full"] }
-hyper-tls = "0.5"
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "*", features = ["client-legacy", "tokio", "http1"] }
+hyper-tls = { version = "*" }
+http-body-util = { version = "*" }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
