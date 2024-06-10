@@ -74,7 +74,7 @@ def alpinever(package):
     """Retrieve the current version of the package in Alpine repos
 
     >>> str(alpinever('mariadb-connector-c'))
-    '3.3.9'
+    '3.3.10'
     """
 
     try:
@@ -93,11 +93,11 @@ def alpinever(package):
 def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
     # pylint: disable=anomalous-backslash-in-string
     """Retrieve the current version of the package in Alpine repos
-
-    >>> str(mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3\.', 'connector-c-', r'\/'))
+    >>> str(mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\\.3\\.', 'connector-c-', r'\\/'))
     '3.3.8'
-    >>> str(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html'))
-    '3_45_2'
+
+    >>> str(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\\/\\d_\\d+\\_\\d+', r'releaselog/', r'\\.html'))
+    '3_46_0'
     """
 
     try:
@@ -122,7 +122,7 @@ def rustup_version():
     :return: The current Rustup version
 
     >>> str(rustup_version())
-    '1.27.0'
+    '1.27.1'
     """
 
     req = request.urlopen('https://static.rust-lang.org/rustup/release-stable.toml')
@@ -136,7 +136,7 @@ def libxml2ver(site):
     """Retrieve the current version of libmxl2
 
     >>> str(libxml2ver('https://download.gnome.org/sources/libxml2/cache.json'))
-    '2.12.6'
+    '2.12.7'
     """
 
     req = request.urlopen(site)
@@ -152,7 +152,7 @@ def libxml2ver(site):
 if __name__ == '__main__':
     PACKAGES = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL3_0': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.0\.\d+', 'openssl-', r''),
+        'SSL3_0': mirrorver('https://www.openssl.org/source/', r'openssl-3\.0\.\d+', 'openssl-', r''),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
@@ -162,8 +162,8 @@ if __name__ == '__main__':
         'LIBXML2': libxml2ver('https://download.gnome.org/sources/libxml2/cache.json'),
         # Also print some other version or from other resources just to compare
         '---': '---',
-        'SSL3_X': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),
-        'SSL3_1': mirrorver('https://ftp.openssl.org/source/', r'openssl-3\.1\.\d+', 'openssl-', r''),
+        'SSL3_X': mirrorver('https://www.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),
+        'SSL3_1': mirrorver('https://www.openssl.org/source/', r'openssl-3\.1\.\d+', 'openssl-', r''),
         'SSL_ARCH': pkgver('openssl'),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),

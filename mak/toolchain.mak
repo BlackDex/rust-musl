@@ -32,8 +32,8 @@ toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm:
 		docker push localhost:5000/blackdex/musl-toolchain:$(TAG)$(TAG_DATE) ; \
 	fi
 
-toolchains: toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm toolchain-armhf toolchain-armv5te
-.PHONY: toolchains toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm toolchain-armhf toolchain-armv5te
+toolchains: toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm
+.PHONY: toolchains toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm
 
 # Build and push all musl-cross targets
 push-toolchains:

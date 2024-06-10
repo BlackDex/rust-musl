@@ -44,7 +44,7 @@ RUN apt-get update && \
     mkdir -pv /musl-cross-make
 
 ARG TARGET=x86_64-unknown-linux-musl
-ARG MUSL_CROSS_MAKE_HASH=e149c31c48b4f4a4c9349ddf7bc0027b90245afc
+ARG MUSL_CROSS_MAKE_HASH=fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
 ARG ARCH_COMMON_CONFIG=""
 
 COPY config.mak /musl-cross-make/config.mak

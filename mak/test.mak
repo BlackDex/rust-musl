@@ -11,38 +11,38 @@ export IMAGE_REGISTRY
 export RUST_CHANNEL
 export ARCH
 
-test-plain:
-	./test.sh plain
 test-curl:
 	./test.sh curl
-test-serde:
-	./test.sh serde
-test-rocket:
-	./test.sh rocket
-test-mimalloc:
-	./test.sh mimalloc
-test-pq:
-	./test.sh pq
-test-multi:
-	./test.sh multi
 test-dieselmulti:
 	./test.sh dieselmulti
+test-dieselmysql:
+	./test.sh dieselmysql
 test-dieselpg:
 	./test.sh dieselpg
 test-dieselsqlite:
 	./test.sh dieselsqlite
-test-dieselmysql:
-	./test.sh dieselmysql
-test-ssl:
-	./test.sh ssl
-test-zlib:
-	./test.sh zlib
 test-hyper:
 	./test.sh hyper
+test-mimalloc:
+	./test.sh mimalloc
+test-multi:
+	./test.sh multi
+test-plain:
+	./test.sh plain
+test-pq:
+	./test.sh pq
+test-rocket:
+	./test.sh rocket
 test-rustls:
 	./test.sh rustls
+test-serde:
+	./test.sh serde
+test-ssl:
+	./test.sh ssl
 test-xml:
 	./test.sh xml
+test-zlib:
+	./test.sh zlib
 
 clean-lock:
 	sudo find . -iname Cargo.lock -exec rm {} \;
@@ -53,6 +53,6 @@ clean-builds:
 
 clean: clean-lock clean-builds
 
-test: test-multi test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql test-xml
+test: test-curl test-dieselmulti test-dieselmysql test-dieselpg test-dieselsqlite test-hyper test-mimalloc test-multi test-plain test-pq test-rustls test-serde test-ssl test-xml test-zlib
 
-.PHONY: test clean clean-lock clean-builds test-multi test-rocket test-mimalloc test-plain test-ssl test-pq test-serde test-curl test-zlib test-hyper test-rustls test-dieselmulti test-dieselpg test-dieselsqlite test-dieselmysql test-xml
+.PHONY: test clean clean-lock clean-builds test-curl test-dieselmulti test-dieselmysql test-dieselpg test-dieselsqlite test-hyper test-mimalloc test-multi test-plain test-pq test-rocket test-rustls test-serde test-ssl test-xml test-zlib
