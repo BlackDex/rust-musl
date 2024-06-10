@@ -229,19 +229,19 @@ jobs:
           - IMAGE_TAG: x86_64-musl
             TARGET: x86_64-unknown-linux-musl
             OPENSSL_ARCH: "linux-x86_64 enable-ec_nistp_64_gcc_128"
-          # - IMAGE_TAG: armv7-musleabihf
-          #   TARGET: armv7-unknown-linux-musleabihf
-          #   OPENSSL_ARCH: linux-armv4
-          # - IMAGE_TAG: aarch64-musl
-          #   TARGET: aarch64-unknown-linux-musl
-          #   OPENSSL_ARCH: linux-aarch64
-          #   # The aarch64 musl does not support outline-atomics and needs to be disabled
-          #   # We need to provide some extra CPPFLAGS to prevent errors during the compilation of the Rust project
-          #   ARCH_CPPFLAGS: "-mno-outline-atomics"
-          # - IMAGE_TAG: arm-musleabi
-          #   TARGET: arm-unknown-linux-musleabi
-          #   OPENSSL_ARCH: linux-armv4
-          #   XTRA_RUSTFLAGS: "-Clink-args=-latomic "
+          - IMAGE_TAG: armv7-musleabihf
+            TARGET: armv7-unknown-linux-musleabihf
+            OPENSSL_ARCH: linux-armv4
+          - IMAGE_TAG: aarch64-musl
+            TARGET: aarch64-unknown-linux-musl
+            OPENSSL_ARCH: linux-aarch64
+            # The aarch64 musl does not support outline-atomics and needs to be disabled
+            # We need to provide some extra CPPFLAGS to prevent errors during the compilation of the Rust project
+            ARCH_CPPFLAGS: "-mno-outline-atomics"
+          - IMAGE_TAG: arm-musleabi
+            TARGET: arm-unknown-linux-musleabi
+            OPENSSL_ARCH: linux-armv4
+            XTRA_RUSTFLAGS: "-Clink-args=-latomic "
 
     steps:
       - name: Checkout Repo
