@@ -1,3 +1,5 @@
+GNU_SITE = https://ftp.gnu.org/gnu
+
 BINUTILS_VER = 2.33.1
 GCC_VER = 11.2.0
 GMP_VER = 6.1.2
