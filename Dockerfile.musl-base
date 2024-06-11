@@ -34,6 +34,7 @@ RUN apt-get update && \
         git \
         tzdata \
         ca-certificates \
+        libclang-dev \
         --no-install-recommends \
         && \
     # Cleanup apt
@@ -460,7 +461,7 @@ RUN chmod 755 /root/ && \
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
     curl --proto '=https' --tlsv1.2 -sqSf https://sh.rustup.rs | \
-      sh -s -- -y --profile minimal --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
+      sh -s -- -y --profile minimal --component rustfmt --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
     rustup set profile minimal && \
     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
     find "/root/.rustup/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
@@ -482,8 +483,8 @@ RUN chmod 755 /root/ && \
 ENV HOST="x86_64-unknown-linux-gnu" \
     # General
     CARGO_BUILD_TARGET="${TARGET}" \
-    BINDGEN_EXTRA_CLANG_ARGS="--sysroot=${SYSROOT}" \
-    TARGET_C_INCLUDE_PATH="${C_INCLUDE_PATH}" \
+    BINDGEN_EXTRA_CLANG_ARGS="--sysroot=${SYSROOT} ${SHARED_CPPFLAGS}" \
+    TARGET_C_INCLUDE_PATH="${SHARED_CPPFLAGS}" \
     PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_ALL_STATIC=1 \
     TARGET_PKG_CONFIG_ALLOW_CROSS=1 \
