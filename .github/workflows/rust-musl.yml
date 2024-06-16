@@ -241,11 +241,11 @@ jobs:
           - IMAGE_TAG: arm-musleabi
             TARGET: arm-unknown-linux-musleabi
             OPENSSL_ARCH: linux-armv4
-            XTRA_RUSTFLAGS: "-Clink-args=-latomic "
+            # XTRA_RUSTFLAGS: "-Clink-args=-latomic "
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)

@@ -20,7 +20,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * PostgreSQL lib (`v11.22`) and (`v15.7`)
 * SQLite (`v3.46.0`)
 * MariaDB Connector/C (`v3.3.10`) (MySQL Compatible)
-* libxml2 (`v2.12.7`)
+* libxml2 (`v2.13.0`)
 
 
 ## Available architectures
@@ -140,8 +140,6 @@ If the test fails, the image will not be pushed to docker hub.
 Because of some strange bugs/quirks it sometimes happens that on some platforms it reports missing `__atomic*` libraries. The strange thing is, these are available, but for some reason ignored by the linker or rustc (If someone knows a good solution here, please share).<br>
 <br>
 Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides the correct location of the c archive `.a` file.<br>
-<br>
-This for example happens when using the `mimalloc` crate.
 
 | Cross Target                   |  RUSTFLAG             |
 | ------------------------------ | --------------------- |

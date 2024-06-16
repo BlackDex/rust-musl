@@ -139,7 +139,7 @@ elif [[ "${ARCH}" == "aarch64" || "${ARCH}" == "arm64" ]]; then
   docker_build_aarch64 "${1}" "${CARGO_ARG}"
 elif [[ "${ARCH}" == "armv6" || "${ARCH}" == "arm" ]]; then
   # We need the libatomic because of mimalloc testing
-  RUSTFLAGS+=" -Clink-args=-latomic"
+  # RUSTFLAGS+=" -Clink-args=-latomic"
   docker_build_arm "${1}" "${CARGO_ARG}"
 else
   docker_build "${1}" "${CARGO_ARG}"

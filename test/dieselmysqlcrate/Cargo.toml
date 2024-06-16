@@ -1,16 +1,11 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselmysqlcrate"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 resolver = "2"
 
-[target.'cfg(all(target_os = "linux", target_arch = "arm", target_pointer_width = "32"))'.dependencies]
-mysqlclient-sys = { version = "*", features = ["buildtime_bindgen"]}
-
 [dependencies]
-openssl = "*"
-
 # Tell Diesel to use MySQL features
 diesel = { version = "2.2.*", features = ["mysql", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.2.*", features = ["mysql"] }

@@ -75,7 +75,7 @@ ENV TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
     PQ_15_VER="15.7" \
     SQLITE_VER="3460000" \
     MARIADB_VER="3.3.10" \
-    LIBXML2_VER="2.12.7"
+    LIBXML2_VER="2.13.0"
 
 WORKDIR /tmp
 
