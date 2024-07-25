@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM docker.io/library/ubuntu:22.04 as build
+ARG TARGET=x86_64-unknown-linux-musl
+
+FROM docker.io/library/ubuntu:22.04 AS build
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -43,7 +45,7 @@ RUN apt-get update && \
     # Pre-Create the /musl-cross-make directory
     mkdir -pv /musl-cross-make
 
-ARG TARGET=x86_64-unknown-linux-musl
+ARG TARGET
 ARG MUSL_CROSS_MAKE_HASH=fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
 ARG ARCH_COMMON_CONFIG=""
 
@@ -75,6 +77,8 @@ WORKDIR /
 
 COPY --from=build /usr/local/musl /usr/local/musl
 ENV PATH="${PATH}:/usr/local/musl/bin"
+
+ARG TARGET
 
 LABEL maintainer="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
