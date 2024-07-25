@@ -152,7 +152,7 @@ def libxml2ver(site):
 if __name__ == '__main__':
     PACKAGES = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL3_0': mirrorver('https://www.openssl.org/source/', r'openssl-3\.0\.\d+', 'openssl-', r''),
+        'SSL3_0': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.0\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
@@ -162,8 +162,8 @@ if __name__ == '__main__':
         'LIBXML2': libxml2ver('https://download.gnome.org/sources/libxml2/cache.json'),
         # Also print some other version or from other resources just to compare
         '---': '---',
-        'SSL3_X': mirrorver('https://www.openssl.org/source/', r'openssl-3\.\d\.\d+', 'openssl-', r''),
-        'SSL3_1': mirrorver('https://www.openssl.org/source/', r'openssl-3\.1\.\d+', 'openssl-', r''),
+        'SSL3_X': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.\d\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
+        'SSL3_1': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.1\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
         'SSL_ARCH': pkgver('openssl'),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),
