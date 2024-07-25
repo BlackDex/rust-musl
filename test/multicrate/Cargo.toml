@@ -41,10 +41,6 @@ libz-sys = { version = "*" }
 # Deps for libxml2 testing
 libxml = "*"
 
-# Patch mimalloc for now until a new version is released
-[patch.crates-io]
-mimalloc = { git = "https://github.com/purpleprotocol/mimalloc_rust.git", rev="992c9da4c5afba7fbf4c5815c43c8f0fbd2a8da6" }
-
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#strip

@@ -71,10 +71,10 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@d388a4836fcdbde0e50e395dc79a2670ccdef13f # stable @ May 1, 2024, 6:12 PM GMT+2
+        uses: dtolnay/rust-toolchain@d0e72ca3bfdc51937a4f81431ccbed269ef9f2a2 # stable @ Jun 13, 2024, 6:21 PM GMT+2
 
       - name: Get Rust version info
         id: rust_versions
@@ -250,7 +250,7 @@ jobs:
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
         if: ${{ !env.ACT }}
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@aa33708b10e362ff993539393ff100fa93ed6a27 # v3.5.0
         # https://github.com/moby/buildkit/issues/3969
         with:
           driver-opts: |
@@ -285,7 +285,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -303,7 +303,7 @@ jobs:
 
       - name: Login to ghcr.io
         if: ${{ env.HAVE_GHCR_LOGIN == 'true' }}
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -322,7 +322,7 @@ jobs:
 
       - name: Login to quay.io
         if: ${{ env.HAVE_QUAY_LOGIN == 'true' }}
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -363,7 +363,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -413,7 +413,7 @@ jobs:
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -436,7 +436,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -485,7 +485,7 @@ jobs:
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -505,7 +505,7 @@ jobs:
       # ###
       # Rust Nightly
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -548,7 +548,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
+        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445 # v6.5.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
