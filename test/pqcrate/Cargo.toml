@@ -8,6 +8,7 @@ resolver = "2"
 [features]
 default = []
 vendored_openssl = ["openssl/vendored"]
+bundled_pq = ["pq-sys/bundled"]
 
 [dependencies]
 openssl = "*"

@@ -250,7 +250,7 @@ jobs:
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
         if: ${{ !env.ACT }}
-        uses: docker/setup-buildx-action@aa33708b10e362ff993539393ff100fa93ed6a27 # v3.5.0
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
         # https://github.com/moby/buildkit/issues/3969
         with:
           driver-opts: |
@@ -398,7 +398,7 @@ jobs:
       - name: Test Docker Image (PQ15) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        continue-on-error: true
+        # continue-on-error: true
         run: |
           # Run the test
           docker run --rm \
@@ -470,7 +470,7 @@ jobs:
       - name: Test Docker Image (PQ15) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        continue-on-error: true
+        # continue-on-error: true
         run: |
           # Run the test
           docker run --rm \
@@ -535,7 +535,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ15) - Rust Nightly
-        continue-on-error: true
+        # continue-on-error: true
         run: |
           # Run the test
           docker run --rm \

@@ -15,12 +15,12 @@ Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL (`v3.0.14`)
-* cURL (`v8.8.0`)
+* cURL (`v8.9.1`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v11.22`) and (`v15.7`)
 * SQLite (`v3.46.0`)
 * MariaDB Connector/C (`v3.3.10`) (MySQL Compatible)
-* libxml2 (`v2.13.0`)
+* libxml2 (`v2.13.3`)
 
 
 ## Available architectures
@@ -45,6 +45,10 @@ The default PostgreSQL lib used is v11, this might change in the future.<br>
 If you want to use v15 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
 <br>
 Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build.
+
+**NOTE** 2024-08-02:<br>
+In some situations it could be that the libpq v11 was still used. Depending if during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different libpq.a.<br>
+This has been solved now by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable your self to anything else then the v15 directory.
 
 <br>
 
