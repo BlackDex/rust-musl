@@ -410,6 +410,21 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
+      - name: Test Docker Image (PQ11) - Rust Current Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
+        # continue-on-error: true
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache-${{ matrix.env.IMAGE_TAG }}:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
@@ -482,6 +497,21 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
+      - name: Test Docker Image (PQ11) - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
+        # continue-on-error: true
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
@@ -544,6 +574,19 @@ jobs:
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=1 \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
+            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
+            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ11) - Rust Nightly
+        # continue-on-error: true
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=1 \
+            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 

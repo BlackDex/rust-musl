@@ -17,7 +17,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * OpenSSL (`v3.0.14`)
 * cURL (`v8.9.1`)
 * ZLib (`v1.3.1`)
-* PostgreSQL lib (`v11.22`) and (`v15.7`)
+* PostgreSQL lib (`v16.4`) and (`v15.8`) and legacy (`v11.22`)
 * SQLite (`v3.46.0`)
 * MariaDB Connector/C (`v3.3.10`) (MySQL Compatible)
 * libxml2 (`v2.13.3`)
@@ -40,15 +40,18 @@ Now only OpenSSL v3.0 is being build.
 Since 2024-03-15 I stopped adding the `-openssl3` postfix to the tags.
 
 
-### PostgreSQL v15
-The default PostgreSQL lib used is v11, this might change in the future.<br>
-If you want to use v15 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
+### PostgreSQL v16 & v15 (and legacy v11)
+The default PostgreSQL lib used is v16.<br>
+If you want to use v16 or legacy v11 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
 <br>
-Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build.
+Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build. The same goes for using the legacy `v11`, just use `ENV PQ_LIB_DIR="/usr/local/musl/pq11/lib"`.
 
 **NOTE** 2024-08-02:<br>
 In some situations it could be that the libpq v11 was still used. Depending if during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different libpq.a.<br>
 This has been solved now by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable your self to anything else then the v15 directory.
+
+**NOTE** 2024-08-08:<br>
+libpq v16 is now the default version. v15 and v11 are still build and available.
 
 <br>
 
