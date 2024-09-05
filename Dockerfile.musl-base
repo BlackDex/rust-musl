@@ -69,14 +69,14 @@ ENV TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
     PKG_CONFIG_SYSTEM_LIBRARY_PATH="${TARGET_PREFIX}/lib:${SYSROOT}/lib" \
     PKG_CONFIG_SYSTEM_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
     # Library versions
-    SSL_VER="3.0.14" \
+    SSL_VER="3.0.15" \
     CURL_VER="8.9.1" \
     ZLIB_VER="1.3.1" \
     PQ_11_VER="11.22" \
     PQ_15_VER="15.8" \
     PQ_16_VER="16.4" \
-    SQLITE_VER="3460000" \
-    MARIADB_VER="3.3.10" \
+    SQLITE_VER="3460100" \
+    MARIADB_VER="3.3.11" \
     LIBXML2_VER="2.13.3"
 
 WORKDIR /tmp
@@ -111,7 +111,7 @@ RUN echo "zlib" && \
 # Build OpenSSL (used in curl, pq and mariadb)
 # hadolint ignore=DL3003
 RUN echo "OpenSSL" && \
-    curl -sSL "https://www.openssl.org/source/openssl-${SSL_VER}.tar.gz" | tar xz && \
+    curl -sSL "https://github.com/openssl/openssl/releases/download/openssl-${SSL_VER}/openssl-${SSL_VER}.tar.gz" | tar xz && \
     cd "openssl-${SSL_VER}" && \
     # Download patches for openssl from Alpine to fix CVE's
     # https://pkgs.alpinelinux.org/packages?name=openssl&branch=v3.17&arch=x86_64
