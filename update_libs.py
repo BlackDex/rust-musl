@@ -15,6 +15,8 @@ import re
 import urllib.error
 import urllib.request as request
 
+from pprint import pp
+
 import toml
 from natsort import natsorted
 
@@ -115,6 +117,29 @@ def mirrorver(site, href_prefix, strip_prefix=None, re_postfix=r'[\/]?\"'):
         return 'No version found'
 
 
+def githubver(repo, version_filter=r'.*', strip_prefix=None):
+    """Retrieve the current version of the package based upon tags from github
+
+    >>> str(githubver('openssl/openssl', r'3\\.0\\.', r'openssl-'))
+    '3.0.15'
+    """
+
+    try:
+        # Though the URL contains "/search/", this only returns exact matches (see API documentation)
+        url = f'https://api.github.com/repos/{repo}/tags'
+        req = request.urlopen(url)
+        metadata = json.loads(req.read())
+        req.close()
+
+        matches = [item["name"] for item in metadata if re.search(version_filter, item["name"])]
+        latest_version = natsorted(matches).pop().replace(strip_prefix, '')
+        return f'{latest_version}'
+    except urllib.error.HTTPError:
+        return 'Package not found'
+    except IndexError:
+        return 'No version found'
+
+
 def rustup_version():
     """
     Retrieve the current version of Rustup from https://static.rust-lang.org/rustup/release-stable.toml
@@ -152,7 +177,7 @@ def libxml2ver(site):
 if __name__ == '__main__':
     PACKAGES = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL3_0': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.0\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
+        'SSL3_0': githubver('openssl/openssl', r'openssl-3\.0\..*', r'openssl-'),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
@@ -163,8 +188,8 @@ if __name__ == '__main__':
         'LIBXML2': libxml2ver('https://download.gnome.org/sources/libxml2/cache.json'),
         # Also print some other version or from other resources just to compare
         '---': '---',
-        'SSL3_X': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.\d\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
-        'SSL3_1': mirrorver('https://openssl-library.org/source/index.html', r'https://github.com/openssl/openssl/releases/download/openssl-3\.1\.\d+', 'https://github.com/openssl/openssl/releases/download/openssl-', r''),
+        'SSL3_X': githubver('openssl/openssl', r'openssl-.*', r'openssl-'),
+        'SSL3_3': githubver('openssl/openssl', r'openssl-3\.3\..*', r'openssl-'),
         'SSL_ARCH': pkgver('openssl'),
         'CURL_ARCH': pkgver('curl'),
         'ZLIB_ARCH': pkgver('zlib'),
