@@ -75,7 +75,7 @@ ENV TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
     PQ_11_VER="11.22" \
     PQ_15_VER="15.8" \
     PQ_16_VER="16.4" \
-    SQLITE_VER="3460100" \
+    SQLITE_VER="3470000" \
     MARIADB_VER="3.3.11" \
     LIBXML2_VER="2.13.4"
 
