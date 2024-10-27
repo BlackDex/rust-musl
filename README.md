@@ -125,6 +125,32 @@ docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarc
 <br>
 
 
+### Using as GitHub Actions container
+
+You can also use these images as a GitHub Actions container.<br>
+A very simple way looks like this to build aarch64 binaries.
+
+```yaml
+name: "Build container"
+
+on:
+  push:
+    branches:
+     - main
+
+jobs:
+  build_container:
+    runs-on: ubuntu-latest
+    container: ghcr.io/blackdex/rust-musl:aarch64-musl-stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          cargo build --release
+```
+
+<br>
+
 ## Tips
 
 Sometimes musl based binaries are slower than glibc based binaries.<br>

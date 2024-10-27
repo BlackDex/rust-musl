@@ -534,7 +534,12 @@ RUN chmod 755 /root/ && \
       "\n" > /root/.cargo/config.toml && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command
-    ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
+    ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip" && \
+    #
+    # Create a symlink to /root as /github/home to support using this image as `container:` argument
+    # See: https://github.com/BlackDex/rust-musl/issues/11
+    mkdir -pv /github && \
+    ln -sfnr /root /github/home
 
 ENV HOST="x86_64-unknown-linux-gnu" \
     # General
