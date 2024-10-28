@@ -18,7 +18,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     TERM=xterm-256color \
-    PATH="/usr/local/musl/bin:/root/.cargo/bin:${PATH}" \
     TZ=UTC
 
 # hadolint ignore=DL3008
@@ -51,9 +50,12 @@ ARG ARCH_CPPFLAGS=
 
 ENV TARGET="${TARGET}" \
     TARGET_PREFIX=/usr/local/musl \
+    RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
     SYSROOT="/usr/local/musl/${TARGET}"
 
-ENV TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
+ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
+    TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
     TARGET_LD="${TARGET}-ld" \
     TARGET_AR="${TARGET}-ar" \
     TARGET_CC="${TARGET}-gcc" \
@@ -511,19 +513,17 @@ RUN echo "libxml" && \
 ARG RUST_CHANNEL=stable
 ARG RUSTC_HASH=
 
-# Chmod 755 is set for root directory to allow access execute binaries in /root/.cargo/bin
-RUN chmod 755 /root/ && \
-    echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '${RUSTC_HASH}'." && \
+RUN echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '${RUSTC_HASH}'." && \
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
     curl --proto '=https' --tlsv1.2 -sqSf https://sh.rustup.rs | \
       sh -s -- -y --profile minimal --component rustfmt --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
     rustup set profile minimal && \
     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
-    find "/root/.rustup/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
+    find "${RUSTUP_HOME}/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
     # When the Rust channel is stable, we create a symlink to the stable folder with the version number
     # This prevents cargo from downloading the same stuff twice if someone overrules the version with a version number instead of stable
-    if [[ "${RUST_CHANNEL}" == "stable" ]] ; then STABLE_VER=$(rustc -V | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]") ; ln -vfsr "/root/.rustup/toolchains/stable-$(uname -m)-unknown-linux-gnu" "/root/.rustup/toolchains/${STABLE_VER}-$(uname -m)-unknown-linux-gnu" ; fi && \
+    if [[ "${RUST_CHANNEL}" == "stable" ]] ; then STABLE_VER=$(rustc -V | grep -oE "[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]") ; ln -vfsr "${RUSTUP_HOME}/toolchains/stable-$(uname -m)-unknown-linux-gnu" "${RUSTUP_HOME}/toolchains/${STABLE_VER}-$(uname -m)-unknown-linux-gnu" ; fi && \
     echo -ne ""\
       "[build]\n"\
       "target = \"${RUST_MUSL_CROSS_TARGET}\"\n"\
@@ -531,15 +531,15 @@ RUN chmod 755 /root/ && \
       "\n"\
       "[target.${RUST_MUSL_CROSS_TARGET}]\n"\
       "linker = \"${RUST_MUSL_CROSS_TARGET}-ld\"\n"\
-      "\n" > /root/.cargo/config.toml && \
+      "\n" > "${CARGO_HOME}/config.toml" && \
     #
     # Link the strip command to musl-strip which is more widely used as the default strip command
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip" && \
     #
-    # Create a symlink to /root as /github/home to support using this image as `container:` argument
-    # See: https://github.com/BlackDex/rust-musl/issues/11
-    mkdir -pv /github && \
-    ln -sfnr /root /github/home
+    # Add some compatibility links to the new CARGO_HOME and RUSTUP_HOME directories
+    # Without these it might break current CI's using this image
+    ln -sfnr "${CARGO_HOME}" /root/.cargo && \
+    ln -sfnr "${RUSTUP_HOME}" /root/.rustup
 
 ENV HOST="x86_64-unknown-linux-gnu" \
     # General
