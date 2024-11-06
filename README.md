@@ -1,9 +1,7 @@
-<a href='https://github.com/repo-reviews/repo-reviews.github.io/blob/main/create.md' target="_blank"><img alt='Github' src='https://img.shields.io/badge/review_me-100000?style=flat&logo=Github&logoColor=white&labelColor=888888&color=555555'/></a>
-[![Build](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml/badge.svg)](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml)
-[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-blue)](https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl)
-[![Docker Pulls](https://img.shields.io/docker/pulls/vaultwarden/server.svg)](https://hub.docker.com/r/blackdex/rust-musl)
-[![Quay.io](https://img.shields.io/badge/Quay.io-download-blue)](https://quay.io/repository/blackdex/rust-musl)
-
+[![GHA Build](https://img.shields.io/github/actions/workflow/status/BlackDex/rust-musl/rust-musl.yml?style=for-the-badge&logo=github&logoColor=fff&label=Build%20Workflow)](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-005AA4?style=for-the-badge&logo=github&logoColor=fff&cacheSeconds=14400)](https://quay.io/repository/blackdex/rust-musl)
+[![Docker Pulls](https://img.shields.io/docker/pulls/blackdex/rust-musl.svg?style=for-the-badge&logo=docker&logoColor=fff&color=005AA4&label=docker.io%20pulls)](https://hub.docker.com/r/blackdex/rust-musl)
+[![Quay.io](https://img.shields.io/badge/quay.io-download-005AA4?style=for-the-badge&logo=redhat&cacheSeconds=14400)](https://quay.io/repository/blackdex/rust-musl) <br>
 
 # rust-musl
 
@@ -15,15 +13,15 @@ Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL (`v3.0.15`)
-* cURL (`v8.10.1`)
+* cURL (`v8.11.0`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v16.4`) and (`v15.8`) and legacy (`v11.22`)
 * SQLite (`v3.47.0`)
 * MariaDB Connector/C (`v3.3.11`) (MySQL Compatible)
 * libxml2 (`v2.13.4`)
 
-
 ## Available architectures
+
 Both stable and nightly builds are available.
 The latest nightly's are always postfixed with `-nightly`, if you want to use a specific date check if the images exists then you can use the `-nightly-YYYY-MM-DD` tag.
 Nightly's are build every morning around 9:30 UTC.
@@ -34,6 +32,7 @@ Stables builds are automatically triggered if there is a new version available.
 
 
 ### OpenSSL v3.0
+
 Since 2023-09-29 I stopped building OpenSSL v1.1.1 since it's EOL.<br>
 Now only OpenSSL v3.0 is being build.
 
@@ -41,6 +40,7 @@ Since 2024-03-15 I stopped adding the `-openssl3` postfix to the tags.
 
 
 ### PostgreSQL v16 & v15 (and legacy v11)
+
 The default PostgreSQL lib used is v16.<br>
 If you want to use v16 or legacy v11 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
 <br>
@@ -105,7 +105,6 @@ CMD ["/my-application-name"]
 
 <br>
 
-
 ### Using the CLI
 
 If you want to use PostgreSQL `v15` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` before the `-v "$(pwd)"` argument.
@@ -123,7 +122,6 @@ docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarc
 ```
 
 <br>
-
 
 ### Using as GitHub Actions container
 
@@ -159,7 +157,6 @@ One way to improve the performance is to use a different allocator within your R
 For example, with Vaultwarden we use [MiMalloc](https://github.com/microsoft/mimalloc) via [mimalloc_rust](https://github.com/purpleprotocol/mimalloc_rust).<br>
 Other Memory Allocators exists too, just see which one fits your application the best.
 
-
 ## Testing
 
 During the automatic build workflow the images are first tested on a Rust projects which test all build C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-build libraries.
@@ -180,13 +177,11 @@ Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides 
 
 <br>
 
-
 ## History
 
 I started this project to make it possible for [Vaultwarden](https://github.com/dani-garcia/vaultwarden) to be build statically with all database's supported. SQLite is not really an issue, since that has a bundled option. But PostgreSQL and MariaDB/MySQL do not have a bundled/vendored feature available.
 
 I also wanted to get a better understanding of the whole musl toolchain and Github Actions, which i did.
-
 
 ## Credits
 
