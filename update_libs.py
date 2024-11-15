@@ -195,7 +195,7 @@ if __name__ == '__main__':
         'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
-        'PQ_ALPINE': alpinever('postgresql15'),
+        'PQ_ALPINE': alpinever('postgresql16'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
         'MARIADB_ARCH': aurver('mariadb-connector-c'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
