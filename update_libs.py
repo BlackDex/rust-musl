@@ -180,12 +180,11 @@ if __name__ == '__main__':
         'SSL3_0': githubver('openssl/openssl', r'openssl-3\.0\..*', r'openssl-'),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
-        'PQ_11': mirrorver('https://ftp.postgresql.org/pub/source/', r'v11\.', 'v'),
         'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
         'PQ_16': mirrorver('https://ftp.postgresql.org/pub/source/', r'v16\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
-        'LIBXML2': libxml2ver('https://download.gnome.org/sources/libxml2/cache.json'),
+        'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
         # Also print some other version or from other resources just to compare
         '---': '---',
         'SSL3_X': githubver('openssl/openssl', r'openssl-.*', r'openssl-'),

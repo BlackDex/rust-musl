@@ -71,10 +71,10 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Stable Rust Toolchain
-        uses: dtolnay/rust-toolchain@ed2356ad628626a6b3f5be6c3e0255c0454fcdb9 # stable @ Aug 8, 2024, 7:37 PM GMT+2
+        uses: dtolnay/rust-toolchain@4f647fc679bcd3b11499ccb42104547c83dabe96 # stable @ Nov 18, 2024, 5:36 AM GMT+1
 
       - name: Get Rust version info
         id: rust_versions
@@ -245,7 +245,7 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       # This action is messing with the host caching when using `act`
       - name: Setup Docker Buildx (setup-buildx-action)
@@ -363,7 +363,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -410,25 +410,10 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ11) - Rust Current Stable
-        # Skip during nightly builds
-        if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        # continue-on-error: true
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache-${{ matrix.env.IMAGE_TAG }}:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
-            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
       - name: Docker Push - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -451,7 +436,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -497,25 +482,10 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ11) - Rust Vaultwarden Stable
-        # Skip during nightly builds
-        if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        # continue-on-error: true
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
-            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
       - name: Docker Push - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
@@ -535,7 +505,7 @@ jobs:
       # ###
       # Rust Nightly
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Set load to true so that we can test the builded image in the next step
@@ -577,21 +547,8 @@ jobs:
             -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
-      - name: Test Docker Image (PQ11) - Rust Nightly
-        # continue-on-error: true
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e RUST_BACKTRACE=1 \
-            -e PQ_LIB_DIR="/usr/local/musl/pq11/lib" \
-            -e RUSTFLAGS="${{ matrix.env.XTRA_RUSTFLAGS }}-Clink-arg=-s" \
-            blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
       - name: Docker Push - Rust Nightly
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
           # Run this step also when using `act`, but do not push the images when build locally
