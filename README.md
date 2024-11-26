@@ -33,10 +33,12 @@ Stables builds are automatically triggered if there is a new version available.
 
 ### OpenSSL v3.0
 
-> [!NOTE] 2024-03-15
+> [!NOTE]
+> 2024-03-15:
 > I stopped adding the `-openssl3` postfix to the tags.
 
-> [!NOTE] 2023-09-29
+> [!NOTE]
+> 2023-09-29:
 > I stopped building OpenSSL v1.1.1 since it's EOL.<br>
 > Now only OpenSSL v3.0 is being build.
 
@@ -47,13 +49,16 @@ If you want to use v15 you need to overwrite an environment variable so that the
 <br>
 Adding `-e PQ_LIB_DIR="/usr/local/musl/pq15/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"` to your custom build image will trigger the v15 version to be used during the build.
 
-> [!NOTE] 2024-11-26:<br>
+> [!NOTE]
+> 2024-11-26:<br>
 > Stopped building libpq v11, it has been deprecated for a while now.
 
-> [!NOTE] 2024-08-08:<br>
+> [!NOTE]
+> 2024-08-08:<br>
 > libpq v16 is now the default version. v15 and v11 are still build and available.
 
-> [!NOTE] 2024-08-02:<br>
+> [!NOTE]
+> 2024-08-02:<br>
 > In some situations it could be that the libpq v11 was still used. Depending if during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different libpq.a.<br>
 > This has been solved now by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable your self to anything else then the v15 directory.
 
