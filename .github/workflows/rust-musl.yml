@@ -216,6 +216,11 @@ jobs:
     name: Build MUSL Base Image - ${{ matrix.env.IMAGE_TAG }}
     needs: [build_vars]
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
     env:
       HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
@@ -294,11 +299,11 @@ jobs:
         if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         shell: bash
         run: |
-          echo "tags_stable=$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#docker.io/#g')" \
+          echo "tags_stable=$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
-          echo "tags_stable_vw=$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#docker.io/#g')" \
+          echo "tags_stable_vw=$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
-          echo "tags_nightly=$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#docker.io/#g')" \
+          echo "tags_nightly=$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
 
       - name: Login to ghcr.io
@@ -411,6 +416,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Current Stable
+        id: push_stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger }}
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
@@ -430,6 +436,30 @@ jobs:
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
+
+      - name: Attest - Stable - docker.io
+        if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Stable - ghcr.io
+        if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Stable - quay.io
+        if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: quay.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_stable.outputs.digest }}
+          push-to-registry: true
 
       # ###
       # Rust Vaultwarden Stable
@@ -483,6 +513,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Vaultwarden Stable
+        id: push_vw_stable
         # Skip during nightly builds
         if: ${{ needs.build_vars.outputs.stable_version != needs.build_vars.outputs.vaultwarden_version && (needs.build_vars.outputs.stable_trigger || !needs.build_vars.outputs.nightly_trigger) }}
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
@@ -501,6 +532,29 @@ jobs:
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
+      - name: Attest - VW Stable - docker.io
+        if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - VW Stable - ghcr.io
+        if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - VW Stable - quay.io
+        if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: quay.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
+          push-to-registry: true
 
       # ###
       # Rust Nightly
@@ -548,6 +602,7 @@ jobs:
             blackdex/rust-musl:${{ matrix.env.IMAGE_TAG }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
+        id: push_nightly
         uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
         with:
           context: .
@@ -563,3 +618,27 @@ jobs:
           tags: ${{ env.tags_nightly }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+      - name: Attest - VW Stable - docker.io
+        if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_nightly.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - VW Stable - ghcr.io
+        if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_nightly.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - VW Stable - quay.io
+        if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+        with:
+          subject-name: quay.io/${{ matrix.env.IMAGE_TAG }}
+          subject-digest: ${{ steps.push_nightly.outputs.digest }}
+          push-to-registry: true
