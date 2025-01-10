@@ -437,13 +437,13 @@ jobs:
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
 
-      - name: Attest - Stable - docker.io
-        if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
-        with:
-          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
-          subject-digest: ${{ steps.push_stable.outputs.digest }}
-          push-to-registry: true
+      # - name: Attest - Stable - docker.io
+      #   if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+      #   uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+      #   with:
+      #     subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
+      #     subject-digest: ${{ steps.push_stable.outputs.digest }}
+      #     push-to-registry: true
 
       - name: Attest - Stable - ghcr.io
         if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
@@ -532,13 +532,13 @@ jobs:
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
-      - name: Attest - VW Stable - docker.io
-        if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
-        with:
-          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
-          subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
-          push-to-registry: true
+      # - name: Attest - VW Stable - docker.io
+      #   if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+      #   uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+      #   with:
+      #     subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
+      #     subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
+      #     push-to-registry: true
 
       - name: Attest - VW Stable - ghcr.io
         if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
@@ -619,13 +619,13 @@ jobs:
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
-      - name: Attest - VW Stable - docker.io
-        if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
-        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
-        with:
-          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
-          subject-digest: ${{ steps.push_nightly.outputs.digest }}
-          push-to-registry: true
+      # - name: Attest - VW Stable - docker.io
+      #   if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+      #   uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
+      #   with:
+      #     subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
+      #     subject-digest: ${{ steps.push_nightly.outputs.digest }}
+      #     push-to-registry: true
 
       - name: Attest - VW Stable - ghcr.io
         if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
