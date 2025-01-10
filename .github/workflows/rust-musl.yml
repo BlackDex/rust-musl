@@ -299,11 +299,11 @@ jobs:
         if: ${{ env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         shell: bash
         run: |
-          echo "tags_stable=$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
+          echo "tags_stable=$(echo "${base_tags_stable}" | sed 's#@RGSTRY@#docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
-          echo "tags_stable_vw=$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
+          echo "tags_stable_vw=$(echo "${base_tags_stable_vw}" | sed 's#@RGSTRY@#docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
-          echo "tags_nightly=$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#index.docker.io/#g')" \
+          echo "tags_nightly=$(echo "${base_tags_nightly}" | sed 's#@RGSTRY@#docker.io/#g')" \
             | tee -a "${GITHUB_ENV}"
 
       - name: Login to ghcr.io
@@ -441,7 +441,7 @@ jobs:
         if : ${{ steps.push_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
         with:
-          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
           subject-digest: ${{ steps.push_stable.outputs.digest }}
           push-to-registry: true
 
@@ -536,7 +536,7 @@ jobs:
         if : ${{ steps.push_vw_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
         with:
-          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
           subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
           push-to-registry: true
 
@@ -623,7 +623,7 @@ jobs:
         if : ${{ steps.push_nightly.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
         uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb # v2.1.0
         with:
-          subject-name: index.docker.io/${{ matrix.env.IMAGE_TAG }}
+          subject-name: docker.io/${{ matrix.env.IMAGE_TAG }}
           subject-digest: ${{ steps.push_nightly.outputs.digest }}
           push-to-registry: true
 
