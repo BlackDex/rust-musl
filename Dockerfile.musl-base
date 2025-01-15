@@ -76,7 +76,7 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     ZLIB_VER="1.3.1" \
     PQ_15_VER="15.10" \
     PQ_16_VER="16.6" \
-    SQLITE_VER="3470200" \
+    SQLITE_VER="3480000" \
     MARIADB_VER="3.3.11" \
     LIBXML2_VER="2.13.5"
 
@@ -322,7 +322,7 @@ RUN echo "PostgreSQL v16" && \
 # Build libsqlite3
 # hadolint ignore=DL3003
 RUN echo "SQLite3" && \
-    curl -sSL --retry 3 "https://www.sqlite.org/2024/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
+    curl -sSL --retry 3 "https://www.sqlite.org/2025/sqlite-autoconf-${SQLITE_VER}.tar.gz" | tar xz && \
     cd "sqlite-autoconf-${SQLITE_VER}" && \
     AR="${TARGET_AR}" \
     LD="${TARGET_LD}" \
@@ -343,7 +343,6 @@ RUN echo "SQLite3" && \
     CFLAGS+=" -DSQLITE_ENABLE_JSON1" \
     CFLAGS+=" -DSQLITE_ENABLE_MEMORY_MANAGEMENT" \
     CFLAGS+=" -DSQLITE_ENABLE_RTREE" \
-    CFLAGS+=" -DSQLITE_ENABLE_STAT2" \
     CFLAGS+=" -DSQLITE_ENABLE_STAT4" \
     CFLAGS+=" -DSQLITE_SOUNDEX" \
     CFLAGS+=" -DSQLITE_THREADSAFE=1" \

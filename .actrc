@@ -1,0 +1,2 @@
+--eventpath ./.github/act-event.json
+--rm
