@@ -3,6 +3,7 @@ ARG TARGET=x86_64-unknown-linux-musl
 
 # https://hub.docker.com/_/ubuntu
 FROM docker.io/library/ubuntu:22.04 AS build
+ARG QEMU_CPU=
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -47,14 +48,15 @@ RUN apt-get update && \
     mkdir -pv /musl-cross-make
 
 ARG TARGET
-ARG MUSL_CROSS_MAKE_HASH=fd6be58297ee21fcba89216ccd0d4aca1e3f1c5c
+# 7b4c7b315226835bab03da73a45945acb1b3bedf == Feb 13, 2025, 10:19 PM GMT+1
+ARG MUSL_CROSS_MAKE_HASH=7b4c7b315226835bab03da73a45945acb1b3bedf
 ARG ARCH_COMMON_CONFIG=""
 
 COPY config.mak /musl-cross-make/config.mak
 # hadolint ignore=DL3003
 RUN echo "Downloading musl-cross-make" && \
     # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $MUSL_CROSS_MAKE_HASH
-    curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 3 \
+    curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 5 --retry-all-errors \
       -sSL "https://github.com/richfelker/musl-cross-make/archive/${MUSL_CROSS_MAKE_HASH}.tar.gz" | \
       tar xzf - --strip-components=1 -C /musl-cross-make/ && \
     mkdir -p /usr/local/musl && \
@@ -72,7 +74,7 @@ RUN echo "Downloading musl-cross-make" && \
     echo "Finished building target ${TARGET}"
 
 # https://hub.docker.com/_/busybox
-FROM docker.io/busybox:1.36.1-glibc
+FROM docker.io/busybox:1.37.0-glibc
 
 WORKDIR /
 

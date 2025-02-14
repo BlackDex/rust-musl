@@ -7,3 +7,4 @@ test/*crate/main.db
 
 # Directories
 .vscode
+.artifacts
