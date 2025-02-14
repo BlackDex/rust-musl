@@ -77,7 +77,7 @@ jobs:
       packages: write
       contents: read
     strategy:
-      max-parallel: ${{ github.event.act && 1 || 4 }}
+      max-parallel: ${{ github.event.act && 1 || 8 }}
       matrix:
         act:
           - ${{ github.event.act }}
@@ -226,7 +226,7 @@ jobs:
       - tbuild_vars
       - toolchain
     strategy:
-      max-parallel: ${{ github.event.act && 1 || 4 }}
+      max-parallel: ${{ github.event.act && 1 || 8 }}
       matrix:
         image_tag:
           - x86_64-musl
