@@ -12,11 +12,11 @@ These container images are based upon Ubuntu 22.04 and use GCC v11.2.0 to build 
 Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com/richfelker/musl-cross-make.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* OpenSSL (`v3.0.15`)
-* cURL (`v8.11.1`)
+* OpenSSL (`v3.0.16`)
+* cURL (`v8.12.1`)
 * ZLib (`v1.3.1`)
-* PostgreSQL lib (`v16.6`) and (`v15.10`)
-* SQLite (`v3.48.0`)
+* PostgreSQL lib (`v16.7`) and (`v15.11`)
+* SQLite (`v3.49.0`)
 * MariaDB Connector/C (`v3.3.11`) (MySQL Compatible)
 * libxml2 (`v2.13.5`)
 

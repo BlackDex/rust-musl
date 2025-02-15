@@ -12,6 +12,7 @@ FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchai
 # Start building the musl-base
 # https://hub.docker.com/_/ubuntu
 FROM docker.io/library/ubuntu:22.04
+ARG QEMU_CPU=
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -71,12 +72,12 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     PKG_CONFIG_SYSTEM_LIBRARY_PATH="${TARGET_PREFIX}/lib:${SYSROOT}/lib" \
     PKG_CONFIG_SYSTEM_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include" \
     # Library versions
-    SSL_VER="3.0.15" \
-    CURL_VER="8.11.1" \
+    SSL_VER="3.0.16" \
+    CURL_VER="8.12.1" \
     ZLIB_VER="1.3.1" \
-    PQ_15_VER="15.10" \
-    PQ_16_VER="16.6" \
-    SQLITE_VER="3480000" \
+    PQ_15_VER="15.11" \
+    PQ_16_VER="16.7" \
+    SQLITE_VER="3490000" \
     MARIADB_VER="3.3.11" \
     LIBXML2_VER="2.13.5"
 
@@ -576,4 +577,4 @@ LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
 LABEL org.opencontainers.image.licenses="Apache License 2.0"
 LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
-LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL, SQLite and MariaDB static libraries"
+LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL, SQLite, MariaDB and LibXML2 static libraries"
