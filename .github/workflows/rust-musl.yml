@@ -1005,7 +1005,7 @@ jobs:
             # Extract the combined digest to run attest on this too
             if [[ "${registry}" = "ghcr.io" ]]; then
               combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${STABLE_VERSION})
-              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+              echo "digest=${combined_digest//\"/}" | tee -a "${GITHUB_OUTPUT}"
             fi
           done
 
@@ -1076,7 +1076,7 @@ jobs:
             # Extract the combined digest to run attest on this too
             if [[ "${registry}" = "ghcr.io" ]]; then
               combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${VW_VERSION})
-              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+              echo "digest=${combined_digest//\"/}" | tee -a "${GITHUB_OUTPUT}"
             fi
           done
 
@@ -1145,7 +1145,7 @@ jobs:
             # Extract the combined digest to run attest on this too
             if [[ "${registry}" = "ghcr.io" ]]; then
               combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-nightly-${NIGHTLY_DATE})
-              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+              echo "digest=${combined_digest//\"/}" | tee -a "${GITHUB_OUTPUT}"
             fi
           done
 
