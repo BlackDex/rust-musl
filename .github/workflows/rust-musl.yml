@@ -567,7 +567,7 @@ jobs:
           retention-days: 1
 
       - name: Attest - Stable - docker.io
-        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: docker.io/blackdex/rust-musl
@@ -575,7 +575,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - Stable - ghcr.io
-        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
@@ -583,7 +583,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - Stable - quay.io
-        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: quay.io/blackdex/rust-musl
@@ -699,7 +699,7 @@ jobs:
           retention-days: 1
 
       - name: Attest - VW Stable - docker.io
-        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: docker.io/blackdex/rust-musl
@@ -707,7 +707,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - VW Stable - ghcr.io
-        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
@@ -715,7 +715,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - VW Stable - quay.io
-        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: quay.io/blackdex/rust-musl
@@ -823,7 +823,7 @@ jobs:
           retention-days: 1
 
       - name: Attest - Nightly - docker.io
-        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && env.HAVE_DOCKERHUB_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: docker.io/blackdex/rust-musl
@@ -831,7 +831,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - Nightly - ghcr.io
-        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && env.HAVE_GHCR_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
@@ -839,7 +839,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest - Nightly - quay.io
-        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && env.HAVE_QUAY_LOGIN == 'true' }}
+        if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
         uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
         with:
           subject-name: quay.io/blackdex/rust-musl
