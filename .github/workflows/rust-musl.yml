@@ -992,6 +992,7 @@ jobs:
           done
 
       - name: Inspect combined manifests - Stable
+        id: comb_stable
         shell: bash
         env:
           REGISTRIES: ${{ needs.mbuild_vars.outputs.registry_list }}
@@ -1000,7 +1001,37 @@ jobs:
           for registry in ${REGISTRIES}; do
             echo "Inspecting manifest for ${registry}:"
             docker buildx imagetools inspect ${registry}/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${STABLE_VERSION}
+
+            # Extract the combined digest to run attest on this too
+            if [[ "${registry}" = "ghcr.io" ]]
+              combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${STABLE_VERSION})
+              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+            fi
           done
+
+      - name: Attest - Combined Stable - docker.io
+        if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: docker.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined Stable - ghcr.io
+        if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: ghcr.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_stable.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined Stable - quay.io
+        if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: quay.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_stable.outputs.digest }}
+          push-to-registry: true
 
       #
       # Generate Vaultwarden stable combined manifest
@@ -1032,6 +1063,7 @@ jobs:
           done
 
       - name: Inspect combined manifests - Vaultwarden Stable
+        id: comb_vw
         shell: bash
         env:
           REGISTRIES: ${{ needs.mbuild_vars.outputs.registry_list }}
@@ -1040,7 +1072,37 @@ jobs:
           for registry in ${REGISTRIES}; do
             echo "Inspecting manifest for ${registry}:"
             docker buildx imagetools inspect ${registry}/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${VW_VERSION}
+
+            # Extract the combined digest to run attest on this too
+            if [[ "${registry}" = "ghcr.io" ]]
+              combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-stable-${VW_VERSION})
+              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+            fi
           done
+
+      - name: Attest - Combined VW Stable - docker.io
+        if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: docker.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_vw.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined VW Stable - ghcr.io
+        if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: ghcr.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_vw.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined VW Stable - quay.io
+        if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: quay.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_vw.outputs.digest }}
+          push-to-registry: true
 
       #
       # Generate nightly combined manifest
@@ -1070,6 +1132,7 @@ jobs:
           done
 
       - name: Inspect combined manifests - Nightly
+        id: comb_nightly
         shell: bash
         env:
           REGISTRIES: ${{ needs.mbuild_vars.outputs.registry_list }}
@@ -1078,4 +1141,34 @@ jobs:
           for registry in ${REGISTRIES}; do
             echo "Inspecting manifest for ${registry}:"
             docker buildx imagetools inspect ${registry}/blackdex/rust-musl:${{ matrix.image_tag }}-nightly-${NIGHTLY_DATE}
+
+            # Extract the combined digest to run attest on this too
+            if [[ "${registry}" = "ghcr.io" ]]
+              combined_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/rust-musl:${{ matrix.image_tag }}-nightly-${NIGHTLY_DATE})
+              echo "digest=${combined_digest//\"/"}" | tee -a "${GITHUB_OUTPUT}"
+            fi
           done
+
+      - name: Attest - Combined Nightly - docker.io
+        if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: docker.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_nightly.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined Nightly - ghcr.io
+        if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: ghcr.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_nightly.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Combined Nightly - quay.io
+        if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login }}
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+        with:
+          subject-name: quay.io/blackdex/rust-musl
+          subject-digest: ${{ steps.comb_nightly.outputs.digest }}
+          push-to-registry: true
