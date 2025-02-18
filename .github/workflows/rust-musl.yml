@@ -523,6 +523,26 @@ jobs:
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
+      - name: Test Docker Image (PQ17) - Rust Current Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
+        shell: bash
+        # continue-on-error: true
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache-${{ matrix.image_tag }}:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU=${QEMU_CPU} \
+            -e RUST_BACKTRACE=FULL \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
+            -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
       - name: Docker Push - Rust Current Stable
         id: push_stable
         # Skip during nightly builds
@@ -656,6 +676,26 @@ jobs:
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
+      - name: Test Docker Image (PQ17) - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
+        # continue-on-error: true
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU=${QEMU_CPU} \
+            -e RUST_BACKTRACE=FULL \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
+            -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
       - name: Docker Push - Rust Vaultwarden Stable
         id: push_vw_stable
         # Skip during nightly builds
@@ -779,6 +819,24 @@ jobs:
             -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=FULL \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
+            -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ17) - Rust Nightly
+        shell: bash
+        # continue-on-error: true
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
+        run: |
+          # Run the test
+          docker run --rm \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU=${QEMU_CPU} \
+            -e RUST_BACKTRACE=FULL \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
