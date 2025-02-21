@@ -78,12 +78,12 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     SSL_VER="3.0.16" \
     CURL_VER="8.12.1" \
     ZLIB_VER="1.3.1" \
-    PQ_15_VER="15.11" \
-    PQ_16_VER="16.7" \
-    PQ_17_VER="17.3" \
+    PQ_15_VER="15.12" \
+    PQ_16_VER="16.8" \
+    PQ_17_VER="17.4" \
     SQLITE_VER="3490100" \
     MARIADB_VER="3.3.11" \
-    LIBXML2_VER="2.13.5"
+    LIBXML2_VER="2.13.6"
 
 WORKDIR /tmp
 
@@ -395,7 +395,8 @@ RUN echo "SQLite3" && \
     RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="${SHARED_CPPFLAGS}" \
-    CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects" \
+    # Adjust -O3 to -O2 to prevent compiler warnings, Alpine seems to do the same
+    CFLAGS="${SHARED_CFLAGS//-O3/-O2} -flto=auto -ffat-lto-objects" \
     CC="${TARGET_CC}" \
     # libsqlite3-sys crate default flags
     CFLAGS+=" -DSQLITE_CORE" \
