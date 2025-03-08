@@ -564,7 +564,7 @@ RUN echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '
     # `--target` to musl so that our users don't need to keep overriding it manually.
     # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
     ${CURL_CMD} --proto '=https' --tlsv1.2 -sqSf https://sh.rustup.rs | \
-      sh -s -- -y --profile minimal --component rustfmt clippy --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
+      sh -s -- -y --profile minimal --component rustfmt,clippy --default-toolchain "${RUST_CHANNEL}" --target "${RUST_MUSL_CROSS_TARGET}" && \
     rustup set profile minimal && \
     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
     find "${RUSTUP_HOME}/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \; && \
