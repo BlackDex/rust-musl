@@ -82,8 +82,8 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     PQ_16_VER="16.8" \
     PQ_17_VER="17.4" \
     SQLITE_VER="3490100" \
-    MARIADB_VER="3.3.11" \
-    LIBXML2_VER="2.13.6"
+    MARIADB_VER="3.3.14" \
+    LIBXML2_VER="2.14.0"
 
 WORKDIR /tmp
 
