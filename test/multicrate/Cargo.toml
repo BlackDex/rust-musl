@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "multicrate"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 resolver = "2"
 
@@ -40,6 +40,11 @@ libz-sys = { version = "*" }
 
 # Deps for libxml2 testing
 libxml = "*"
+
+# Set `buildtime_bindgen` until the following PR is approved and merged
+# https://github.com/sgrif/mysqlclient-sys/pull/63
+[target.'cfg(all(target_pointer_width = "32", target_arch = "arm"))'.dependencies]
+mysqlclient-sys = { version = "*", features = ["buildtime_bindgen"] }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
