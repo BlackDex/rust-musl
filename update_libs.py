@@ -100,9 +100,12 @@ def mirrorver(site: str, href_prefix: str, strip_prefix: str | None = None, re_p
     """
 
     try:
-        with request.urlopen(site) as req:
-            site_html = req.read(20480).decode('utf-8')
+        cache_key = f'cached_data_{site}'
+        if not hasattr(mirrorver, cache_key):
+            with request.urlopen(site) as req:
+                setattr(mirrorver, cache_key, req.read(20480).decode('utf-8'))
 
+        site_html = getattr(mirrorver, cache_key)
         matches_raw = re.findall(fr'href=\"({href_prefix}.*?){re_postfix}', site_html, re.MULTILINE)
         matches: list[str] = []
         for match in matches_raw:
@@ -129,8 +132,12 @@ def githubver(repo: str, version_filter: str = r'.*', strip_prefix: str | None =
     try:
         # Though the URL contains "/search/", this only returns exact matches (see API documentation)
         url = f'https://api.github.com/repos/{repo}/tags'
-        with request.urlopen(url) as req:
-            metadata = json.loads(req.read().decode('utf-8'))
+        cache_key = f'cached_data_{url}'
+        if not hasattr(githubver, cache_key):
+            with request.urlopen(url) as req:
+                setattr(githubver, cache_key, json.loads(req.read().decode('utf-8')))
+
+        metadata = getattr(githubver, cache_key)
 
         matches = [item['name'] for item in metadata if re.search(version_filter, item['name'])]
         latest_version = natsorted(matches).pop().replace(strip_prefix, '')
@@ -184,7 +191,7 @@ if __name__ == '__main__':
         'PQ_16': mirrorver('https://ftp.postgresql.org/pub/source/', r'v16\.', 'v'),
         'PQ_17': mirrorver('https://ftp.postgresql.org/pub/source/', r'v17\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
-        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
+        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3+\.', 'connector-c-', r'\/'),
         'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
         # Also print some other version or from other resources just to compare
         '---': '---',
@@ -197,6 +204,7 @@ if __name__ == '__main__':
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql16'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
+        'MARIADB_3_X': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
         'LIBXML2_ARCH': pkgver('libxml2'),
         'LIBXML2_ALPINE': alpinever('libxml2'),
