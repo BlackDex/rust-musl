@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
 // openssl must be included before diesel atm.
 #[macro_use]
