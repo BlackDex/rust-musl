@@ -82,8 +82,8 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     PQ_16_VER="16.8" \
     PQ_17_VER="17.4" \
     SQLITE_VER="3490100" \
-    MARIADB_VER="3.3.14" \
-    LIBXML2_VER="2.14.1"
+    MARIADB_VER="3.3.15" \
+    LIBXML2_VER="2.14.2"
 
 WORKDIR /tmp
 
@@ -549,11 +549,11 @@ RUN echo "libxml" && \
       --sbindir="${TARGET_PREFIX}/tbin" \
       --prefix="${TARGET_PREFIX}" && \
     # echo "done" && cd /tmp
-    make -j"$(nproc)" install-binPROGRAMS install-pkgconfigDATA && \
+    make -j"${nproc}" install && \
     cd /tmp && rm -rf "libxml2-${LIBXML2_VER}" && \
     # Default cleanups
     find /var/log -type f -delete && \
-    rm -rf "${TARGET_PREFIX}/share/man" "${TARGET_PREFIX}/share/doc" "${TARGET_PREFIX}/share/gtk-doc"
+    rm -rf "${TARGET_PREFIX}/share/man" "${TARGET_PREFIX}/share/doc" "${TARGET_PREFIX}/share/gtk-doc" /usr/share/doc/libxml2
 
 
 # Install the Rust toolchain and `musl` target.

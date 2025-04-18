@@ -8,6 +8,9 @@ resolver = "2"
 [dependencies]
 libxml = "*"
 
+# [patch.crates-io]
+# libxml = { path = '.artifacts/rust-libxml' }
+
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#strip

@@ -44,7 +44,8 @@ flate2 = { version = "*", features = ["zlib-default"], default-features = false 
 libz-sys = { version = "*" }
 
 # Deps for libxml2 testing
-libxml = "*"
+# Pin to 0.3.3 because of https://github.com/KWARC/rust-libxml/issues/147
+libxml = "=0.3.3"
 
 # Set `buildtime_bindgen` until the following PR is approved and merged
 # https://github.com/sgrif/mysqlclient-sys/pull/63
