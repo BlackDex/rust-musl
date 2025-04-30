@@ -2,7 +2,7 @@
 ARG TARGET=x86_64-unknown-linux-musl
 
 # https://hub.docker.com/_/ubuntu
-FROM docker.io/library/ubuntu:22.04 AS build
+FROM docker.io/library/ubuntu:24.04 AS build
 ARG QEMU_CPU=
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -26,18 +26,34 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y \
-        build-essential \
-        gcc g++ cpp \
+        gcc-14 g++-14 cpp-14 \
+        make \
         cmake \
         libtool \
         pkg-config \
         curl \
+        patch \
         file \
+        bzip2 \
+        xz-utils \
+        unzip \
         rsync \
         texinfo \
         ca-certificates \
         --no-install-recommends \
-        && \
+    && \
+    # Set GCC14 As default
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 90 \
+      --slave /usr/bin/cc cc /usr/bin/gcc-14 \
+      --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-14 \
+      --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-14 \
+      --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-14 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 90 \
+      --slave /usr/bin/c++ c++ /usr/bin/g++-14 && \
+    update-alternatives --install /lib/cpp cpp /usr/bin/cpp-14 90 && \
+    update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-14 90 \
+      --slave /usr/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-14 \
+      --slave /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-14 && \
     # Cleanup apt
     apt-get autoremove -y --purge && \
     apt-get clean -y && \
@@ -48,8 +64,8 @@ RUN apt-get update && \
     mkdir -pv /musl-cross-make
 
 ARG TARGET
-# 7b4c7b315226835bab03da73a45945acb1b3bedf == Feb 13, 2025, 10:19 PM GMT+1
-ARG MUSL_CROSS_MAKE_HASH=7b4c7b315226835bab03da73a45945acb1b3bedf
+# 6f3701d08137496d5aac479e3a3977b5ae993c1f == Feb 18, 2025, 1:21 AM GMT+1
+ARG MUSL_CROSS_MAKE_HASH=6f3701d08137496d5aac479e3a3977b5ae993c1f
 ARG ARCH_COMMON_CONFIG=""
 
 COPY config.mak /musl-cross-make/config.mak

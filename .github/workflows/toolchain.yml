@@ -133,7 +133,7 @@ jobs:
           fi
 
       - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
         with:
           # When using `act`, use the `docker` driver to use local 'docker build' cache
           driver: ${{ github.event.act && 'docker' || 'docker-container' }}
@@ -146,18 +146,19 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || true
+          docker run -d --name act-registry --network host registry:2 || \
+          docker start act-registry || true
 
       - name: Login to DockerHub
         if: ${{ needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to ghcr.io
         if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -165,7 +166,7 @@ jobs:
 
       - name: Login to quay.io
         if: ${{ needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -200,7 +201,7 @@ jobs:
           persist-credentials: false
 
       - name: Docker Build
-        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -251,7 +252,7 @@ jobs:
           # echo ; echo "github = ${GITHUB_JSON}"
 
       - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
         with:
           # When using `act`, use the `docker` driver to use local 'docker build' cache
           driver: ${{ github.event.act && 'docker' || 'docker-container' }}
@@ -264,18 +265,19 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || true
+          docker run -d --name act-registry --network host registry:2 || \
+          docker start act-registry || true
 
       - name: Login to DockerHub
         if: ${{ needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to ghcr.io
         if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -283,7 +285,7 @@ jobs:
 
       - name: Login to quay.io
         if: ${{ needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
