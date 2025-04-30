@@ -10,6 +10,8 @@ libxml = "*"
 
 # [patch.crates-io]
 # libxml = { path = '.artifacts/rust-libxml' }
+# libxml = { git = 'https://github.com/KWARC/rust-libxml.git', rev = "2484a6d5c8ef6faa7674d8091bd3c4c4854d2cd2" }
+# libxml = { git = 'https://github.com/wetneb/rust-libxml.git', rev = "6627396ee167f809cc7dc677952628f850838c87"}
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

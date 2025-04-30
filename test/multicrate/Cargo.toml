@@ -8,6 +8,8 @@ resolver = "2"
 [features]
 default = []
 vendored_openssl = ["openssl/vendored"]
+vendored_sqlite = ["libsqlite3-sys/bundled"]
+vendored_pq = ["pq-sys/bundled"]
 
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
@@ -45,7 +47,7 @@ libz-sys = { version = "*" }
 
 # Deps for libxml2 testing
 # Pin to 0.3.3 because of https://github.com/KWARC/rust-libxml/issues/147
-libxml = "=0.3.3"
+libxml = "*"
 
 # Set `buildtime_bindgen` until the following PR is approved and merged
 # https://github.com/sgrif/mysqlclient-sys/pull/63

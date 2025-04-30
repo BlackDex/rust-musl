@@ -11,7 +11,7 @@ FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchai
 
 # Start building the musl-base
 # https://hub.docker.com/_/ubuntu
-FROM docker.io/library/ubuntu:22.04
+FROM docker.io/library/ubuntu:24.04
 ARG QEMU_CPU=
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -26,12 +26,16 @@ RUN apt-get update && \
     apt-get install -y \
         autoconf \
         automake \
-        build-essential \
+        make \
         cmake \
         libtool \
         pkg-config \
         curl \
+        patch \
         file \
+        bzip2 \
+        xz-utils \
+        unzip \
         git \
         tzdata \
         ca-certificates \
@@ -67,7 +71,7 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     TARGET_RANLIB="${TARGET}-ranlib" \
     TARGET_LDFLAGS="-flto=auto -s -pie -static-libstdc++ -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
     SHARED_CPPFLAGS="-I${TARGET_PREFIX}/include -I${SYSROOT}/include ${ARCH_CPPFLAGS}" \
-    SHARED_CFLAGS="--sysroot=${SYSROOT} -g0 -O3 -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpie -Wl,-pie --static -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wa,--noexecstack" \
+    SHARED_CFLAGS="--sysroot=${SYSROOT} -g0 -Os -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpie -Wl,-pie --static -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wa,--noexecstack" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # pkg-config
     PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
@@ -395,8 +399,6 @@ RUN echo "SQLite3" && \
     RANLIB="${TARGET_RANLIB}" \
     LDFLAGS="${TARGET_LDFLAGS}" \
     CPPFLAGS="${SHARED_CPPFLAGS}" \
-    # Adjust -O3 to -O2 to prevent compiler warnings, Alpine seems to do the same
-    CFLAGS="${SHARED_CFLAGS//-O3/-O2} -flto=auto -ffat-lto-objects" \
     CC="${TARGET_CC}" \
     # libsqlite3-sys crate default flags
     CFLAGS+=" -DSQLITE_CORE" \
@@ -453,8 +455,8 @@ RUN echo "MariaDB Connector/C" && \
     ${CURL_CMD} "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v${MARIADB_VER}.tar.gz" | tar xz && \
     cd "mariadb-connector-c-${MARIADB_VER}" && \
     # Download patches for mariadb from Alpine to fix building issues
-    # https://pkgs.alpinelinux.org/packages?name=mariadb-connector-c&branch=v3.20&arch=x86_64
-    ${CURL_CMD} -o unused-parameter.patch https://git.alpinelinux.org/aports/plain/main/mariadb-connector-c/unused-parameter.patch?id=7b23681869b1fdf0c8b7c11d7c0c0a94fcaedf03 && \
+    # https://gitlab.alpinelinux.org/alpine/aports/-/blob/850d6d51711ebfe6981e53d259bfbb8edfb51318/main/mariadb-connector-c/unused-parameter.patch
+    ${CURL_CMD} -o unused-parameter.patch https://gitlab.alpinelinux.org/alpine/aports/-/raw/850d6d51711ebfe6981e53d259bfbb8edfb51318/main/mariadb-connector-c/unused-parameter.patch && \
     # Apply these patches
     git apply --verbose unused-parameter.patch && \
     # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.

@@ -370,7 +370,8 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || true
+          docker run -d --name act-registry --network host registry:2 || \
+          docker start act-registry || true
 
       - name: Login to DockerHub
         if: ${{ needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
@@ -461,7 +462,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -499,7 +500,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -518,7 +519,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -538,7 +539,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -547,7 +548,7 @@ jobs:
         id: push_stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -588,7 +589,7 @@ jobs:
 
       - name: Attest - Stable - docker.io
         if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_stable.outputs.digest }}
@@ -596,7 +597,7 @@ jobs:
 
       - name: Attest - Stable - ghcr.io
         if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_stable.outputs.digest }}
@@ -604,7 +605,7 @@ jobs:
 
       - name: Attest - Stable - quay.io
         if : ${{ !github.event.act && steps.push_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_stable.outputs.digest }}
@@ -615,7 +616,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -652,7 +653,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -671,7 +672,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -691,7 +692,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -700,7 +701,7 @@ jobs:
         id: push_vw_stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -740,7 +741,7 @@ jobs:
 
       - name: Attest - VW Stable - docker.io
         if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
@@ -748,7 +749,7 @@ jobs:
 
       - name: Attest - VW Stable - ghcr.io
         if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
@@ -756,7 +757,7 @@ jobs:
 
       - name: Attest - VW Stable - quay.io
         if : ${{ !github.event.act && steps.push_vw_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_vw_stable.outputs.digest }}
@@ -765,7 +766,7 @@ jobs:
       # ###
       # Rust Nightly
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -800,7 +801,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -817,7 +818,7 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -835,14 +836,14 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=FULL \
+            -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${{ matrix.xtra_rustflags }}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${{ matrix.image_tag }}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
         id: push_nightly
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -882,7 +883,7 @@ jobs:
 
       - name: Attest - Nightly - docker.io
         if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_nightly.outputs.digest }}
@@ -890,7 +891,7 @@ jobs:
 
       - name: Attest - Nightly - ghcr.io
         if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_nightly.outputs.digest }}
@@ -898,7 +899,7 @@ jobs:
 
       - name: Attest - Nightly - quay.io
         if : ${{ !github.event.act && steps.push_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.push_nightly.outputs.digest }}
@@ -998,7 +999,8 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || true
+          docker run -d --name act-registry --network host registry:2 || \
+          docker start act-registry || true
 
       - name: Login to DockerHub
         if: ${{ needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
@@ -1027,7 +1029,7 @@ jobs:
       # Generate stable combined manifest
       - name: Download Digests - Stable
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: ${{ runner.temp }}/digests-stable-${{ matrix.image_tag }}
           pattern: digests-stable-${{ matrix.image_tag }}*
@@ -1072,7 +1074,7 @@ jobs:
 
       - name: Attest - Combined Stable - docker.io
         if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_stable.outputs.digest }}
@@ -1080,7 +1082,7 @@ jobs:
 
       - name: Attest - Combined Stable - ghcr.io
         if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_stable.outputs.digest }}
@@ -1088,7 +1090,7 @@ jobs:
 
       - name: Attest - Combined Stable - quay.io
         if : ${{ !github.event.act && steps.comb_stable.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_stable.outputs.digest }}
@@ -1098,7 +1100,7 @@ jobs:
       # Generate Vaultwarden stable combined manifest
       - name: Download Digests - Vaultwarden Stable
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: ${{ runner.temp }}/digests-vw-${{ matrix.image_tag }}
           pattern: digests-vw-${{ matrix.image_tag }}*
@@ -1143,7 +1145,7 @@ jobs:
 
       - name: Attest - Combined VW Stable - docker.io
         if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_vw.outputs.digest }}
@@ -1151,7 +1153,7 @@ jobs:
 
       - name: Attest - Combined VW Stable - ghcr.io
         if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_vw.outputs.digest }}
@@ -1159,7 +1161,7 @@ jobs:
 
       - name: Attest - Combined VW Stable - quay.io
         if : ${{ !github.event.act && steps.comb_vw.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_vw.outputs.digest }}
@@ -1168,7 +1170,7 @@ jobs:
       #
       # Generate nightly combined manifest
       - name: Download Digests - Nightly
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: ${{ runner.temp }}/digests-nightly-${{ matrix.image_tag }}
           pattern: digests-nightly-${{ matrix.image_tag }}*
@@ -1212,7 +1214,7 @@ jobs:
 
       - name: Attest - Combined Nightly - docker.io
         if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: docker.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_nightly.outputs.digest }}
@@ -1220,7 +1222,7 @@ jobs:
 
       - name: Attest - Combined Nightly - ghcr.io
         if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: ghcr.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_nightly.outputs.digest }}
@@ -1228,7 +1230,7 @@ jobs:
 
       - name: Attest - Combined Nightly - quay.io
         if : ${{ !github.event.act && steps.comb_nightly.outputs.digest != '' && needs.mbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
+        uses: actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd # v2.3.0
         with:
           subject-name: quay.io/blackdex/rust-musl
           subject-digest: ${{ steps.comb_nightly.outputs.digest }}

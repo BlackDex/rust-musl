@@ -1,10 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
 
-// openssl must be included before diesel atm.
-#[allow(unused_extern_crates)]
-extern crate openssl;
-
 #[macro_use]
 extern crate diesel;
 // openssl must be included before diesel atm.
