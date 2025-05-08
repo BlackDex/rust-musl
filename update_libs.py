@@ -79,7 +79,9 @@ def alpinever(package: str):
 
     try:
         # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-        url = f'https://git.alpinelinux.org/aports/plain/main/{package}/APKBUILD'
+        # url = f'https://git.alpinelinux.org/aports/plain/main/{package}/APKBUILD'
+        # url = f'https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/main/{package}/APKBUILD'
+        url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD'
         with request.urlopen(url) as req:
             apkbuild = req.read(1024).decode('utf-8')
 
@@ -131,7 +133,7 @@ def githubver(repo: str, version_filter: str = r'.*', strip_prefix: str | None =
 
     try:
         # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-        url = f'https://api.github.com/repos/{repo}/tags'
+        url = f'https://api.github.com/repos/{repo}/tags?per_page=50'
         cache_key = f'cached_data_{url}'
         if not hasattr(githubver, cache_key):
             with request.urlopen(url) as req:
@@ -184,7 +186,7 @@ def libxml2ver(site: str):
 if __name__ == '__main__':
     PACKAGES: dict[str, str] = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL3_0': mirrorver('https://openssl-library.org/source/', r').*\/download\/openssl-3\.0\.\d+?\/(', r'openssl-', r'\.tar\.gz?\"'),
+        'SSL3_0': githubver('openssl/openssl', r'openssl-3\.0\..*', r'openssl-'),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
@@ -202,7 +204,7 @@ if __name__ == '__main__':
         'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
-        'PQ_ALPINE': alpinever('postgresql16'),
+        'PQ_ALPINE': alpinever('postgresql17'),
         'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
         'MARIADB_3_X': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
