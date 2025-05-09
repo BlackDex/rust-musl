@@ -18,7 +18,7 @@ toolchain-arm: TAG=arm-musleabi
 # Pull the latest toolchains to be used as cache if possible
 # Build the toolchains image using the previous image as cache
 toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm:
-	docker build \
+	docker buildx build \
 		--progress=plain \
 		--build-arg TARGET=$(TARGET) \
 		--build-arg ARCH_COMMON_CONFIG=$(ARCH_COMMON_CONFIG) \

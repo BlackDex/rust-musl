@@ -28,7 +28,6 @@ RUN apt-get update && \
         automake \
         make \
         cmake \
-        libtool \
         pkg-config \
         curl \
         patch \
@@ -39,11 +38,23 @@ RUN apt-get update && \
         git \
         tzdata \
         ca-certificates \
-        libclang-dev \
         bison \
         flex \
+        gcc-14 \
+        libc6-dev \
+        libclang1-19 \
         --no-install-recommends \
         && \
+    # Install only libtool
+    cd /var/cache/ && \
+    apt-get download libtool && \
+    dpkg-deb -x libtool_*.deb / && \
+    # Set GCC14 As default
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 90 \
+      --slave /usr/bin/cc cc /usr/bin/gcc-14 \
+      --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-14 \
+      --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-14 \
+      --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-14 && \
     # Cleanup apt
     apt-get clean -y && \
     rm -rf /var/cache/* /var/lib/apt/lists/* && \
@@ -100,7 +111,7 @@ RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src && \
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
 # hadolint ignore=DL3003
 RUN echo "zlib" && \
-    ${CURL_CMD} "https://zlib.net/zlib-${ZLIB_VER}.tar.gz" | tar xz && \
+    ${CURL_CMD} "https://zlib.net/zlib-${ZLIB_VER}.tar.xz" | tar xJ && \
     cd "zlib-${ZLIB_VER}" && \
     PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}" \
     AR="${TARGET_AR}" \
@@ -179,7 +190,7 @@ RUN echo "OpenSSL" && \
 # Build curl (needs with-zlib and all this stuff to allow https)
 # hadolint ignore=DL3003
 RUN echo "libcurl" && \
-    ${CURL_CMD} "https://curl.se/download/curl-${CURL_VER}.tar.gz" | tar xz && \
+    ${CURL_CMD} "https://curl.se/download/curl-${CURL_VER}.tar.xz" | tar xJ && \
     cd "curl-${CURL_VER}" && \
     # Rename libatomic.la to libatomic.la_disabled
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then \
@@ -228,7 +239,7 @@ RUN echo "libcurl" && \
 # Build libpq v15
 # hadolint ignore=DL3003
 RUN echo "PostgreSQL v15" && \
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.gz" | tar xz && \
+    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.bz2" | tar xj && \
     cd "postgresql-${PQ_15_VER}" && \
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
     AR="${TARGET_AR}" \
@@ -282,7 +293,7 @@ RUN echo "PostgreSQL v15" && \
 # Build libpq v16
 # hadolint ignore=DL3003
 RUN echo "PostgreSQL v16" && \
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_16_VER}/postgresql-${PQ_16_VER}.tar.gz" | tar xz && \
+    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_16_VER}/postgresql-${PQ_16_VER}.tar.bz2" | tar xj && \
     cd "postgresql-${PQ_16_VER}" && \
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
     AR="${TARGET_AR}" \
@@ -337,7 +348,7 @@ RUN echo "PostgreSQL v16" && \
 # Build libpq v17
 # hadolint ignore=DL3003
 RUN echo "PostgreSQL v17" && \
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_17_VER}/postgresql-${PQ_17_VER}.tar.gz" | tar xz && \
+    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_17_VER}/postgresql-${PQ_17_VER}.tar.bz2" | tar xj && \
     cd "postgresql-${PQ_17_VER}" && \
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then export LIBS="-latomic" ; fi && \
     AR="${TARGET_AR}" \
@@ -430,7 +441,6 @@ RUN echo "SQLite3" && \
     CFLAGS+=" -DSQLITE_MAX_EXPR_DEPTH=10000" \
     CFLAGS+=" -DSQLITE_ENABLE_GEOPOLY" \
     ./configure \
-      --sysroot="${SYSROOT}" \
       --host="${TARGET}" \
       --disable-shared \
       --enable-static \

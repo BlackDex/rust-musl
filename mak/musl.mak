@@ -25,7 +25,7 @@ musl-arm: TAG=arm-musleabi
 # For the musl image we use multi-stage docker images.
 # So first we build the musl-base part, and after that we will build the the main image.
 musl-x86_64 musl-aarch64 musl-armv7 musl-arm:
-	docker build \
+	docker buildx build \
 		--progress=plain \
 		--build-arg TOOLCHAIN_REGISTRY=${TOOLCHAIN_REGISTRY} \
 		--build-arg TARGET=$(TARGET) \
