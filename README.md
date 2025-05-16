@@ -19,7 +19,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * PostgreSQL lib (`v16.9`) + (`v17.5`) and (`v15.13`)
 * SQLite (`v3.49.2`)
 * MariaDB Connector/C (`v3.3.15`) (MySQL Compatible)
-* libxml2 (`v2.14.2`)
+* libxml2 (`v2.14.3`)
 
 ## Available architectures
 

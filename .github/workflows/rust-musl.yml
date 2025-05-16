@@ -12,7 +12,7 @@ on:
 
   workflow_dispatch:
     inputs:
-      nightly_date:
+      nightly_date_override:
         description: "Nightly date to build"
         required: false
         default: ""
@@ -49,10 +49,10 @@ on:
 ##   act workflow_dispatch -j musl_base
 ##
 ## Nightly dispatch specific date:
-##   act workflow_dispatch -e <(echo '{"act": true, "inputs":{"nightly_date":"2012-12-03","fresh_stable":""}}') -j musl_base
+##   act workflow_dispatch -e <(echo '{"act": true, "inputs":{"nightly_date_override":"2025-05-16","fresh_stable":""}}') -j musl_base
 ##
 ## Stable and Nightly dispatch:
-##   act workflow_dispatch -e <(echo '{"act": true, "inputs":{"nightly_date":"","fresh_stable":"true"}}') -j musl_base
+##   act workflow_dispatch -e <(echo '{"act": true, "inputs":{"nightly_date_override":"","fresh_stable":"true"}}') -j musl_base
 ##
 ## To only see the outputs from the mbuild_vars to see what is getting triggered, use the same commands as above but replace `musl_base` with `mbuild_vars`
 ##
@@ -171,6 +171,10 @@ jobs:
           NIGHTLY_SEMVER=$(echo "${NIGHTLY_VERSION//.}" | grep -oP '(\K\d{4})')
           github_output "nightly_semver" "${NIGHTLY_SEMVER}"
 
+          # Extract the nightly date from the toml to ensure we only build an existing version
+          NIGHTLY_DATE_TOML="$(awk '/^date = /{gsub(/date = |"/, "", $0); print; exit}' "${{ runner.temp }}/channel-rust-nightly.toml")"
+          github_output "nightly_date_toml" "${NIGHTLY_DATE_TOML}"
+
           # Get the Vaultwarden Rust version from the `rust-toolchain` or `rust-toolchain.toml` file.
           VW_RUST_VER="UNKNOWN"
           CODE="$(curl -sSL --retry 5 --retry-all-errors -w '%{http_code}' -o /tmp/rust-toolchain.toml https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/rust-toolchain.toml)"
@@ -204,7 +208,8 @@ jobs:
         env:
           FRESH_STABLE: ${{ github.event.inputs.fresh_stable }}
           STABLE_HASH: ${{ steps.rust_versions.outputs.stable_hash }}
-          NIGHTLY_DATE: ${{ github.event.inputs.nightly_date }}
+          NIGHTLY_DATE_TOML: ${{ steps.rust_versions.outputs.nightly_date_toml }}
+          NIGHTLY_DATE_OVERRIDE: ${{ github.event.inputs.nightly_date_override }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_SCHEDULE: ${{ github.event.schedule }}
         run: |
@@ -242,21 +247,21 @@ jobs:
 
           #
           # Determine nightly date
-          # If this is triggered by a workflow dispatch and a date is filled use that, else use the current date
-          if [[ -z "${NIGHTLY_DATE}" ]]; then
-            github_output "nightly_date" "${DATE}"
+          # If this is triggered by a workflow dispatch and a date is filled use that, else use the date extracted from the nightly.toml
+          if [[ -z "${NIGHTLY_DATE_OVERRIDE}" ]]; then
+            github_output "nightly_date" "${NIGHTLY_DATE_TOML}"
 
             # Set an empty nightly_tag_postfix because we are building the current nightly
             github_output "nightly_tag_postfix" ""
 
           # When there is a custom nightly_date set, lets first validate it.
-          elif [[ "${NIGHTLY_DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
-            && date +'%Y-%m-%d' -d'${NIGHTLY_DATE}' >/dev/null 2>&1 \
-            && [[ $(date +%s -d "00:00:00") -ge $(date +%s -d'${NIGHTLY_DATE}') ]] ; then
-              github_output "nightly_date" "${NIGHTLY_DATE}"
+          elif [[ "${NIGHTLY_DATE_OVERRIDE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+            && date +'%Y-%m-%d' -d"${NIGHTLY_DATE_OVERRIDE}" >/dev/null 2>&1 \
+            && [[ $(date +%s -d "00:00:00") -ge $(date +%s -d"${NIGHTLY_DATE_OVERRIDE}") ]] ; then
+              github_output "nightly_date" "${NIGHTLY_DATE_OVERRIDE}"
 
               # To prevent tagging an older nightly version, we set a postfix here which is used by the nightly build/push action
-              github_output "nightly_tag_postfix" "-${NIGHTLY_DATE}"
+              github_output "nightly_tag_postfix" "-${NIGHTLY_DATE_OVERRIDE}"
 
           # If there was a workflow run, and it had an invalid date, stop the whole workflow
           else
