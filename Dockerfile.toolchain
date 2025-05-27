@@ -1,11 +1,9 @@
 # syntax=docker/dockerfile:1
-ARG TARGET=x86_64-unknown-linux-musl
 
 # https://hub.docker.com/_/ubuntu
-FROM docker.io/library/ubuntu:24.04 AS build
+FROM docker.io/library/ubuntu:24.04 AS base
 ARG QEMU_CPU=
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
 WORKDIR /
 
@@ -14,17 +12,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     TERM=xterm-256color
 
-# Used for testing the GitHub workflow
-# RUN echo "Building musl toolchain for target ${TARGET}"
-
 # Make sure we have basic dev tools for building.
 # We only build the gcc musl based toolchain here
 # and use these compiled files later in other Docker builds.
 # This saves time during the building of the actual libraries
 # we want to build since the toolchain doesn't change that much anyway.
 #
-# hadolint ignore=DL3008
-RUN apt-get update && \
+RUN <<EOF
+    apt-get update
     apt-get install -y \
         gcc-14 g++-14 cpp-14 \
         make \
@@ -40,66 +35,82 @@ RUN apt-get update && \
         rsync \
         texinfo \
         ca-certificates \
-        --no-install-recommends \
-    && \
+        --no-install-recommends
+
     # Set GCC14 As default
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 90 \
       --slave /usr/bin/cc cc /usr/bin/gcc-14 \
       --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-14 \
       --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-14 \
-      --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-14 && \
+      --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-14
+
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 90 \
-      --slave /usr/bin/c++ c++ /usr/bin/g++-14 && \
+      --slave /usr/bin/c++ c++ /usr/bin/g++-14
+
     update-alternatives --install /lib/cpp cpp /usr/bin/cpp-14 90 && \
     update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-14 90 \
       --slave /usr/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-14 \
-      --slave /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-14 && \
+      --slave /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-14
+
     # Cleanup apt
-    apt-get autoremove -y --purge && \
-    apt-get clean -y && \
-    rm -rf /var/cache/* /var/lib/apt/lists/* && \
+    apt-get autoremove -y --purge
+    apt-get clean -y
+    rm -rf /var/cache/* /var/lib/apt/lists/*
     # Default cleanups
-    find /var/log -type f -delete && \
+    find /var/log -type f -delete
     # Pre-Create the /musl-cross-make directory
     mkdir -pv /musl-cross-make
+EOF
 
-ARG TARGET
+WORKDIR /musl-cross-make
+
+FROM base AS build
+ARG TARGET=x86_64-unknown-linux-musl
+
+COPY config.mak /musl-cross-make/config.mak
+
 # 6f3701d08137496d5aac479e3a3977b5ae993c1f == Feb 18, 2025, 1:21 AM GMT+1
 ARG MUSL_CROSS_MAKE_HASH=6f3701d08137496d5aac479e3a3977b5ae993c1f
 ARG ARCH_COMMON_CONFIG=""
+RUN <<EOF
+    echo "Downloading musl-cross-make"
 
-COPY config.mak /musl-cross-make/config.mak
-# hadolint ignore=DL3003
-RUN echo "Downloading musl-cross-make" && \
     # Download musl-cross-make from https://github.com/richfelker/musl-cross-make based upon the provided $MUSL_CROSS_MAKE_HASH
     curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 5 --retry-all-errors \
       -sSL "https://github.com/richfelker/musl-cross-make/archive/${MUSL_CROSS_MAKE_HASH}.tar.gz" | \
-      tar xzf - --strip-components=1 -C /musl-cross-make/ && \
-    mkdir -p /usr/local/musl && \
-    #
-    echo "Building musl toolchain for target ${TARGET}" && \
-    cd /musl-cross-make && \
+      tar xzf - --strip-components=1
+
+    mkdir -p /usr/local/musl
+
+    echo "Building musl toolchain for target ${TARGET}"
+
     # Build the actual toolchain here
     # We store the toolchain in /usr/local/musl
-    make install "-j$(nproc)" > /dev/null && \
+    make -j"$(nproc)" install > /dev/null
+
     # Fix symlink to libc.so
-    ln -sfrn "/usr/local/musl/${TARGET}/lib/libc.so" "$(ls -1 /usr/local/musl/${TARGET}/lib/ld-*.so.1)" && \
+    ln -sfrn "/usr/local/musl/${TARGET}/lib/libc.so" "$(ls -1 /usr/local/musl/${TARGET}/lib/ld-*.so.1)"
+
     # Cleanup
-    cd / && \
-    rm -rf /musl-cross-make && \
+    cd /
+    rm -rf /musl-cross-make /usr/local/musl/share/man
+
     echo "Finished building target ${TARGET}"
+EOF
 
 # https://hub.docker.com/_/busybox
 FROM docker.io/busybox:1.37.0-glibc
-
 WORKDIR /
 
-COPY --from=build /usr/local/musl /usr/local/musl
-ENV PATH="${PATH}:/usr/local/musl/bin"
+ENV PATH="${PATH}:/usr/local/musl/bin" \
+    LANG=C.UTF-8 \
+    TZ=UTC \
+    TERM=xterm-256color
 ARG TARGET
 
-LABEL maintainer="BlackDex <black.dex@gmail.com>"
-LABEL org.opencontainers.image.create="$(date --utc --iso-8601=seconds)"
+COPY --link --from=build /usr/local/musl /usr/local/musl
+
+LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
 LABEL org.opencontainers.image.licenses="Apache License 2.0"
 LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"

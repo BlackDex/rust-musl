@@ -135,8 +135,7 @@ jobs:
       - name: Setup Docker Buildx (setup-buildx-action)
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
         with:
-          # When using `act`, use the `docker` driver to use local 'docker build' cache
-          driver: ${{ github.event.act && 'docker' || 'docker-container' }}
+          driver: docker-container
           cache-binary: false
           driver-opts: |
             network=host
@@ -146,7 +145,7 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || \
+          docker run -d --name act-registry --network host registry:3 || \
           docker start act-registry || true
 
       - name: Login to DockerHub
@@ -201,19 +200,20 @@ jobs:
           persist-credentials: false
 
       - name: Docker Build
-        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        uses: docker/build-push-action@1dc73863535b631f98b2378be8619f83b136f4a0 # v6.17.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
           platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true,push=true
           context: .
           file: ./Dockerfile.toolchain
           build-args: |
-            QEMU_CPU=${{ matrix.os == 'ubuntu-24.04-qemu-arm' && 'max,pauth-impdef=on' || ''}}
+            QEMU_CPU=${{ matrix.os == 'ubuntu-24.04-qemu-arm' && 'max,pmu=off,pauth-impdef=on' || ''}}
             TARGET=${{ matrix.target }}
             ARCH_COMMON_CONFIG=${{ matrix.arch_common_config }}
           tags: ${{ steps.tags.outputs.tags }}
-          push: true
+          load: ${{ github.event.act }}
 
   # Merge the separate build amd64 and arm64 builds into one
   # https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
@@ -254,8 +254,7 @@ jobs:
       - name: Setup Docker Buildx (setup-buildx-action)
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
         with:
-          # When using `act`, use the `docker` driver to use local 'docker build' cache
-          driver: ${{ github.event.act && 'docker' || 'docker-container' }}
+          driver: docker-container
           cache-binary: false
           driver-opts: |
             network=host
@@ -265,7 +264,7 @@ jobs:
         shell: bash
         run: |
           # Start a local docker registry
-          docker run -d --name act-registry --network host registry:2 || \
+          docker run -d --name act-registry --network host registry:3 || \
           docker start act-registry || true
 
       - name: Login to DockerHub

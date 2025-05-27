@@ -1,0 +1,4 @@
+ignored:
+  - DL3003 # Workdir
+  - DL3008 # Apt version pinning
+  - SC2164 # cd || exit

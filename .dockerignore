@@ -4,6 +4,7 @@ mak/
 test/
 .vscode/
 .github/
+./.artifacts/
 
 # git
 .git**
@@ -20,3 +21,5 @@ Makefile**
 render_template
 **/Cargo.lock
 Cargo.lock
+.actrc
+.hadolint.yaml
