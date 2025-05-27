@@ -213,7 +213,7 @@ jobs:
             TARGET=${{ matrix.target }}
             ARCH_COMMON_CONFIG=${{ matrix.arch_common_config }}
           tags: ${{ steps.tags.outputs.tags }}
-          load: ${{ github.event.act }}
+          load: ${{ github.event.act && 'true' || 'false' }}
 
   # Merge the separate build amd64 and arm64 builds into one
   # https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
