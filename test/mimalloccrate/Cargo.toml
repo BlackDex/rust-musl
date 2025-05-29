@@ -17,3 +17,6 @@ mimalloc = { version = "*", features = ["secure", "extended"] , default-features
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

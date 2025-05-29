@@ -10,6 +10,7 @@ default = []
 vendored_openssl = ["openssl/vendored"]
 vendored_sqlite = ["libsqlite3-sys/bundled"]
 vendored_pq = ["pq-sys/bundled"]
+vendored_pq_no_ssl = ["pq-sys/bundled_without_openssl"]
 
 [dependencies]
 # Make sure OpenSSL gets build, needed for Diesel, Curl and OpenSSL tests
@@ -61,5 +62,9 @@ libxml = "*"
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#lto
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
+codegen-units = 1
 strip = "symbols"
-lto = "fat"
+lto = "thin"
+
+[profile.dev]
+strip = "symbols"

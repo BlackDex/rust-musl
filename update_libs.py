@@ -186,7 +186,7 @@ def libxml2ver(site: str):
 if __name__ == '__main__':
     PACKAGES: dict[str, str] = {
         # Print the latest versions available from there main mirrors/release-pages
-        'SSL3_0': githubver('openssl/openssl', r'openssl-3\.0\..*', r'openssl-'),
+        'SSL': githubver('openssl/openssl', r'openssl-3\.0\..*', r'openssl-'),
         'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
@@ -195,6 +195,7 @@ if __name__ == '__main__':
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3+\.', 'connector-c-', r'\/'),
         'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
+        'SCCACHE': githubver('mozilla/sccache', r'v\d\..*', r'v'),
         # Also print some other version or from other resources just to compare
         '---': '---',
         'SSL3_X': githubver('openssl/openssl', r'openssl-.*', r'openssl-'),

@@ -22,3 +22,6 @@ http-body-util = { version = "*" }
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

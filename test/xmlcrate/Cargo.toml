@@ -22,3 +22,6 @@ libxml = "*"
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

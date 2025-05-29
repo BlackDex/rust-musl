@@ -3,6 +3,10 @@
 #![warn(rust_2024_compatibility)]
 
 // openssl must be included before diesel atm.
+// needed to avoid link errors even if we don't use it directly
+#[allow(unused_extern_crates)]
+extern crate openssl;
+
 #[macro_use]
 extern crate diesel;
 // Also include diesel_migrations because it causes some other issues during compiling.

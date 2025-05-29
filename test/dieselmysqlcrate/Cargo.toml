@@ -5,7 +5,13 @@ version = "0.6.0"
 edition = "2021"
 resolver = "2"
 
+[features]
+default = []
+vendored_openssl = ["openssl/vendored"]
+
 [dependencies]
+openssl = "*"
+
 # Tell Diesel to use MySQL features
 diesel = { version = "2.2.*", features = ["mysql", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.2.*", features = ["mysql"] }
@@ -19,3 +25,6 @@ diesel_migrations = { version = "2.2.*", features = ["mysql"] }
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

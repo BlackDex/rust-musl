@@ -35,13 +35,10 @@ musl-x86_64 musl-aarch64 musl-armv7 musl-arm:
 		--build-arg RUST_CHANNEL=$(RUST_CHANNEL) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
+		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,push=${PUSH} \
 		-f Dockerfile.musl-base \
 		--load \
 		"."
-	if [ -n "$$PUSH" ] && [ "$$PUSH" = "true" ]; then \
-		docker push localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) ; \
-		docker push localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) ; \
-	fi
 
 # Target to build all cross toolchains supported
 musl: musl-x86_64 musl-aarch64 musl-armv7 musl-arm

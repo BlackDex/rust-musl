@@ -8,9 +8,16 @@ resolver = "2"
 [features]
 default = []
 vendored_openssl = ["openssl/vendored"]
+vendored_sqlite = ["libsqlite3-sys/bundled"]
+vendored_pq = ["pq-sys/bundled"]
+vendored_pq_no_ssl = ["pq-sys/bundled_without_openssl"]
 
 [dependencies]
 openssl = { version = "*", optional = true }
+
+pq-sys = "*"
+mysqlclient-sys = "*"
+libsqlite3-sys = "*"
 
 # Tell diels to use all these features.
 diesel = { version = "2.2.*", features = ["sqlite", "mysql", "postgres", "chrono", "r2d2"] }
@@ -25,3 +32,6 @@ diesel_migrations = { version = "2.2.*", features = ["sqlite", "mysql", "postgre
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

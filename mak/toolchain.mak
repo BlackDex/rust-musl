@@ -24,13 +24,10 @@ toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm:
 		--build-arg ARCH_COMMON_CONFIG=$(ARCH_COMMON_CONFIG) \
 		-t localhost:5000/blackdex/musl-toolchain:$(TAG) \
 		-t localhost:5000/blackdex/musl-toolchain:$(TAG)$(TAG_DATE) \
+		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true,push=${PUSH} \
 		-f Dockerfile.toolchain \
 		--load \
 		"."
-	if [ -n "$$PUSH" ] && [ "$$PUSH" = "true" ]; then \
-		docker push localhost:5000/blackdex/musl-toolchain:$(TAG) ; \
-		docker push localhost:5000/blackdex/musl-toolchain:$(TAG)$(TAG_DATE) ; \
-	fi
 
 toolchains: toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm
 .PHONY: toolchains toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm

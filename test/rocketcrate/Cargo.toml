@@ -17,3 +17,6 @@ rocket = { version = "0.5", default-features = false }
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

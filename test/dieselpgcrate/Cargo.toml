@@ -9,6 +9,7 @@ resolver = "2"
 default = []
 vendored_openssl = ["openssl/vendored"]
 vendored_pq = ["pq-sys/bundled"]
+vendored_pq_no_ssl = ["pq-sys/bundled_without_openssl"]
 
 [dependencies]
 openssl = "*"
@@ -26,3 +27,6 @@ diesel_migrations = { version = "2.2.*", features = ["postgres"] }
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

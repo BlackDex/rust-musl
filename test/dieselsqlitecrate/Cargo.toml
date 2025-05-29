@@ -7,10 +7,10 @@ resolver = "2"
 
 [features]
 default = []
-bundled_sqlite = ["libsqlite3-sys"]
+vendored_sqlite = ["libsqlite3-sys/bundled"]
 
 [dependencies]
-libsqlite3-sys = { version = "*", features = ["bundled"], optional = true }
+libsqlite3-sys = { version = "*", optional = true }
 
 diesel = { version = "2.2.*", features = ["sqlite", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.2.*", features = ["sqlite"] }
@@ -24,3 +24,6 @@ diesel_migrations = { version = "2.2.*", features = ["sqlite"] }
 [profile.release]
 strip = "symbols"
 lto = "thin"
+
+[profile.dev]
+strip = "symbols"

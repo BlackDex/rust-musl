@@ -1,5 +1,6 @@
 TAG_POSTFIX=-stable
 TAG_DATE=-$(shell date +"%Y-%m-%d")
+PUSH ?= false
 
 # Check if there is a specific rust nightly date given and adjust the variables accordingly
 ifeq ($(findstring nightly-20,$(RUST_CHANNEL)),nightly-20)
