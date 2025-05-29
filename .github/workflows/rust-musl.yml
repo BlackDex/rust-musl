@@ -366,6 +366,9 @@ jobs:
         with:
           driver: docker-container
           cache-binary: false
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 3
           driver-opts: |
             network=host
 
