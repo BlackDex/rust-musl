@@ -11,7 +11,7 @@ FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchai
 
 # Start building the musl-base
 # https://hub.docker.com/_/ubuntu
-FROM docker.io/library/ubuntu:24.04 as base
+FROM docker.io/library/ubuntu:24.04 AS base
 ARG QEMU_CPU=
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
@@ -463,7 +463,7 @@ EOF
 
 # Build libsqlite3
 FROM base AS build-sqlite
-ARG SQLITE_VER="3.49.2"
+ARG SQLITE_VER="3.50.0"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"

@@ -28,8 +28,9 @@ def convert_sqlite_version(ver: str):
     '3390300'
     """
 
-    matches = re.match(r'(\d+)[\._](\d+)[\._](\d+)', ver)
-    return f'{int(matches.group(1)):d}{int(matches.group(2)):02d}{int(matches.group(3)):02d}00'
+    return ver.replace("_", ".")
+    # matches = re.match(r'(\d+)[\._](\d+)[\._](\d+)', ver)
+    # return f'{int(matches.group(1)):d}{int(matches.group(2)):02d}{int(matches.group(3)):02d}00'
 
 
 def pkgver(package: str):
