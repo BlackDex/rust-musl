@@ -463,7 +463,7 @@ EOF
 
 # Build libsqlite3
 FROM base AS build-sqlite
-ARG SQLITE_VER="3.50.0"
+ARG SQLITE_VER="3.50.1"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"

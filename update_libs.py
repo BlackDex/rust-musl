@@ -18,6 +18,9 @@ from urllib import request
 import toml
 from natsort import natsorted
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0'
+}
 
 def convert_sqlite_version(ver: str):
     """Convert SQLite package versions to match upstream's format
@@ -83,8 +86,9 @@ def alpinever(package: str):
         # url = f'https://git.alpinelinux.org/aports/plain/main/{package}/APKBUILD'
         # url = f'https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/main/{package}/APKBUILD'
         url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD'
-        with request.urlopen(url) as req:
-            apkbuild = req.read(1024).decode('utf-8')
+        req = request.Request(url, headers=HEADERS)
+        with request.urlopen(req) as res:
+            apkbuild = res.read(1024).decode('utf-8')
 
         matches = re.search(r'pkgver=(.*)\n', apkbuild, re.MULTILINE)
         return f'{matches.group(1)}'
