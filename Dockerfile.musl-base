@@ -131,7 +131,7 @@ RUN <<EOF
 EOF
 
 # Build OpenSSL (used in curl, pq and mariadb)
-ARG SSL_VER="3.0.16"
+ARG SSL_VER="3.5.1"
 RUN <<EOF
     echo "OpenSSL"
 
@@ -463,7 +463,7 @@ EOF
 
 # Build libsqlite3
 FROM base AS build-sqlite
-ARG SQLITE_VER="3.50.1"
+ARG SQLITE_VER="3.50.2"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
