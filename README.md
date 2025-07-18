@@ -14,12 +14,12 @@ And since 2025-02-15 all images are available for amd64 and arm64 platforms.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL (`v3.5.1`)
-* cURL (`v8.14.1`)
+* cURL (`v8.15.0`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v16.9`) + (`v17.5`) and (`v15.13`)
-* SQLite (`v3.50.2`)
+* SQLite (`v3.50.3`)
 * MariaDB Connector/C (`v3.3.15`) (MySQL Compatible)
-* libxml2 (`v2.14.4`)
+* libxml2 (`v2.14.5`)
 
 ## Available architectures
 

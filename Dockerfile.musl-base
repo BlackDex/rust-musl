@@ -199,7 +199,7 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.14.1"
+ARG CURL_VER="8.15.0"
 RUN <<EOF
     echo "libcurl"
 
@@ -463,7 +463,7 @@ EOF
 
 # Build libsqlite3
 FROM base AS build-sqlite
-ARG SQLITE_VER="3.50.2"
+ARG SQLITE_VER="3.50.3"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
@@ -652,7 +652,7 @@ RUN <<EOF
 EOF
 
 FROM base AS build-libxml2
-ARG LIBXML2_VER="2.14.4"
+ARG LIBXML2_VER="2.14.5"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
