@@ -10,16 +10,26 @@
 #   The "str" call is only needed to make the test pass on Python, you
 #   do not need to include it when using this function.
 
-import json
 import re
-import urllib.error
-from urllib import request
-
+import requests
 import toml
+
 from natsort import natsorted
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0'
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': 'Linux',
+    'Sec-Ch-Ua': "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
 }
 
 def convert_sqlite_version(ver: str):
@@ -46,8 +56,11 @@ def pkgver(package: str):
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
     url = f'https://www.archlinux.org/packages/search/json/?name={package}'
-    with request.urlopen(url) as req:
-        metadata = json.loads(req.read().decode('utf-8'))
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    with session.get(url, stream=True) as res:
+        metadata = res.json()
+
 
     try:
         return metadata['results'][0]['pkgver']
@@ -63,10 +76,11 @@ def aurver(package: str):
     '3.3.7'
     """
 
-    # Though the URL contains "/search/", this only returns exact matches (see API documentation)
     url = f'https://aur.archlinux.org/rpc/?v=5&type=info&arg[]={package}'
-    with request.urlopen(url) as req:
-        metadata = json.loads(req.read().decode('utf-8'))
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    with session.get(url, stream=True) as res:
+        metadata = res.json()
 
     try:
         return metadata['results'][0]['Version'].rsplit('-', 1)[0]
@@ -78,21 +92,19 @@ def alpinever(package: str):
     """Retrieve the current version of the package in Alpine repos
 
     >>> str(alpinever('mariadb-connector-c'))
-    '3.3.10'
+    '3.4.6'
     """
 
     try:
-        # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-        # url = f'https://git.alpinelinux.org/aports/plain/main/{package}/APKBUILD'
-        # url = f'https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/main/{package}/APKBUILD'
         url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD'
-        req = request.Request(url, headers=HEADERS)
-        with request.urlopen(req) as res:
-            apkbuild = res.read(1024).decode('utf-8')
+        session = requests.Session()
+        session.headers.update(HEADERS)
+        with session.get(url, stream=True) as res:
+            apkbuild = res.text[:1024]
 
         matches = re.search(r'pkgver=(.*)\n', apkbuild, re.MULTILINE)
         return f'{matches.group(1)}'
-    except urllib.error.HTTPError:
+    except requests.exceptions.RequestException:
         return 'Package not found'
 
 
@@ -109,8 +121,10 @@ def mirrorver(site: str, href_prefix: str, strip_prefix: str | None = None, re_p
     try:
         cache_key = f'cached_data_{site}'
         if not hasattr(mirrorver, cache_key):
-            with request.urlopen(site) as req:
-                setattr(mirrorver, cache_key, req.read(20480).decode('utf-8'))
+            session = requests.Session()
+            session.headers.update(HEADERS)
+            with session.get(site, stream=True) as res:
+                setattr(mirrorver, cache_key, res.text[:20480])
 
         site_html = getattr(mirrorver, cache_key)
         matches_raw = re.findall(fr'href=\"({href_prefix}.*?){re_postfix}', site_html, re.MULTILINE)
@@ -123,7 +137,7 @@ def mirrorver(site: str, href_prefix: str, strip_prefix: str | None = None, re_p
 
         latest_version = natsorted(matches).pop().replace(strip_prefix, '')
         return f'{latest_version}'
-    except urllib.error.HTTPError:
+    except requests.exceptions.RequestException:
         return 'Package not found'
     except IndexError:
         return 'No version found'
@@ -137,19 +151,20 @@ def githubver(repo: str, version_filter: str = r'.*', strip_prefix: str | None =
     """
 
     try:
-        # Though the URL contains "/search/", this only returns exact matches (see API documentation)
         url = f'https://api.github.com/repos/{repo}/tags?per_page=50'
         cache_key = f'cached_data_{url}'
         if not hasattr(githubver, cache_key):
-            with request.urlopen(url) as req:
-                setattr(githubver, cache_key, json.loads(req.read().decode('utf-8')))
+            session = requests.Session()
+            session.headers.update(HEADERS)
+            with session.get(url, stream=True) as res:
+                setattr(githubver, cache_key, res.json())
 
         metadata = getattr(githubver, cache_key)
 
         matches = [item['name'] for item in metadata if re.search(version_filter, item['name'])]
         latest_version = natsorted(matches).pop().replace(strip_prefix, '')
         return f'{latest_version}'
-    except urllib.error.HTTPError:
+    except requests.exceptions.RequestException:
         return 'Package not found'
     except IndexError:
         return 'No version found'
@@ -165,8 +180,10 @@ def rustup_version():
     '1.27.1'
     """
 
-    with request.urlopen('https://static.rust-lang.org/rustup/release-stable.toml') as req:
-        metadata = toml.loads(req.read().decode("utf-8"))
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    with session.get('https://static.rust-lang.org/rustup/release-stable.toml', stream=True) as res:
+        metadata = toml.loads(res.text)
 
     return metadata['version']
 
@@ -178,8 +195,10 @@ def libxml2ver(site: str):
     '2.12.7'
     """
 
-    with request.urlopen(site) as req:
-        metadata = json.loads(req.read().decode('utf-8'))
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    with session.get(site, stream=True) as res:
+        metadata = res.json()
 
     try:
         versions = metadata[2]['libxml2']
@@ -187,6 +206,7 @@ def libxml2ver(site: str):
         return f'{latest_version}'
     except IndexError:
         return 'libxml2 versions not found'
+
 
 if __name__ == '__main__':
     PACKAGES: dict[str, str] = {
@@ -199,7 +219,7 @@ if __name__ == '__main__':
         'PQ_16': mirrorver('https://ftp.postgresql.org/pub/source/', r'v16\.', 'v'),
         'PQ_17': mirrorver('https://ftp.postgresql.org/pub/source/', r'v17\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
-        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.3+\.', 'connector-c-', r'\/'),
+        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.4+\.', 'connector-c-', r'\/'),
         'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
         # Also print some other version or from other resources just to compare
         '---': '---',

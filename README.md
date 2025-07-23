@@ -8,9 +8,13 @@
 This project generates docker images to build static musl binaries using the Rust language.
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
-These container images are based upon Ubuntu 24.04 and use GCC v14.2.0 to build both the toolchains and the libraries.<br>
+These container images are based upon Ubuntu 24.04 and use GCC v14.2.0 to build the toolchains and GCC v14.3.0 for the libraries.<br>
 Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com/richfelker/musl-cross-make.<br>
 And since 2025-02-15 all images are available for amd64 and arm64 platforms.
+
+> [!NOTE]
+> **2025-07-23:**
+> Updated musl-cross-make and use gcc v14.3.0 and binutils v3.44
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * OpenSSL (`v3.5.1`)
@@ -18,7 +22,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v16.9`) + (`v17.5`) and (`v15.13`)
 * SQLite (`v3.50.3`)
-* MariaDB Connector/C (`v3.3.15`) (MySQL Compatible)
+* MariaDB Connector/C (`v3.4.6`) (MySQL Compatible)
 * libxml2 (`v2.14.5`)
 
 ## Available architectures

@@ -133,7 +133,7 @@ jobs:
           fi
 
       - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
           driver: docker-container
           cache-binary: false
@@ -179,12 +179,13 @@ jobs:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
           ARCH_TYPE: ${{ steps.arch.outputs.type }}
           TAG_DATE: ${{ needs.tbuild_vars.outputs.tag_date }}
+          IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
           tags=""
           for registry in ${REGISTRIES}; do
             echo "Generating tags for ${registry}:"
-            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${{ matrix.image_tag }}"
-            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${{ matrix.image_tag }}${TAG_DATE}"
+            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${IMAGE_TAG}"
+            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${IMAGE_TAG}${TAG_DATE}"
           done
 
           if [[ "${tags}" = "" ]]; then
@@ -200,7 +201,7 @@ jobs:
           persist-credentials: false
 
       - name: Docker Build
-        uses: docker/build-push-action@1dc73863535b631f98b2378be8619f83b136f4a0 # v6.17.0
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -252,7 +253,7 @@ jobs:
           # echo ; echo "github = ${GITHUB_JSON}"
 
       - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
         with:
           driver: docker-container
           cache-binary: false
@@ -295,24 +296,26 @@ jobs:
         env:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
           TAG_DATE: ${{ needs.tbuild_vars.outputs.tag_date }}
+          IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
           tags=""
           for registry in ${REGISTRIES}; do
             echo "Generating manifest for ${registry}:"
             docker buildx imagetools create \
-              -t ${registry}/blackdex/musl-toolchain:${{ matrix.image_tag }} \
-              -t ${registry}/blackdex/musl-toolchain:${{ matrix.image_tag }}${TAG_DATE} \
-              ${registry}/blackdex/musl-toolchain:amd64-${{ matrix.image_tag }}${TAG_DATE} \
-              ${registry}/blackdex/musl-toolchain:arm64-${{ matrix.image_tag }}${TAG_DATE}
+              -t ${registry}/blackdex/musl-toolchain:${IMAGE_TAG} \
+              -t ${registry}/blackdex/musl-toolchain:${IMAGE_TAG}${TAG_DATE} \
+              ${registry}/blackdex/musl-toolchain:amd64-${IMAGE_TAG}${TAG_DATE} \
+              ${registry}/blackdex/musl-toolchain:arm64-${IMAGE_TAG}${TAG_DATE}
           done
 
       - name: Inspect manifests for amd64/arm64
         shell: bash
         env:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
+          IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
           tags=""
           for registry in ${REGISTRIES}; do
             echo "Inspecting manifest for ${registry}:"
-            docker buildx imagetools inspect ${registry}/blackdex/musl-toolchain:${{ matrix.image_tag }}
+            docker buildx imagetools inspect ${registry}/blackdex/musl-toolchain:${IMAGE_TAG}
           done

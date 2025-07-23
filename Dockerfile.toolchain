@@ -69,8 +69,8 @@ ARG TARGET=x86_64-unknown-linux-musl
 
 COPY config.mak /musl-cross-make/config.mak
 
-# 6f3701d08137496d5aac479e3a3977b5ae993c1f == Feb 18, 2025, 1:21 AM GMT+1
-ARG MUSL_CROSS_MAKE_HASH=6f3701d08137496d5aac479e3a3977b5ae993c1f
+# 4be756d35cb0c603ba9255a9fb187c39e082413b == Jul 21, 2025, 4:25 AM GMT+2
+ARG MUSL_CROSS_MAKE_HASH=4be756d35cb0c603ba9255a9fb187c39e082413b
 ARG ARCH_COMMON_CONFIG=""
 RUN <<EOF
     echo "Downloading musl-cross-make"
@@ -109,6 +109,9 @@ ENV PATH="${PATH}:/usr/local/musl/bin" \
 ARG TARGET
 
 COPY --link --from=build /usr/local/musl /usr/local/musl
+
+# Use newer lib's than currently provided in the busybox container
+COPY --link --from=build /usr/lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libm.so.6 /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib/
 
 LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"

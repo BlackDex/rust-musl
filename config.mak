@@ -1,8 +1,8 @@
 # GNU_SITE = https://ftpmirror.gnu.org/gnu/
 GNU_SITE = https://ftp.nluug.nl/gnu/
 #
-BINUTILS_VER = 2.33.1
-GCC_VER = 14.2.0
+BINUTILS_VER = 2.44
+GCC_VER = 14.3.0
 GMP_VER = 6.1.2
 ISL_VER = 0.21
 LINUX_VER = 5.8.5
