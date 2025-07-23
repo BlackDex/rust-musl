@@ -65,6 +65,7 @@ EOF
 WORKDIR /musl-cross-make
 
 FROM base AS build
+ARG TARGETARCH
 ARG TARGET=x86_64-unknown-linux-musl
 
 COPY config.mak /musl-cross-make/config.mak
@@ -95,6 +96,13 @@ RUN <<EOF
     cd /
     rm -rf /musl-cross-make /usr/local/musl/share/man
 
+    # Symlink the arch lib dir to /arch-lib so we can use this to copy over the correct glibc files
+    if [ "${TARGETARCH}" = "arm64" ]; then
+      ln -sfn /usr/lib/aarch64-linux-gnu /arch-lib
+    else
+      ln -sfn /usr/lib/x86_64-linux-gnu /arch-lib
+    fi
+
     echo "Finished building target ${TARGET}"
 EOF
 
@@ -111,7 +119,8 @@ ARG TARGET
 COPY --link --from=build /usr/local/musl /usr/local/musl
 
 # Use newer lib's than currently provided in the busybox container
-COPY --link --from=build /usr/lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libm.so.6 /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib/
+# aarch64-linux-gnu
+COPY --link --from=build /arch-lib/libc.so.6 /arch-lib/libm.so.6 /arch-lib/ld-linux-x86-64.so.2 /lib/
 
 LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
