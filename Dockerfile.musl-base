@@ -553,7 +553,7 @@ EOF
 
 # Building MariaDB
 FROM base AS build-mariadb
-ARG MARIADB_VER="3.3.15"
+ARG MARIADB_VER="3.4.6"
 WORKDIR /tmp/mariadb
 RUN <<EOF
     echo "MariaDB Connector/C"
@@ -561,8 +561,8 @@ RUN <<EOF
     ${CURL_CMD} "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v${MARIADB_VER}.tar.gz" | tar xz --strip-components=1
 
     # Download patches for mariadb from Alpine to fix building issues
-    # https://gitlab.alpinelinux.org/alpine/aports/-/blob/850d6d51711ebfe6981e53d259bfbb8edfb51318/main/mariadb-connector-c/unused-parameter.patch
-    ${CURL_CMD} -o unused-parameter.patch https://gitlab.alpinelinux.org/alpine/aports/-/raw/850d6d51711ebfe6981e53d259bfbb8edfb51318/main/mariadb-connector-c/unused-parameter.patch
+    # https://gitlab.alpinelinux.org/alpine/aports/-/blob/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
+    ${CURL_CMD} -o unused-parameter.patch https://gitlab.alpinelinux.org/alpine/aports/-/raw/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
     # Apply these patches
     git apply --verbose unused-parameter.patch
 
