@@ -120,7 +120,7 @@ COPY --link --from=build /usr/local/musl /usr/local/musl
 
 # Use newer lib's than currently provided in the busybox container
 # aarch64-linux-gnu
-COPY --link --from=build /arch-lib/libc.so.6 /arch-lib/libm.so.6 /arch-lib/ld-linux-x86-64.so.2 /lib/
+COPY --link --from=build /arch-lib/libc.so.6 /arch-lib/libm.so.6 /lib/
 
 LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
