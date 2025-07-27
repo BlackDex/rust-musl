@@ -3,11 +3,11 @@ GNU_SITE = https://ftp.nluug.nl/gnu/
 #
 BINUTILS_VER = 2.44
 GCC_VER = 14.3.0
-GMP_VER = 6.1.2
-ISL_VER = 0.21
+GMP_VER = 6.3.0
+ISL_VER = 0.27
 LINUX_VER = 5.8.5
-MPC_VER = 1.1.0
-MPFR_VER = 4.0.2
+MPC_VER = 1.3.1
+MPFR_VER = 4.2.2
 MUSL_VER = 1.2.5
 #
 DL_CMD = curl -w"%{stderr}URL: %{url_effective}\\nTime: %{time_total}\\nSize: %{size_download}\\n" --retry 5 --retry-all-errors -sSfL -C - -o
