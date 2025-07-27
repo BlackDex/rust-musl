@@ -7,7 +7,7 @@ ARG TOOLCHAIN_REGISTRY=ghcr.io
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG} AS musl-toolchain
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-07-27 AS musl-toolchain
 
 # Start building the musl-base
 # https://hub.docker.com/_/ubuntu
