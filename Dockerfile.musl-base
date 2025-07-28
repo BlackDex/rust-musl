@@ -553,7 +553,7 @@ EOF
 
 # Building MariaDB
 FROM base AS build-mariadb
-ARG MARIADB_VER="3.4.6"
+ARG MARIADB_VER="3.4.5"
 WORKDIR /tmp/mariadb
 RUN <<EOF
     echo "MariaDB Connector/C"
