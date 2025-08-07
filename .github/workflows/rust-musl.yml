@@ -195,7 +195,7 @@ jobs:
           fi
 
       - name: Cache previous rustc stable hash
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         if: ${{ !github.event.act }}
         with:
           path: ~/rustc-stable.hash
@@ -1074,7 +1074,7 @@ jobs:
       # Generate stable combined manifest
       - name: Download Digests - Stable
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: ${{ runner.temp }}/digests-stable-${{ matrix.image_tag }}
           pattern: digests-stable-${{ matrix.image_tag }}*
@@ -1146,7 +1146,7 @@ jobs:
       # Generate Vaultwarden stable combined manifest
       - name: Download Digests - Vaultwarden Stable
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: ${{ runner.temp }}/digests-vw-${{ matrix.image_tag }}
           pattern: digests-vw-${{ matrix.image_tag }}*
@@ -1217,7 +1217,7 @@ jobs:
       #
       # Generate nightly combined manifest
       - name: Download Digests - Nightly
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: ${{ runner.temp }}/digests-nightly-${{ matrix.image_tag }}
           pattern: digests-nightly-${{ matrix.image_tag }}*

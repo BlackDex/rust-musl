@@ -17,11 +17,11 @@ And since 2025-02-15 all images are available for amd64 and arm64 platforms.
 > Updated musl-cross-make and use gcc v14.3.0 and binutils v3.44
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* OpenSSL (`v3.5.1`)
+* OpenSSL (`v3.5.2`)
 * cURL (`v8.15.0`)
 * ZLib (`v1.3.1`)
 * PostgreSQL lib (`v16.9`) + (`v17.5`) and (`v15.13`)
-* SQLite (`v3.50.3`)
+* SQLite (`v3.50.4`)
 * MariaDB Connector/C (`v3.4.5`) (MySQL Compatible)
 * libxml2 (`v2.14.5`)
 
