@@ -267,7 +267,7 @@ EOF
 
 # Build libpq v15
 FROM base AS build-pq15
-ARG PQ_15_VER="15.13"
+ARG PQ_15_VER="15.14"
 WORKDIR /tmp/pq15
 RUN <<EOF
     echo "PostgreSQL v15"
@@ -332,7 +332,7 @@ EOF
 
 # Build libpq v16
 FROM base AS build-pq16
-ARG PQ_16_VER="16.9"
+ARG PQ_16_VER="16.10"
 WORKDIR /tmp/pq16
 RUN <<EOF
     echo "PostgreSQL v16"
@@ -398,7 +398,7 @@ EOF
 
 # Build libpq v17
 FROM base AS build-pq17
-ARG PQ_17_VER="17.5"
+ARG PQ_17_VER="17.6"
 WORKDIR /tmp/pq17
 RUN <<EOF
     echo "PostgreSQL v17"
