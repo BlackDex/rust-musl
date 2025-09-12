@@ -199,7 +199,7 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.15.0"
+ARG CURL_VER="8.16.0"
 RUN <<EOF
     echo "libcurl"
 
@@ -652,7 +652,7 @@ RUN <<EOF
 EOF
 
 FROM base AS build-libxml2
-ARG LIBXML2_VER="2.14.5"
+ARG LIBXML2_VER="2.14.6"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
