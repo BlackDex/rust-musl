@@ -131,7 +131,7 @@ RUN <<EOF
 EOF
 
 # Build OpenSSL (used in curl, pq and mariadb)
-ARG SSL_VER="3.5.2"
+ARG SSL_VER="3.5.3"
 RUN <<EOF
     echo "OpenSSL"
 
@@ -652,7 +652,7 @@ RUN <<EOF
 EOF
 
 FROM base AS build-libxml2
-ARG LIBXML2_VER="2.14.6"
+ARG LIBXML2_VER="2.15.0"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
