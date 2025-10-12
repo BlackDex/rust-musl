@@ -78,12 +78,12 @@ ENV TARGET="aarch64-unknown-linux-musl" \
 FROM base AS target_armv7-musleabihf
 ENV TARGET="armv7-unknown-linux-musleabihf" \
     OPENSSL_ARCH="linux-armv4" \
-    ARCH_CPPFLAGS=
+    ARCH_CPPFLAGS=""
 
 FROM base AS target_arm-musleabi
 ENV TARGET="arm-unknown-linux-musleabi" \
     OPENSSL_ARCH="linux-armv4" \
-    ARCH_CPPFLAGS=
+    ARCH_CPPFLAGS=""
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
@@ -906,8 +906,8 @@ ENV HOST="x86_64-unknown-linux-gnu" \
     # Also set the correct library path to make sure all pre-build libraries will be found.
     # And some hardening flags, the same as used above to keep the binary as secure as possible.
     TARGET_CPPFLAGS="${SHARED_CPPFLAGS}" \
-    TARGET_CFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
-    TARGET_CXXFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
+    TARGET_CFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
+    TARGET_CXXFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
     # Tell some crates that we are cross compiling
     CROSS_COMPILE=1
 
