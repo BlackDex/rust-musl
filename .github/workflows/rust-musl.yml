@@ -77,7 +77,7 @@ jobs:
       HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
-      HAVE_BUILDKIT_SSH: ${{ github.event.act && secrets.BUILDKIT_SSH != '' && secrets.BUILDKIT_AMD64  != '' && secrets.BUILDKIT_ARM64  != '' }}
+      HAVE_BUILDKIT_SSH: ${{ secrets.BUILDKIT_SSH != '' && secrets.BUILDKIT_AMD64  != '' && secrets.BUILDKIT_ARM64  != '' }}
     outputs:
       have_dockerhub_login: ${{ env.HAVE_DOCKERHUB_LOGIN }}
       have_ghcr_login: ${{ env.HAVE_GHCR_LOGIN }}
