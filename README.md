@@ -20,7 +20,7 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * OpenSSL (`v3.5.4`)
 * cURL (`v8.16.0`)
 * ZLib (`v1.3.1`)
-* PostgreSQL lib (`v16.10`) + (`v17.6`) and (`v15.14`)
+* PostgreSQL lib (`v17.6`) + (`v18.0`), (`v16.10`) and (`v15.14`)
 * SQLite (`v3.50.4`)
 * MariaDB Connector/C (`v3.4.5`) (MySQL Compatible)
 * libxml2 (`v2.15.0`)
@@ -58,12 +58,16 @@ Stables builds are automatically triggered if there is a new version available.
 > I stopped building OpenSSL v1.1.1 since it's EOL.<br>
 > Now only OpenSSL v3.0 is being build.
 
-### PostgreSQL v16 & v17 & v15
+### PostgreSQL v17 & v18 & v16 & v15
 
-The default PostgreSQL lib used is v16.<br>
+The default PostgreSQL lib used is v17.<br>
 If you want to use v17 or v15 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
 <br>
 Adding `-e PQ_LIB_DIR="/usr/local/musl/pq17/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq17/lib"` to your custom build image will trigger the v17 version to be used during the build.
+
+> [!NOTE]
+> **2025-10-12:**
+> Building libpq v18 and set v17 as default
 
 > [!NOTE]
 > **2025-02-18:**
