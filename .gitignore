@@ -1,3 +1,6 @@
+# act secrets
+.secrets
+
 # Rust testing
 test/*crate/Cargo.lock
 test/*crate/target

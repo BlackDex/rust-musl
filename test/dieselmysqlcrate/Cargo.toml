@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselmysqlcrate"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 resolver = "2"
 
@@ -13,8 +13,8 @@ vendored_openssl = ["openssl/vendored"]
 openssl = "*"
 
 # Tell Diesel to use MySQL features
-diesel = { version = "2.2.*", features = ["mysql", "chrono", "r2d2"] }
-diesel_migrations = { version = "2.2.*", features = ["mysql"] }
+diesel = { version = "2.3.*", features = ["mysql", "chrono", "r2d2"] }
+diesel_migrations = { version = "2.3.*", features = ["mysql"] }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

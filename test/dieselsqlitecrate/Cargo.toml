@@ -1,7 +1,7 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselsqlitecrate"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 resolver = "2"
 
@@ -12,8 +12,8 @@ vendored_sqlite = ["libsqlite3-sys/bundled"]
 [dependencies]
 libsqlite3-sys = { version = "*", optional = true }
 
-diesel = { version = "2.2.*", features = ["sqlite", "chrono", "r2d2"] }
-diesel_migrations = { version = "2.2.*", features = ["sqlite"] }
+diesel = { version = "2.3.*", features = ["sqlite", "chrono", "r2d2"] }
+diesel_migrations = { version = "2.3.*", features = ["sqlite"] }
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip

@@ -5,14 +5,9 @@ ARG IMAGE_TAG=x86_64-musl
 # Which registry to use for the musl-toolchain
 ARG TOOLCHAIN_REGISTRY=ghcr.io
 
-# Extract the pre-build toolchain from the musl-toolchain image
-# This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-07-27 AS musl-toolchain
-
-# Start building the musl-base
+# First build the base image with all packages needed to build any target
 # https://hub.docker.com/_/ubuntu
 FROM docker.io/library/ubuntu:24.04 AS base
-ARG QEMU_CPU=
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -66,10 +61,37 @@ RUN <<EOF
     find /var/log -type f -delete
 EOF
 
-# Define the target and openssl architecture to use during build
-ARG TARGET=x86_64-unknown-linux-musl
-ARG OPENSSL_ARCH=linux-x86_64
-ARG ARCH_CPPFLAGS=
+# Define multiple stages per IMAGE_TAG which hold the default ENV's
+# This keeps all the needed variables which are static within the Dockerfile instead of always providing them via build-arg.
+#
+# Define the openssl architecture and extra compile flags to use during build per IMAGE_TAG
+FROM base AS target_x86_64-musl
+ENV TARGET="x86_64-unknown-linux-musl" \
+    OPENSSL_ARCH="linux-x86_64 enable-ec_nistp_64_gcc_128" \
+    ARCH_CPPFLAGS="-fcf-protection=full"
+
+FROM base AS target_aarch64-musl
+ENV TARGET="aarch64-unknown-linux-musl" \
+    OPENSSL_ARCH="linux-aarch64" \
+    ARCH_CPPFLAGS="-mno-outline-atomics -mbranch-protection=standard"
+
+FROM base AS target_armv7-musleabihf
+ENV TARGET="armv7-unknown-linux-musleabihf" \
+    OPENSSL_ARCH="linux-armv4" \
+    ARCH_CPPFLAGS=
+
+FROM base AS target_arm-musleabi
+ENV TARGET="arm-unknown-linux-musleabi" \
+    OPENSSL_ARCH="linux-armv4" \
+    ARCH_CPPFLAGS=
+
+# Extract the pre-build toolchain from the musl-toolchain image
+# This doesn't need to be build everytime since not much will change
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-07-27 AS musl-toolchain
+
+# Start building the musl-base
+FROM target_${IMAGE_TAG} AS build
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
 ENV TARGET="${TARGET}" \
     TARGET_PREFIX=/usr/local/musl \
@@ -85,9 +107,9 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     TARGET_CC="${TARGET}-gcc" \
     TARGET_CXX="${TARGET}-g++" \
     TARGET_RANLIB="${TARGET}-ranlib" \
-    TARGET_LDFLAGS="-flto=auto -s -pie -static-libstdc++ -Wl,-gc-sections -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
+    TARGET_LDFLAGS="-flto=auto -s -pie -static-libstdc++ -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
     SHARED_CPPFLAGS="-I${TARGET_PREFIX}/include -I${SYSROOT}/include ${ARCH_CPPFLAGS}" \
-    SHARED_CFLAGS="--sysroot=${SYSROOT} -g0 -Os -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpie --static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wa,--noexecstack" \
+    SHARED_CFLAGS="-g0 -Os --sysroot=${SYSROOT} ${ARCH_CPPFLAGS} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # pkg-config
     PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
@@ -257,7 +279,7 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.10.0"
+ARG SCCACHE_VER="0.11.0"
 RUN <<EOF
     HOST_ARCH="$(uname -m)"
     ASSET_NAME="sccache-v${SCCACHE_VER}-${HOST_ARCH}-unknown-linux-musl"
@@ -266,7 +288,8 @@ RUN <<EOF
 EOF
 
 # Build libpq v15
-FROM base AS build-pq15
+FROM build AS build-pq15
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_15_VER="15.14"
 WORKDIR /tmp/pq15
 RUN <<EOF
@@ -331,7 +354,8 @@ RUN <<EOF
 EOF
 
 # Build libpq v16
-FROM base AS build-pq16
+FROM build AS build-pq16
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_16_VER="16.10"
 WORKDIR /tmp/pq16
 RUN <<EOF
@@ -397,7 +421,8 @@ RUN <<EOF
 EOF
 
 # Build libpq v17
-FROM base AS build-pq17
+FROM build AS build-pq17
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_17_VER="17.6"
 WORKDIR /tmp/pq17
 RUN <<EOF
@@ -461,8 +486,75 @@ RUN <<EOF
     rm -rf "${TARGET_PREFIX}/pq17/share/man"
 EOF
 
+# Build libpq v18
+FROM build AS build-pq18
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
+ARG PQ_18_VER="18.0"
+WORKDIR /tmp/pq18
+RUN <<EOF
+    echo "PostgreSQL v18"
+
+    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_18_VER}/postgresql-${PQ_18_VER}.tar.bz2" | tar -xj --strip-components=1
+
+    if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
+      export LIBS="-latomic"
+    fi
+
+    export AR="${TARGET_AR}"
+    export LD="${TARGET_LD}"
+    export RANLIB="${TARGET_RANLIB}"
+    export LDFLAGS="${TARGET_LDFLAGS}"
+    export CPPFLAGS="${SHARED_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CC="${TARGET_CC}"
+
+   ./configure \
+      --host="${TARGET}" \
+      --without-readline \
+      --with-ssl=openssl \
+      --disable-rpath \
+      --without-icu \
+      --with-system-tzdata=/usr/share/zoneinfo \
+      --prefix="${TARGET_PREFIX}/pq18"
+
+    # build common, port and libpq only
+    cd src/common
+      # Do not use -j"$(nproc)" for `make all` here, that breaks compilation because of bison/flex
+      make all
+      make -j"$(nproc)" install
+    cd ../../src/port
+      make -j"$(nproc)" all
+      make -j"$(nproc)" install
+    cd ../../src/interfaces/libpq
+      make -j"$(nproc)" all-static-lib
+      make -j"$(nproc)" install-lib-static
+
+    # Merge these libraries so pq-sys will work without using pkg-config
+    cd "${TARGET_PREFIX}/pq18/lib"
+      mkdir -v merge && cd merge
+      # Extract the generated .a files
+      # Use the _shlib files since those contain the correct object files to link with libpq.a
+      # https://web.archive.org/save/https://www.postgresql.org/message-id/2656597.1728582542%40sss.pgh.pa.us
+      "${TARGET_AR}" x ../libpq.a
+      "${TARGET_AR}" x ../libpgcommon_shlib.a
+      "${TARGET_AR}" x ../libpgport_shlib.a
+      # Merge all these files again into one libpq.a file
+      # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
+      "${TARGET_AR}" crsv libpq.a ./*.o
+
+      # Move and cleanup
+      mv -vf libpq.a ../libpq.a
+      cd ../
+      "${TARGET_AR}" sv libpq.a
+      rm -rf merge libpgcommon* libpgport*
+
+    # Default cleanups
+    rm -rf "${TARGET_PREFIX}/pq18/share/man"
+EOF
+
 # Build libsqlite3
-FROM base AS build-sqlite
+FROM build AS build-sqlite
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG SQLITE_VER="3.50.4"
 WORKDIR /tmp/sqlite
 RUN <<EOF
@@ -552,7 +644,8 @@ RUN <<EOF
 EOF
 
 # Building MariaDB
-FROM base AS build-mariadb
+FROM build AS build-mariadb
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG MARIADB_VER="3.4.5"
 WORKDIR /tmp/mariadb
 RUN <<EOF
@@ -651,7 +744,8 @@ RUN <<EOF
     find /out/
 EOF
 
-FROM base AS build-libxml2
+FROM build AS build-libxml2
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG LIBXML2_VER="2.15.0"
 WORKDIR /tmp/libxml2
 # Build libxml2
@@ -711,7 +805,8 @@ RUN <<EOF
     find /out/
 EOF
 
-FROM base AS release
+FROM build AS release
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 # Install the Rust toolchain and `musl` target.
 ARG RUST_CHANNEL=stable
 ARG RUSTC_HASH=
@@ -766,6 +861,7 @@ EOF
 COPY --link --from=build-pq15 ${TARGET_PREFIX}/pq15 ${TARGET_PREFIX}/pq15
 COPY --link --from=build-pq16 ${TARGET_PREFIX}/pq16 ${TARGET_PREFIX}/pq16
 COPY --link --from=build-pq17 ${TARGET_PREFIX}/pq17 ${TARGET_PREFIX}/pq17
+COPY --link --from=build-pq18 ${TARGET_PREFIX}/pq18 ${TARGET_PREFIX}/pq18
 COPY --link --from=build-sqlite /out/ /
 COPY --link --from=build-mariadb /out/ /
 COPY --link --from=build-libxml2 /out/ /
@@ -782,7 +878,7 @@ ENV HOST="x86_64-unknown-linux-gnu" \
     TARGET_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR}" \
     # pq-sys (PosgreSQL) support
     PQ_LIB_STATIC=1 \
-    PQ_LIB_DIR="${TARGET_PREFIX}/pq16/lib" \
+    PQ_LIB_DIR="${TARGET_PREFIX}/pq17/lib" \
     # openssl-sys support
     OPENSSL_STATIC=1 \
     OPENSSL_DIR="${TARGET_PREFIX}" \
@@ -810,8 +906,8 @@ ENV HOST="x86_64-unknown-linux-gnu" \
     # Also set the correct library path to make sure all pre-build libraries will be found.
     # And some hardening flags, the same as used above to keep the binary as secure as possible.
     TARGET_CPPFLAGS="${SHARED_CPPFLAGS}" \
-    TARGET_CFLAGS="--sysroot=${SYSROOT} -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpie --static -ffunction-sections -fdata-sections -Wl,-gc-sections -Wl,-pie -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wl,-z,pack-relative-relocs -Wa,--noexecstack -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
-    TARGET_CXXFLAGS="--sysroot=${SYSROOT} -fstack-clash-protection -fstack-protector-strong -fPIE -pie -fpie --static -ffunction-sections -fdata-sections -Wl,-gc-sections -Wl,-pie -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--sort-common -Wl,-z,pack-relative-relocs -Wa,--noexecstack -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
+    TARGET_CFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
+    TARGET_CXXFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fcf-protection=full -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
     # Tell some crates that we are cross compiling
     CROSS_COMPILE=1
 

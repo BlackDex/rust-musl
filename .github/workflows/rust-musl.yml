@@ -31,15 +31,24 @@ on:
 ##
 ## Run per architecutre
 ##   # amd64
-##   act push -j musl_base --matrix image_tag:x86_64-musl
+##   act push -j musl_base --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl
 ##   # armv7
-##   act push -j musl_base --matrix image_tag:armv7-musleabihf
+##   act push -j musl_base --matrix os:ubuntu-24.04 --matrix image_tag:armv7-musleabihf
 ##   # arm64
-##   act push -j musl_base --matrix image_tag:aarch64-musl
+##   act push -j musl_base --matrix os:ubuntu-24.04 --matrix image_tag:aarch64-musl
 ##   # armv6
-##   act push -j musl_base --matrix image_tag:arm-musleabi
+##   act push -j musl_base --matrix os:ubuntu-24.04 --matrix image_tag:arm-musleabi
 ##
-## Use a local build toolchain container
+## If you want to build both amd64 and arm64 of a specific architecture, remove the os:ubuntu-24.04 matrix
+##   act push -j musl_base --matrix image_tag:x86_64-musl
+##
+## Or, if you want to build only arm64 of a specific architecture add os:ubuntu-24.04-arm
+##   act push -j musl_base --matrix os:ubuntu-24.04-arm --matrix image_tag:x86_64-musl
+##
+## Use a local build toolchain container amd64 only
+##   act push --env TOOLCHAIN_REG=localhost:5000 -j musl_base --matrix os:ubuntu-24.04
+##
+## Both amd64 and arm64
 ##   act push --env TOOLCHAIN_REG=localhost:5000 -j musl_base
 ##
 ## Full run with same rustc_hash: (Get the current rustc_hash either from the output of the rust_stable step, or running rustc -vV your self)
@@ -56,7 +65,6 @@ on:
 ##
 ## To only see the outputs from the mbuild_vars to see what is getting triggered, use the same commands as above but replace `musl_base` with `mbuild_vars`
 ##
-## To build arm64 images too, use `qemu` instead of `push`. But this is very slow on a local system!
 ## ##
 
 
@@ -69,10 +77,12 @@ jobs:
       HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
+      HAVE_BUILDKIT_SSH: ${{ github.event.act && secrets.BUILDKIT_SSH != '' && secrets.BUILDKIT_AMD64  != '' && secrets.BUILDKIT_ARM64  != '' }}
     outputs:
       have_dockerhub_login: ${{ env.HAVE_DOCKERHUB_LOGIN }}
       have_ghcr_login: ${{ env.HAVE_GHCR_LOGIN }}
       have_quay_login: ${{ env.HAVE_QUAY_LOGIN }}
+      have_buildkit_ssh: ${{ env.HAVE_BUILDKIT_SSH }}
 
       current_date: ${{ steps.build_vars.outputs.current_date }}
       nightly_date: ${{ steps.build_vars.outputs.nightly_date }}
@@ -296,39 +306,16 @@ jobs:
       attestations: write
       id-token: write
     strategy:
-      # When using `act` only run 1 matrix, since this could use a lot of memory or cause other issues
-      max-parallel: ${{ github.event.act && 1 || 8 }}
       fail-fast: false
       matrix:
-        act:
-          - ${{ github.event.act }}
         os:
           - ubuntu-24.04
-          - ${{ (github.event.act && github.event_name == 'qemu') && 'ubuntu-24.04-qemu-arm' || 'ubuntu-24.04-arm' }}
+          - ubuntu-24.04-arm
         image_tag:
           - x86_64-musl
           - aarch64-musl
           - armv7-musleabihf
           - arm-musleabi
-        include:
-          - image_tag: x86_64-musl
-            target: x86_64-unknown-linux-musl
-            openssl_arch: "linux-x86_64 enable-ec_nistp_64_gcc_128"
-          - image_tag: armv7-musleabihf
-            target: armv7-unknown-linux-musleabihf
-            openssl_arch: linux-armv4
-          - image_tag: aarch64-musl
-            target: aarch64-unknown-linux-musl
-            openssl_arch: linux-aarch64
-            # The aarch64 musl does not support outline-atomics and needs to be disabled
-            # We need to provide some extra CPPFLAGS to prevent errors during the compilation of the Rust project
-            arch_cppflags: "-mno-outline-atomics"
-          - image_tag: arm-musleabi
-            target: arm-unknown-linux-musleabi
-            openssl_arch: linux-armv4
-        exclude:
-          - os: ubuntu-24.04-arm
-            act: true
     steps:
       - name: "[act] Debug Matrix"
         if: ${{ github.event.act }}
@@ -356,17 +343,49 @@ jobs:
             echo "type=amd64" | tee -a "${GITHUB_OUTPUT}"
           fi
 
-          # If we buid using act and use qemu-aarch64-static
-          if [[ "${MATRIX_OS}" = "ubuntu-24.04-qemu-arm" ]]; then
-            echo "qemu_cpu=max,pmu=off,pauth-impdef=on" | tee -a "${GITHUB_OUTPUT}"
-          else
-            echo "qemu_cpu=" | tee -a "${GITHUB_OUTPUT}"
-          fi
+      - name: Load ssh-agent for Remote BuildKit
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
+        with:
+            ssh-private-key: ${{ secrets.BUILDKIT_SSH }}
 
-      - name: Setup Docker Buildx (setup-buildx-action)
+      - name: Create known_hosts file
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        shell: bash
+        env:
+          BUILDKIT_KNOWN_HOSTS: ${{ secrets.BUILDKIT_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${BUILDKIT_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
+      # This uses SSH to connect to the remote/local BuildKit tooling
+      - name: Setup Docker Buildx (act)
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
         with:
-          driver: docker-container
+          use: true
+          install: true
+          name: act-multiarch
+          cache-binary: false
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+            default-load=true
+          endpoint: ${{ secrets.BUILDKIT_AMD64 }}
+          platforms: linux/amd64
+          append: |
+            - endpoint: ${{ secrets.BUILDKIT_ARM64 }}
+              platforms: linux/arm64
+
+      - name: Setup Docker Buildx
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'false' }}
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
+        with:
+          # When using `act`, use the `docker` driver to use local 'docker build' cache
+          driver: ${{ github.event.act && 'docker' || 'docker-container' }}
           cache-binary: false
           buildkitd-config-inline: |
             [worker.oci]
@@ -477,7 +496,7 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           # Set load to true so that we can test the builded image in the next step (default with docker driver)
@@ -486,17 +505,55 @@ jobs:
           push: false
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.mbuild_vars.outputs.stable_hash }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+      - name: Test Docker Image (PQ18) - Rust Current Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ17) - Rust Current Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ16) - Rust Current Stable
         # Skip during nightly builds
@@ -504,16 +561,16 @@ jobs:
         shell: bash
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -522,43 +579,20 @@ jobs:
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
         shell: bash
-        # continue-on-error: true
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
-            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
-      - name: Test Docker Image (PQ17) - Rust Current Stable
-        # Skip during nightly builds
-        if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        shell: bash
-        # continue-on-error: true
-        env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
-          IMAGE_TAG: ${{ matrix.image_tag }}
-          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=full \
-            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -570,19 +604,15 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           load: ${{ github.event.act && 'true' || 'false' }}
           push: true
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.mbuild_vars.outputs.stable_hash }}
           tags: ${{ steps.arch_tags.outputs.stable }}
@@ -642,7 +672,7 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           # Set load to true so that we can test the builded image in the next step (default with docker driver)
@@ -651,16 +681,54 @@ jobs:
           push: false
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=${{ needs.mbuild_vars.outputs.vaultwarden_version }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-vw-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+      - name: Test Docker Image (PQ18) - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ17) - Rust Vaultwarden Stable
+        # Skip during nightly builds
+        if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ16) - Rust Vaultwarden Stable
         # Skip during nightly builds
@@ -668,16 +736,16 @@ jobs:
         shell: bash
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
@@ -685,44 +753,21 @@ jobs:
       - name: Test Docker Image (PQ15) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        # continue-on-error: true
         shell: bash
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
-            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
-      - name: Test Docker Image (PQ17) - Rust Vaultwarden Stable
-        # Skip during nightly builds
-        if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        # continue-on-error: true
-        shell: bash
-        env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
-          IMAGE_TAG: ${{ matrix.image_tag }}
-          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=full \
-            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -734,19 +779,15 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           load: ${{ github.event.act && 'true' || 'false' }}
           push: true
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=${{ needs.mbuild_vars.outputs.vaultwarden_version }}
           tags: ${{ steps.arch_tags.outputs.stable_vw }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
@@ -803,7 +844,7 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           # Set load to true so that we can test the builded image in the next step (default with docker driver)
@@ -812,72 +853,85 @@ jobs:
           push: false
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=nightly-${{ needs.mbuild_vars.outputs.nightly_date }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-nightly-test
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
+      - name: Test Docker Image (PQ18) - Rust Nightly
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
+      - name: Test Docker Image (PQ17) - Rust Nightly
+        shell: bash
+        env:
+          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          IMAGE_TAG: ${{ matrix.image_tag }}
+          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+        run: |
+          # Run the test
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -v cargo-cache:/root/.cargo/registry \
+            -v "$(pwd)/test/multicrate":/home/rust/src \
+            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
+            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
+            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+
       - name: Test Docker Image (PQ16) - Rust Nightly
         shell: bash
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ15) - Rust Nightly
         shell: bash
-        # continue-on-error: true
         env:
           ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
+          PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
           # Run the test
           docker run --rm \
+            --platform "${PLATFORM}" \
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
-            -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
-
-      - name: Test Docker Image (PQ17) - Rust Nightly
-        shell: bash
-        # continue-on-error: true
-        env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
-          QEMU_CPU: ${{ steps.arch.outputs.qemu_cpu }}
-          IMAGE_TAG: ${{ matrix.image_tag }}
-          XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
-        run: |
-          # Run the test
-          docker run --rm \
-            -v cargo-cache:/root/.cargo/registry \
-            -v "$(pwd)/test/multicrate":/home/rust/src \
-            --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
-            -e QEMU_CPU=${QEMU_CPU} \
-            -e RUST_BACKTRACE=full \
-            -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
             blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
@@ -887,19 +941,15 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
           load: ${{ github.event.act && 'true' || 'false' }}
           push: true
           file: ./Dockerfile.musl-base
           build-args: |
-            QEMU_CPU=${{ steps.arch.outputs.qemu_cpu }}
             TOOLCHAIN_REGISTRY=${{ needs.mbuild_vars.outputs.toolchain_reg }}
-            TARGET=${{ matrix.target }}
             IMAGE_TAG=${{ matrix.image_tag }}
-            OPENSSL_ARCH=${{ matrix.openssl_arch }}
-            ARCH_CPPFLAGS=${{ matrix.arch_cppflags }}
             RUST_CHANNEL=nightly-${{ needs.mbuild_vars.outputs.nightly_date }}
           tags: ${{ steps.arch_tags.outputs.nightly }}
           cache-from: ${{ steps.docker_cache.outputs.cache_from }}
@@ -964,7 +1014,6 @@ jobs:
       - mbuild_vars
       - musl_base
     strategy:
-      max-parallel: ${{ github.event.act && 1 || 8 }}
       matrix:
         image_tag:
           - x86_64-musl
@@ -1030,12 +1079,53 @@ jobs:
             echo "nightly=${base_tags_nightly%,}" | tee -a "${GITHUB_OUTPUT}"
 
 
-      - name: Setup Docker Buildx (setup-buildx-action)
+      - name: Load ssh-agent for Remote BuildKit
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
+        with:
+            ssh-private-key: ${{ secrets.BUILDKIT_SSH }}
+
+      - name: Create known_hosts file
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        shell: bash
+        env:
+          BUILDKIT_KNOWN_HOSTS: ${{ secrets.BUILDKIT_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${BUILDKIT_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
+      # This uses SSH to connect to the remote/local BuildKit tooling
+      - name: Setup Docker Buildx (act)
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
+        with:
+          use: true
+          install: true
+          name: act-multiarch
+          cache-binary: false
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+            default-load=true
+          endpoint: ${{ secrets.BUILDKIT_AMD64 }}
+          platforms: linux/amd64
+          append: |
+            - endpoint: ${{ secrets.BUILDKIT_ARM64 }}
+              platforms: linux/arm64
+
+      - name: Setup Docker Buildx
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'false' }}
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
         with:
           # When using `act`, use the `docker` driver to use local 'docker build' cache
           driver: ${{ github.event.act && 'docker' || 'docker-container' }}
           cache-binary: false
+          buildkitd-config-inline: |
+            [worker.oci]
+              max-parallelism = 3
           driver-opts: |
             network=host
 

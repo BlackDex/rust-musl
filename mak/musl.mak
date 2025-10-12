@@ -1,23 +1,12 @@
 # Default use localhost:5000, useful with a local registry for example
 # If you want to get the source from somewhere else use `make TOOLCHAIN_REGISTRY=ghcr.io musl-x86_64` for example
 TOOLCHAIN_REGISTRY ?= localhost:5000
+PLATFORM ?= local
 
 # Define specific target variables
-musl-x86_64: TARGET=x86_64-unknown-linux-musl
-musl-x86_64: OPENSSL_ARCH="linux-x86_64 enable-ec_nistp_64_gcc_128"
 musl-x86_64: TAG=x86_64-musl
-
-musl-aarch64: TARGET=aarch64-unknown-linux-musl
-musl-aarch64: OPENSSL_ARCH=linux-aarch64
-musl-aarch64: ARCH_CPPFLAGS="-mno-outline-atomics"
 musl-aarch64: TAG=aarch64-musl
-
-musl-armv7: TARGET=armv7-unknown-linux-musleabihf
-musl-armv7: OPENSSL_ARCH=linux-armv4
 musl-armv7: TAG=armv7-musleabihf
-
-musl-arm: TARGET=arm-unknown-linux-musleabi
-musl-arm: OPENSSL_ARCH=linux-armv4
 musl-arm: TAG=arm-musleabi
 
 # Pull the latest musl-base to be used as cache if possible
@@ -27,11 +16,9 @@ musl-arm: TAG=arm-musleabi
 musl-x86_64 musl-aarch64 musl-armv7 musl-arm:
 	docker buildx build \
 		--progress=plain \
+		--platform=${PLATFORM} \
 		--build-arg TOOLCHAIN_REGISTRY=${TOOLCHAIN_REGISTRY} \
-		--build-arg TARGET=$(TARGET) \
 		--build-arg IMAGE_TAG=$(TAG) \
-		--build-arg OPENSSL_ARCH=$(OPENSSL_ARCH) \
-		--build-arg ARCH_CPPFLAGS=${ARCH_CPPFLAGS} \
 		--build-arg RUST_CHANNEL=$(RUST_CHANNEL) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
 		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
@@ -52,3 +39,17 @@ push-musl:
 # Build and push a specific targets
 push-musl-%:
 	$(MAKE) PUSH=true "$(subst push-,,$@)"
+
+
+# Define the platform for building arm64 base images
+arm64-x86_64: PLATFORM=linux/arm64
+arm64-x86_64: musl-x86_64
+arm64-aarch64: PLATFORM=linux/arm64
+arm64-aarch64: musl-aarch64
+arm64-armv7: PLATFORM=linux/arm64
+arm64-armv7: musl-armv7
+arm64-arm: PLATFORM=linux/arm64
+arm64-arm: musl-arm
+
+arm64: arm64-x86_64 arm64-aarch64 arm64-armv7 arm64-arm
+.PHONY: arm64 arm64-x86_64 arm64-aarch64 arm64-armv7 arm64-arm

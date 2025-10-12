@@ -1,6 +1,9 @@
 -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
 -P ubuntu-24.04=ghcr.io/catthehacker/ubuntu:act-24.04
--P ubuntu-24.04-qemu-arm=ghcr.io/catthehacker/ubuntu:act-24.04
+-P ubuntu-24.04-arm=ghcr.io/catthehacker/ubuntu:act-24.04
 --eventpath ./.github/act-event.json
 --artifact-server-path ./.artifacts
+--use-new-action-cache
+--concurrent-jobs 1
+--network host
 --rm
