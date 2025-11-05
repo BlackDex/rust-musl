@@ -221,7 +221,7 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.16.0"
+ARG CURL_VER="8.17.0"
 RUN <<EOF
     echo "libcurl"
 
@@ -555,7 +555,7 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.50.4"
+ARG SQLITE_VER="3.51.0"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
