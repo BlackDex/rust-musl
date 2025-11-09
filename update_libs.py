@@ -220,7 +220,8 @@ if __name__ == '__main__':
         'PQ_17': mirrorver('https://ftp.postgresql.org/pub/source/', r'v17\.', 'v'),
         'PQ_18': mirrorver('https://ftp.postgresql.org/pub/source/', r'v18\.', 'v'),
         'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
-        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.4+\.', 'connector-c-', r'\/'),
+        'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.4\.+', 'connector-c-', r'\/'),
+        # 'MYSQL': mirrorver('https://dev.mysql.com/downloads/mysql/?tpl=files&os=src&version=8.4', r'\/downloads\/gpg\/\?file=mysql-8.4', r'/downloads/gpg/?file=mysql-', r'\.tar\.gz.*'),
         'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
         # Also print some other version or from other resources just to compare
         '---': '---',

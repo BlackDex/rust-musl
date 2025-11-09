@@ -646,7 +646,7 @@ EOF
 # Building MariaDB
 FROM build AS build-mariadb
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG MARIADB_VER="3.4.5"
+ARG MARIADB_VER="3.4.7"
 WORKDIR /tmp/mariadb
 RUN <<EOF
     echo "MariaDB Connector/C"
@@ -657,7 +657,11 @@ RUN <<EOF
     # https://gitlab.alpinelinux.org/alpine/aports/-/blob/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
     ${CURL_CMD} -o unused-parameter.patch https://gitlab.alpinelinux.org/alpine/aports/-/raw/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
     # Apply these patches
-    git apply --verbose unused-parameter.patch
+    git apply --reject --verbose unused-parameter.patch
+
+    # Revert a specific commit which breaks Diesel/mysqlclient-sys
+    ${CURL_CMD} -o revert-stmt-bug.patch https://github.com/mariadb-corporation/mariadb-connector-c/commit/28a1e4b5994f842aa722f9c91969513d3e047e51.patch
+    sed -n '/^diff.*mariadb_stmt.c/,/^diff.*[^mariadb_stmt.c]/p' revert-stmt-bug.patch | git apply --reject --verbose --reverse
 
     # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
