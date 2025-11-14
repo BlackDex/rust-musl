@@ -2,7 +2,7 @@
 GNU_SITE = https://ftp.nluug.nl/gnu/
 #
 BINUTILS_VER = 2.44
-GCC_VER = 14.3.0
+GCC_VER = 15.1.0
 GMP_VER = 6.3.0
 ISL_VER = 0.27
 LINUX_VER = 5.8.5
