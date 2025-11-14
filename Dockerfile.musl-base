@@ -87,7 +87,7 @@ ENV TARGET="arm-unknown-linux-musleabi" \
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-07-27 AS musl-toolchain
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-11-14 AS musl-toolchain
 
 # Start building the musl-base
 FROM target_${IMAGE_TAG} AS build
@@ -290,7 +290,7 @@ EOF
 # Build libpq v15
 FROM build AS build-pq15
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_15_VER="15.14"
+ARG PQ_15_VER="15.15"
 WORKDIR /tmp/pq15
 RUN <<EOF
     echo "PostgreSQL v15"
@@ -356,7 +356,7 @@ EOF
 # Build libpq v16
 FROM build AS build-pq16
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_16_VER="16.10"
+ARG PQ_16_VER="16.11"
 WORKDIR /tmp/pq16
 RUN <<EOF
     echo "PostgreSQL v16"
@@ -423,7 +423,7 @@ EOF
 # Build libpq v17
 FROM build AS build-pq17
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_17_VER="17.6"
+ARG PQ_17_VER="17.7"
 WORKDIR /tmp/pq17
 RUN <<EOF
     echo "PostgreSQL v17"
@@ -489,7 +489,7 @@ EOF
 # Build libpq v18
 FROM build AS build-pq18
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_18_VER="18.0"
+ARG PQ_18_VER="18.1"
 WORKDIR /tmp/pq18
 RUN <<EOF
     echo "PostgreSQL v18"
