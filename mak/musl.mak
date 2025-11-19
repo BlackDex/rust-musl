@@ -1,7 +1,28 @@
 # Default use localhost:5000, useful with a local registry for example
 # If you want to get the source from somewhere else use `make TOOLCHAIN_REGISTRY=ghcr.io musl-x86_64` for example
 TOOLCHAIN_REGISTRY ?= localhost:5000
-PLATFORM ?= local
+LOCAL_REGISTRY ?= localhost:5000
+
+HOST_ARCH_RAW := $(shell uname -m)
+HOST_ARCH := $(subst aarch64,arm64,$(HOST_ARCH_RAW))
+HOST_ARCH := $(subst x86_64,amd64,$(HOST_ARCH))
+
+PLATFORM ?= linux/$(HOST_ARCH)
+
+ubuntu-base:
+	docker buildx build \
+		--progress=plain \
+		--platform=${PLATFORM} \
+		--target=base \
+		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-ubuntu-base \
+		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-ubuntu-base,compression=zstd,compression-level=9,force-compression=true,mode=max \
+		-f Dockerfile.musl-base \
+		--load \
+		"."
+
+ubuntu-base-arm64: PLATFORM=linux/arm64
+ubuntu-base-arm64: ubuntu-base
+.PHONY: ubuntu-base ubuntu-base-arm64
 
 # Define specific target variables
 musl-x86_64: TAG=x86_64-musl
@@ -13,15 +34,18 @@ musl-arm: TAG=arm-musleabi
 # Build the musl-base image using the previous image as cache
 # For the musl image we use multi-stage docker images.
 # So first we build the musl-base part, and after that we will build the the main image.
-musl-x86_64 musl-aarch64 musl-armv7 musl-arm:
+musl-x86_64 musl-aarch64 musl-armv7 musl-arm: | ubuntu-base
 	docker buildx build \
 		--progress=plain \
 		--platform=${PLATFORM} \
 		--build-arg TOOLCHAIN_REGISTRY=${TOOLCHAIN_REGISTRY} \
 		--build-arg IMAGE_TAG=$(TAG) \
 		--build-arg RUST_CHANNEL=$(RUST_CHANNEL) \
-		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
-		-t localhost:5000/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
+		-t ${LOCAL_REGISTRY}/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX) \
+		-t ${LOCAL_REGISTRY}/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
+		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-buildcache:$${PLATFORM//linux\//}-ubuntu-base \
+		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-$(TAG) \
+		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-$(TAG),compression=zstd,compression-level=9,force-compression=true,mode=max \
 		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,push=${PUSH} \
 		-f Dockerfile.musl-base \
 		--load \
@@ -39,7 +63,6 @@ push-musl:
 # Build and push a specific targets
 push-musl-%:
 	$(MAKE) PUSH=true "$(subst push-,,$@)"
-
 
 # Define the platform for building arm64 base images
 arm64-x86_64: PLATFORM=linux/arm64

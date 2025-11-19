@@ -1,6 +1,9 @@
 # act secrets
 .secrets
 
+# Makefile env
+.env
+
 # Rust testing
 test/*crate/Cargo.lock
 test/*crate/target

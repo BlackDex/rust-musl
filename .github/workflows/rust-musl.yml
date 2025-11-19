@@ -77,11 +77,13 @@ jobs:
       HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
-      HAVE_BUILDKIT_SSH: ${{ secrets.BUILDKIT_SSH != '' && secrets.BUILDKIT_AMD64  != '' && secrets.BUILDKIT_ARM64  != '' }}
+      HAVE_LOCAL_REGISTRY:  ${{ secrets.LOCAL_REGISTRY != '' }}
+      HAVE_BUILDKIT_SSH: ${{ secrets.BUILDKIT_SSH != '' && secrets.BUILDKIT_ARM64_HOST  != '' && secrets.BUILDKIT_ARM64_USER  != '' }}
     outputs:
       have_dockerhub_login: ${{ env.HAVE_DOCKERHUB_LOGIN }}
       have_ghcr_login: ${{ env.HAVE_GHCR_LOGIN }}
       have_quay_login: ${{ env.HAVE_QUAY_LOGIN }}
+      have_local_registry: ${{ env.HAVE_LOCAL_REGISTRY }}
       have_buildkit_ssh: ${{ env.HAVE_BUILDKIT_SSH }}
 
       current_date: ${{ steps.build_vars.outputs.current_date }}
@@ -107,9 +109,11 @@ jobs:
 
       #
       # An array of container registries
-      registry_list: ${{ steps.registry.outputs.list }}
+      registry_list: ${{ steps.registry.outputs.registry_list }}
       # Which container repo to use for the toolchain container
-      toolchain_reg: ${{ steps.registry.outputs.toolchain }}
+      toolchain_reg: ${{ steps.registry.outputs.toolchain_reg }}
+      # Use a remote docker for arm64 container testing, mainly used for local testing via act
+      docker_host_arm64: ${{ steps.registry.outputs.docker_host_arm64 }}
     steps:
       - name: Determine Container Registries
         id: registry
@@ -117,7 +121,11 @@ jobs:
           HAVE_DOCKERHUB_LOGIN: ${{ env.HAVE_DOCKERHUB_LOGIN }}
           HAVE_GHCR_LOGIN: ${{ env.HAVE_GHCR_LOGIN }}
           HAVE_QUAY_LOGIN: ${{ env.HAVE_QUAY_LOGIN }}
-          HAVE_LOCALHOST: ${{ github.event.act }}
+          HAVE_LOCAL_REGISTRY: ${{ env.HAVE_LOCAL_REGISTRY }}
+          LOCAL_REGISTRY: ${{ secrets.LOCAL_REGISTRY }}
+          HAVE_BUILDKIT_SSH: ${{ env.HAVE_BUILDKIT_SSH }}
+          BUILDKIT_ARM64_USER: ${{ secrets.BUILDKIT_ARM64_USER }}
+          BUILDKIT_ARM64_HOST: ${{ secrets.BUILDKIT_ARM64_HOST }}
         shell: bash
         run: |
           # Generate a list of registries to where to push too
@@ -131,17 +139,24 @@ jobs:
           if [[ "${HAVE_QUAY_LOGIN}" = true ]]; then
             registries="${registries:+${registries} }quay.io"
           fi
-          if [[ "${HAVE_LOCALHOST}" = true ]]; then
-            registries="${registries:+${registries} }localhost:5000"
+          if [[ "${HAVE_LOCAL_REGISTRY}" = true ]]; then
+            registries="${registries:+${registries} }${LOCAL_REGISTRY}"
           fi
-          echo "list=${registries}" | tee -a "${GITHUB_OUTPUT}"
+          echo "registry_list=${registries}" | tee -a "${GITHUB_OUTPUT}"
 
           # Determine which registry to use for the toolchain container
           # When testing via `act` and `$TOOLCHAIN_REG` is set use that else ghcr.io
-          if [[ "${HAVE_LOCALHOST}" = true ]] && [[ -n "${TOOLCHAIN_REG}" ]]; then
-            echo "toolchain=${TOOLCHAIN_REG}" | tee -a "${GITHUB_OUTPUT}"
+          if [[ "${HAVE_LOCAL_REGISTRY}" = true ]] && [[ -n "${TOOLCHAIN_REG}" ]]; then
+            echo "toolchain_reg=${TOOLCHAIN_REG}" | tee -a "${GITHUB_OUTPUT}"
           else
-            echo "toolchain=ghcr.io" | tee -a "${GITHUB_OUTPUT}"
+            echo "toolchain_reg=ghcr.io" | tee -a "${GITHUB_OUTPUT}"
+          fi
+
+          # When testing via `act` and there is a special BuildKit host for arm64, generate the ssh:// host
+          if [[ "${HAVE_BUILDKIT_SSH}" = true ]] && [[ -n "${BUILDKIT_ARM64_HOST}" ]]; then
+            echo "docker_host_arm64=ssh://${BUILDKIT_ARM64_USER}@${BUILDKIT_ARM64_HOST}" | tee -a "${GITHUB_OUTPUT}"
+          else
+            echo "docker_host_arm64=" | tee -a "${GITHUB_OUTPUT}"
           fi
 
       - name: Get Rust version info
@@ -293,12 +308,159 @@ jobs:
           fi
 
   # ###
+  # Building the Ubuntu base for all targets which are the same
+  ubuntu_base:
+    if: ${{ github.repository == 'BlackDex/rust-musl' }}
+    name: Cache Ubuntu Base Image - ${{ matrix.os }}
+    needs:
+      - mbuild_vars
+    runs-on: ${{ matrix.os }}
+    permissions:
+      packages: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+    outputs:
+      cache_from: ${{ steps.docker_cache.outputs.cache_from }}
+    steps:
+      - name: Arch Tag
+        id: arch
+        shell: bash
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+        run: |
+          if [[ "${MATRIX_OS}" == *-arm ]]; then
+            echo "type=arm64" | tee -a "${GITHUB_OUTPUT}"
+          else
+            echo "type=amd64" | tee -a "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Determine Docker Build Cache
+        id: docker_cache
+        shell: bash
+        env:
+          HAVE_GHCR_LOGIN: ${{ needs.mbuild_vars.outputs.have_ghcr_login }}
+          HAVE_LOCAL_REGISTRY: ${{ needs.mbuild_vars.outputs.have_local_registry }}
+          LOCAL_REGISTRY: ${{ secrets.LOCAL_REGISTRY }}
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
+        run: |
+          #
+          function github_output () {
+            echo -e "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
+          }
+
+          #
+          # Check if we are running this via act or not and determine the caching method
+          if [[ "${HAVE_GHCR_LOGIN}" = true ]]; then
+            github_output "cache_from" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}-ubuntu-base"
+            github_output "cache_to" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}-ubuntu-base,compression=zstd,compression-level=9,force-compression=true,mode=max"
+          elif [[ "${HAVE_LOCAL_REGISTRY}" = true ]]; then
+            github_output "cache_from" "type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:${ARCH_TYPE}-ubuntu-base"
+            github_output "cache_to" "type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:${ARCH_TYPE}-ubuntu-base,compression=zstd,compression-level=9,force-compression=true,mode=max"
+          else
+            github_output "cache_from" ""
+            github_output "cache_to" ""
+          fi
+          #
+
+      - name: Create known_hosts file
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        shell: bash
+        env:
+          BUILDKIT_KNOWN_HOSTS: ${{ secrets.BUILDKIT_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${BUILDKIT_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+
+      - name: Load ssh-agent for Remote BuildKit
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd # v0.9.1
+        with:
+            ssh-private-key: ${{ secrets.BUILDKIT_SSH }}
+
+      # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
+      # This uses SSH to connect to the remote/local BuildKit tooling
+      - name: Setup Docker Buildx (act)
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
+        with:
+          use: true
+          install: true
+          name: act-multiarch
+          driver: docker-container
+          cache-binary: false
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+          platforms: linux/amd64
+          append: |
+            - endpoint: ${{ needs.mbuild_vars.outputs.docker_host_arm64 }}
+              platforms: linux/arm64
+              driver-opts:
+                - network=host
+              buildkitd-config-inline: |
+                [registry."docker.io"]
+                  mirrors = ["mirror.gcr.io"]
+                [worker.oci]
+                  max-parallelism = 3
+
+      - name: Setup Docker Buildx
+        if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'false' }}
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
+        with:
+          driver: docker-container
+          cache-binary: false
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+
+      - name: Login to ghcr.io
+        if: ${{ needs.mbuild_vars.outputs.have_ghcr_login == 'true' }}
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Repo
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
+        with:
+          persist-credentials: false
+
+      - name: Docker Build - Rust Current Stable
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        env:
+          BUILDKIT_PROGRESS: plain
+        with:
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          context: .
+          push: false
+          # Only build the Ubuntu Base target for caching
+          target: base
+          file: ./Dockerfile.musl-base
+          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-to: ${{ steps.docker_cache.outputs.cache_to }}
+
+  # ###
   # Building the final MUSL Based images including the rust toolchain.
   musl_base:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     name: Build MUSL Base Image - ${{ matrix.image_tag }} - ${{ matrix.os }}
     needs:
       - mbuild_vars
+      - ubuntu_base
     runs-on: ${{ matrix.os }}
     permissions:
       packages: write
@@ -367,39 +529,43 @@ jobs:
           use: true
           install: true
           name: act-multiarch
+          driver: docker-container
           cache-binary: false
           buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
             [worker.oci]
               max-parallelism = 3
           driver-opts: |
             network=host
             default-load=true
-          endpoint: ${{ secrets.BUILDKIT_AMD64 }}
           platforms: linux/amd64
           append: |
-            - endpoint: ${{ secrets.BUILDKIT_ARM64 }}
+            - endpoint: ${{ needs.mbuild_vars.outputs.docker_host_arm64 }}
               platforms: linux/arm64
+              driver-opts:
+                - network=host
+                - default-load=true
+              buildkitd-config-inline: |
+                [registry."docker.io"]
+                  mirrors = ["mirror.gcr.io"]
+                [worker.oci]
+                  max-parallelism = 3
 
       - name: Setup Docker Buildx
         if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'false' }}
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
         with:
-          # When using `act`, use the `docker` driver to use local 'docker build' cache
-          driver: ${{ github.event.act && 'docker' || 'docker-container' }}
+          driver: docker-container
           cache-binary: false
           buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
             [worker.oci]
               max-parallelism = 3
           driver-opts: |
             network=host
-
-      - name: "[act] Start local registry"
-        if: ${{ github.event.act }}
-        shell: bash
-        run: |
-          # Start a local docker registry
-          docker run -d --name act-registry --network host registry:3 || \
-          docker start act-registry || true
+            default-load=true
 
       - name: Login to DockerHub
         if: ${{ needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}
@@ -429,19 +595,24 @@ jobs:
         shell: bash
         env:
           HAVE_GHCR_LOGIN: ${{ needs.mbuild_vars.outputs.have_ghcr_login }}
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          HAVE_LOCAL_REGISTRY: ${{ needs.mbuild_vars.outputs.have_local_registry }}
+          LOCAL_REGISTRY: ${{ secrets.LOCAL_REGISTRY }}
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
           #
           function github_output () {
-            echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
+            echo -e "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
           }
 
           #
           # Check if we are running this via act or not and determine the caching method
           if [[ "${HAVE_GHCR_LOGIN}" = true ]]; then
-            github_output "cache_from" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}${IMAGE_TAG}"
-            github_output "cache_to" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}${IMAGE_TAG},compression=zstd,compression-level=9,force-compression=true,mode=max"
+            github_output "cache_from" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}-${IMAGE_TAG}"
+            github_output "cache_to" "type=registry,ref=ghcr.io/blackdex/rust-musl-buildcache:${ARCH_TYPE}-${IMAGE_TAG},compression=zstd,compression-level=9,force-compression=true,mode=max"
+          elif [[ "${HAVE_LOCAL_REGISTRY}" = true ]]; then
+            github_output "cache_from" "type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:${ARCH_TYPE}-${IMAGE_TAG}"
+            github_output "cache_to" "type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:${ARCH_TYPE}-${IMAGE_TAG},compression=zstd,compression-level=9,force-compression=true,mode=max"
           else
             github_output "cache_from" ""
             github_output "cache_to" ""
@@ -451,7 +622,7 @@ jobs:
       - name: Generate arch container tags
         id: arch_tags
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           REGISTRIES: ${{ needs.mbuild_vars.outputs.registry_list }}
           STABLE_VERSION: ${{ needs.mbuild_vars.outputs.stable_version }}
           VW_VERSION: ${{ needs.mbuild_vars.outputs.vaultwarden_version }}
@@ -465,15 +636,15 @@ jobs:
             for registry in ${REGISTRIES}; do
               #
               # Stable
-              arch_tags_stable+="${registry}/blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-stable-${STABLE_VERSION},"
+              arch_tags_stable+="${registry}/blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-stable-${STABLE_VERSION},"
 
               #
               # Vaultwarden Stable
-              arch_tags_stable_vw+="${registry}/blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-stable-${VW_VERSION},"
+              arch_tags_stable_vw+="${registry}/blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-stable-${VW_VERSION},"
 
               #
               # Nightly
-              arch_tags_nightly+="${registry}/blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-${NIGHTLY_DATE},"
+              arch_tags_nightly+="${registry}/blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-nightly-${NIGHTLY_DATE},"
             done
 
             echo ""
@@ -510,7 +681,9 @@ jobs:
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.mbuild_vars.outputs.stable_hash }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-test
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image (PQ18) - Rust Current Stable
@@ -518,10 +691,11 @@ jobs:
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          QEMU_CPU: ${{ (github.event.act && endsWith(matrix.os, '-arm')) && 'max,pauth-impdef=on' || '' }}
         run: |
           # Run the test
           docker run --rm \
@@ -529,21 +703,25 @@ jobs:
             -v cargo-cache-${IMAGE_TAG}:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU="${QEMU_CPU}" \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ17) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -553,18 +731,21 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ16) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -572,19 +753,23 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq16/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ15) - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -594,7 +779,7 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Current Stable
         id: push_stable
@@ -616,7 +801,9 @@ jobs:
             RUST_CHANNEL=stable
             RUSTC_HASH=${{ needs.mbuild_vars.outputs.stable_hash }}
           tags: ${{ steps.arch_tags.outputs.stable }}
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Export Digest - Rust Current Stable
@@ -685,7 +872,9 @@ jobs:
             IMAGE_TAG=${{ matrix.image_tag }}
             RUST_CHANNEL=${{ needs.mbuild_vars.outputs.vaultwarden_version }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-vw-test
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image (PQ18) - Rust Vaultwarden Stable
@@ -693,10 +882,11 @@ jobs:
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          QEMU_CPU: ${{ (github.event.act && endsWith(matrix.os, '-arm')) && 'max,pauth-impdef=on' || '' }}
         run: |
           # Run the test
           docker run --rm \
@@ -704,21 +894,25 @@ jobs:
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU="${QEMU_CPU}" \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ17) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -728,18 +922,21 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ16) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -747,19 +944,23 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq16/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ15) - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -769,7 +970,7 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-vw-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Vaultwarden Stable
         id: push_vw_stable
@@ -790,7 +991,9 @@ jobs:
             IMAGE_TAG=${{ matrix.image_tag }}
             RUST_CHANNEL=${{ needs.mbuild_vars.outputs.vaultwarden_version }}
           tags: ${{ steps.arch_tags.outputs.stable_vw }}
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Export Digest - Rust Vaultwarden Stable
@@ -857,16 +1060,19 @@ jobs:
             IMAGE_TAG=${{ matrix.image_tag }}
             RUST_CHANNEL=nightly-${{ needs.mbuild_vars.outputs.nightly_date }}
           tags: blackdex/rust-musl:${{ steps.arch.outputs.type }}-${{ matrix.image_tag }}-nightly-test
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Test Docker Image (PQ18) - Rust Nightly
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          QEMU_CPU: ${{ (github.event.act && endsWith(matrix.os, '-arm')) && 'max,pauth-impdef=on' || '' }}
         run: |
           # Run the test
           docker run --rm \
@@ -874,19 +1080,23 @@ jobs:
             -v cargo-cache:/root/.cargo/registry \
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+            -e QEMU_CPU="${QEMU_CPU}" \
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq18/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ17) - Rust Nightly
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -896,16 +1106,19 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq17/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ16) - Rust Nightly
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -913,17 +1126,21 @@ jobs:
             -v "$(pwd)/test/multicrate":/home/rust/src \
             --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
             -e RUST_BACKTRACE=full \
+            -e PQ_LIB_DIR="/usr/local/musl/pq16/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Test Docker Image (PQ15) - Rust Nightly
         shell: bash
         env:
-          ARCH_TYPE: "${{ steps.arch.outputs.type }}-"
+          ARCH_TYPE: ${{ steps.arch.outputs.type }}
           IMAGE_TAG: ${{ matrix.image_tag }}
           XTRA_RUSTFLAGS: ${{ matrix.xtra_rustflags }}
           PLATFORM: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
         run: |
+          # Skip Docker run tests for arm64 based images via act to speedup testing
+          if [[ "${ACT}" = true ]] && [[ "${PLATFORM}" = "linux/arm64" ]]; then exit 0; fi
+
           # Run the test
           docker run --rm \
             --platform "${PLATFORM}" \
@@ -933,7 +1150,7 @@ jobs:
             -e RUST_BACKTRACE=full \
             -e PQ_LIB_DIR="/usr/local/musl/pq15/lib" \
             -e RUSTFLAGS="${XTRA_RUSTFLAGS}-Clink-arg=-s" \
-            blackdex/rust-musl:${ARCH_TYPE}${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
+            blackdex/rust-musl:${ARCH_TYPE}-${IMAGE_TAG}-nightly-test bash -c 'rm -vf Cargo.lock ; cargo -Vv ; rustc -Vv ; cargo update ; cargo build --release'
 
       - name: Docker Push - Rust Nightly
         id: push_nightly
@@ -952,7 +1169,9 @@ jobs:
             IMAGE_TAG=${{ matrix.image_tag }}
             RUST_CHANNEL=nightly-${{ needs.mbuild_vars.outputs.nightly_date }}
           tags: ${{ steps.arch_tags.outputs.nightly }}
-          cache-from: ${{ steps.docker_cache.outputs.cache_from }}
+          cache-from: |
+            ${{ needs.ubuntu_base.outputs.cache_from }}
+            ${{ steps.docker_cache.outputs.cache_from }}
           cache-to: ${{ steps.docker_cache.outputs.cache_to }}
 
       - name: Export Digest - Rust Nightly
@@ -1103,39 +1322,43 @@ jobs:
           use: true
           install: true
           name: act-multiarch
+          driver: docker-container
           cache-binary: false
           buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
             [worker.oci]
               max-parallelism = 3
           driver-opts: |
             network=host
             default-load=true
-          endpoint: ${{ secrets.BUILDKIT_AMD64 }}
           platforms: linux/amd64
           append: |
-            - endpoint: ${{ secrets.BUILDKIT_ARM64 }}
+            - endpoint: ${{ needs.mbuild_vars.outputs.docker_host_arm64 }}
               platforms: linux/arm64
+              driver-opts:
+                - network=host
+                - default-load=true
+              buildkitd-config-inline: |
+                [registry."docker.io"]
+                  mirrors = ["mirror.gcr.io"]
+                [worker.oci]
+                  max-parallelism = 3
 
       - name: Setup Docker Buildx
         if: ${{ needs.mbuild_vars.outputs.have_buildkit_ssh == 'false' }}
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
         with:
-          # When using `act`, use the `docker` driver to use local 'docker build' cache
-          driver: ${{ github.event.act && 'docker' || 'docker-container' }}
+          driver: docker-container
           cache-binary: false
           buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
             [worker.oci]
               max-parallelism = 3
           driver-opts: |
             network=host
-
-      - name: "[act] Start local registry"
-        if: ${{ github.event.act }}
-        shell: bash
-        run: |
-          # Start a local docker registry
-          docker run -d --name act-registry --network host registry:3 || \
-          docker start act-registry || true
+            default-load=true
 
       - name: Login to DockerHub
         if: ${{ needs.mbuild_vars.outputs.have_dockerhub_login == 'true' }}

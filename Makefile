@@ -1,6 +1,12 @@
 SHELL := bash
 .SHELLFLAGS := -eo pipefail -c
 
+# Load .env variables if the file exists
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 # We need buildx support for our Dockerfile's
 export DOCKER_BUILDKIT=1
 
