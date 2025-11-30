@@ -32,6 +32,9 @@ HEADERS = {
     'Sec-Ch-Ua': "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
 }
 
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
+
 def convert_sqlite_version(ver: str):
     """Convert SQLite package versions to match upstream's format
 
@@ -56,9 +59,7 @@ def pkgver(package: str):
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
     url = f'https://www.archlinux.org/packages/search/json/?name={package}'
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    with session.get(url, stream=True) as res:
+    with SESSION.get(url, stream=False, timeout=(2, 3)) as res:
         metadata = res.json()
 
 
@@ -77,9 +78,7 @@ def aurver(package: str):
     """
 
     url = f'https://aur.archlinux.org/rpc/?v=5&type=info&arg[]={package}'
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    with session.get(url, stream=True) as res:
+    with SESSION.get(url, stream=False, timeout=(2, 3)) as res:
         metadata = res.json()
 
     try:
@@ -97,10 +96,24 @@ def alpinever(package: str):
 
     try:
         url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD'
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        with session.get(url, stream=True) as res:
-            apkbuild = res.text[:1024]
+        max_bytes = 1024
+        chunks: list[str] = []
+        seen = 0
+
+        with SESSION.get(url, stream=True, timeout=(2, 3)) as res:
+            res.raise_for_status()
+            if not res.encoding:
+                res.encoding = 'utf-8'
+
+            for chunk in res.iter_content(chunk_size=max_bytes, decode_unicode=True):
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                seen += len(chunk)
+                if seen >= max_bytes:
+                    break
+
+            apkbuild = ''.join(chunks)[:max_bytes]
 
         matches = re.search(r'pkgver=(.*)\n', apkbuild, re.MULTILINE)
         return f'{matches.group(1)}'
@@ -121,10 +134,25 @@ def mirrorver(site: str, href_prefix: str, strip_prefix: str | None = None, re_p
     try:
         cache_key = f'cached_data_{site}'
         if not hasattr(mirrorver, cache_key):
-            session = requests.Session()
-            session.headers.update(HEADERS)
-            with session.get(site, stream=True) as res:
-                setattr(mirrorver, cache_key, res.text[:20480])
+            max_bytes = 20480
+            chunks: list[str] = []
+            seen = 0
+
+            with SESSION.get(site, stream=True, timeout=(2, 3)) as res:
+                res.raise_for_status()
+                if not res.encoding:
+                    res.encoding = 'utf-8'
+
+                for chunk in res.iter_content(chunk_size=4096, decode_unicode=True):
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    seen += len(chunk)
+                    if seen >= max_bytes:
+                        break
+
+                site_data = ''.join(chunks)[:max_bytes]
+                setattr(mirrorver, cache_key, site_data)
 
         site_html = getattr(mirrorver, cache_key)
         matches_raw = re.findall(fr'href=\"({href_prefix}.*?){re_postfix}', site_html, re.MULTILINE)
@@ -154,9 +182,7 @@ def githubver(repo: str, version_filter: str = r'.*', strip_prefix: str | None =
         url = f'https://api.github.com/repos/{repo}/tags?per_page=50'
         cache_key = f'cached_data_{url}'
         if not hasattr(githubver, cache_key):
-            session = requests.Session()
-            session.headers.update(HEADERS)
-            with session.get(url, stream=True) as res:
+            with SESSION.get(url, stream=False, timeout=(2, 3)) as res:
                 setattr(githubver, cache_key, res.json())
 
         metadata = getattr(githubver, cache_key)
@@ -180,9 +206,7 @@ def rustup_version():
     '1.27.1'
     """
 
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    with session.get('https://static.rust-lang.org/rustup/release-stable.toml', stream=True) as res:
+    with SESSION.get('https://static.rust-lang.org/rustup/release-stable.toml', stream=False, timeout=(2, 3)) as res:
         metadata = toml.loads(res.text)
 
     return metadata['version']
@@ -195,9 +219,7 @@ def libxml2ver(site: str):
     '2.12.7'
     """
 
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    with session.get(site, stream=True) as res:
+    with SESSION.get(site, stream=False, timeout=(2, 3)) as res:
         metadata = res.json()
 
     try:

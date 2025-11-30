@@ -555,7 +555,7 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.51.0"
+ARG SQLITE_VER="3.51.1"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
@@ -646,7 +646,7 @@ EOF
 # Building MariaDB
 FROM build AS build-mariadb
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG MARIADB_VER="3.4.7"
+ARG MARIADB_VER="3.4.8"
 WORKDIR /tmp/mariadb
 RUN <<EOF
     echo "MariaDB Connector/C"

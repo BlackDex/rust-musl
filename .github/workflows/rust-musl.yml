@@ -24,6 +24,10 @@ on:
   schedule:
     - cron: '30 9 * * *' # everyday at 09:30 UTC
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 ## ##
 ## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
 ## Full run no/different rustc_hash: (This triggers a fresh stable, since the rustc_hash is not available)
@@ -316,7 +320,7 @@ jobs:
       - mbuild_vars
     runs-on: ${{ matrix.os }}
     permissions:
-      packages: write
+      packages: write # Allow pushing images to ghcr.io
       contents: read
     strategy:
       fail-fast: false
@@ -435,7 +439,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout Repo
-        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
 
@@ -463,10 +467,10 @@ jobs:
       - ubuntu_base
     runs-on: ${{ matrix.os }}
     permissions:
-      packages: write
+      packages: write # Allow pushing images to ghcr.io
       contents: read
-      attestations: write
-      id-token: write
+      attestations: write # Allow generating attestations on the container images
+      id-token: write # Allow generating attestations on the container images
     strategy:
       fail-fast: false
       matrix:
@@ -654,7 +658,7 @@ jobs:
             echo "nightly=${arch_tags_nightly%,}" | tee -a "${GITHUB_OUTPUT}"
 
       - name: Checkout Repo
-        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
 
@@ -1225,10 +1229,10 @@ jobs:
     name: Merge Toolchain Container - ${{ matrix.image_tag }}
     runs-on: ubuntu-24.04
     permissions:
-      packages: write
+      packages: write # Allow pushing images to ghcr.io
       contents: read
-      attestations: write
-      id-token: write
+      attestations: write # Allow generating attestations on the container images
+      id-token: write # Allow generating attestations on the container images
     needs:
       - mbuild_vars
       - musl_base
