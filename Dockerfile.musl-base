@@ -221,7 +221,7 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.17.0"
+ARG CURL_VER="8.18.0"
 RUN <<EOF
     echo "libcurl"
 

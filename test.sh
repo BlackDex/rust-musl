@@ -139,6 +139,10 @@ if [[ -n "${FEATURES}" ]]; then
   CARGO_ARG+=" --features ${FEATURES}"
 fi
 
+if [[ -n "${XTRA_ARG}" ]]; then
+  CARGO_ARG+=" ${XTRA_ARG}"
+fi
+
 if [[ -z "${RUST_CHANNEL}" ]]; then
   RUST_CHANNEL="stable"
 fi
