@@ -25,7 +25,6 @@ jobs:
         with:
           package: rust-musl-buildcache
           dry-run: ${{ inputs.dry_run }}
-          delete-orphaned-images: true
           older-than: ${{ inputs.older_than }}
 
       # - name: Delete orphaned
