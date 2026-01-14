@@ -10,10 +10,9 @@ on:
         type: boolean
         default: true
       older_than:
-        description: "Delete older then n days"
+        description: "Delete older then n"
         required: true
-        type: number
-        default: 7
+        default: "7 days"
 
 jobs:
   cleanup:
@@ -27,7 +26,7 @@ jobs:
           package: rust-musl-buildcache
           dry-run: ${{ inputs.dry_run }}
           delete-orphaned-images: true
-          older-than: ${{ inputs.older_than }} days
+          older-than: ${{ inputs.older_than }}
 
       # - name: Delete orphaned
       #   uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
