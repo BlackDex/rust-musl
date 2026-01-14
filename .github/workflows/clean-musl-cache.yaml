@@ -1,0 +1,37 @@
+name: Cleanup MUSL Cache
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Do a dry-run"
+        required: true
+        type: boolean
+        default: true
+      older_than:
+        description: "Delete older then n days"
+        required: true
+        type: number
+        default: 7
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+          packages: write
+    steps:
+      - name: Delete older-than
+        uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
+        with:
+          package: rust-musl-buildcache
+          dry-run: ${{ inputs.dry_run }}
+          delete-orphaned-images: true
+          older-than: ${{ inputs.older_than }} days
+
+      # - name: Delete orphaned
+      #   uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
+      #   with:
+      #     package: rust-musl-buildcache
+      #     dry-run: ${{ inputs.dry_run }}
+      #     delete-orphaned-images: true
