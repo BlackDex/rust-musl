@@ -1,4 +1,4 @@
-name: Cleanup MUSL Cache
+name: Cleanup Build Cache
 permissions: {}
 
 on:
@@ -12,24 +12,29 @@ on:
       older_than:
         description: "Delete older then n"
         required: true
-        default: "7 days"
+        default: "30 days"
+
+  schedule:
+    - cron: "0 1 * * FRI"
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     permissions:
-          packages: write
+      packages: write
     steps:
-      - name: Delete older-than
+      - name: Delete older than (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
         with:
           package: rust-musl-buildcache
           dry-run: ${{ inputs.dry_run }}
           older-than: ${{ inputs.older_than }}
 
-      # - name: Delete orphaned
-      #   uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
-      #   with:
-      #     package: rust-musl-buildcache
-      #     dry-run: ${{ inputs.dry_run }}
-      #     delete-orphaned-images: true
+      - name: Delete older than 30 days (Scheduled)
+        if: ${{ github.event_name == 'schedule' }}
+        uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
+        with:
+          package: rust-musl-buildcache
+          dry-run: false
+          older-than: 30 days

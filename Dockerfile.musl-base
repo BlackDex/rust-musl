@@ -279,7 +279,7 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.12.0"
+ARG SCCACHE_VER="0.13.0"
 RUN <<EOF
     HOST_ARCH="$(uname -m)"
     ASSET_NAME="sccache-v${SCCACHE_VER}-${HOST_ARCH}-unknown-linux-musl"
@@ -555,7 +555,7 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.51.1"
+ARG SQLITE_VER="3.51.2"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
