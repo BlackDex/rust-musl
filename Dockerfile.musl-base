@@ -561,7 +561,7 @@ RUN <<EOF
     echo "SQLite3"
 
     SQL_ID="$(echo -n "${SQLITE_VER}" | xargs -d '.' printf '%d%02d%02d00')"
-    ${CURL_CMD} "https://www.sqlite.org/2025/sqlite-autoconf-${SQL_ID}.tar.gz" | tar xz --strip-components=1
+    ${CURL_CMD} "https://www.sqlite.org/2026/sqlite-autoconf-${SQL_ID}.tar.gz" | tar xz --strip-components=1
 
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
