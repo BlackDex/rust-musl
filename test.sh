@@ -32,7 +32,7 @@ docker_build() {
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
   ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec --file="target/${target}/${RELTYPE}/${crate}"
+  checksec file "target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -61,7 +61,7 @@ docker_build_armv7() {
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
   ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec --file="target/${target}/${RELTYPE}/${crate}"
+  checksec file "target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -89,7 +89,7 @@ docker_build_aarch64() {
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
   ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec --file="target/${target}/${RELTYPE}/${crate}"
+  checksec file "target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }
@@ -117,7 +117,7 @@ docker_build_arm() {
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
   ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec --file="target/${target}/${RELTYPE}/${crate}"
+  checksec file "target/${target}/${RELTYPE}/${crate}"
   set +x
   exit 0
 }

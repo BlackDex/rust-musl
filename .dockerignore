@@ -1,27 +1,6 @@
-# Directories
-**/target/
-mak/
-test/
-.vscode/
-.github/
-./.artifacts/
+// Ignore everything
+*
 
-# git
-.git**
-
-# Files
-*.md
-*.py
-*.sh
-*.txt
-LICENSE
-.dockerignore
-Dockerfile**
-Makefile**
-render_template
-**/Cargo.lock
-Cargo.lock
-.actrc
-.hadolint.yaml
-.secrets
-.env
+// Allow what is needed
+!patches/
+!config.mak

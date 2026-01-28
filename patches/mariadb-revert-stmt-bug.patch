@@ -1,0 +1,89 @@
+From 28a1e4b5994f842aa722f9c91969513d3e047e51 Mon Sep 17 00:00:00 2001
+From: Georg Richter <georg@mariadb.com>
+Date: Mon, 31 Mar 2025 11:02:35 +0200
+Subject: [PATCH] Fix for CONC-762: Always set is_null and length in bind
+ structure to avoid msan errors
+
+---
+ libmariadb/mariadb_stmt.c     |  6 +++++
+ unittest/libmariadb/ps_bugs.c | 41 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)
+
+diff --git a/libmariadb/mariadb_stmt.c b/libmariadb/mariadb_stmt.c
+index 07cf6b16d..1c4914f70 100644
+--- a/libmariadb/mariadb_stmt.c
++++ b/libmariadb/mariadb_stmt.c
+@@ -414,6 +414,9 @@ int mthd_stmt_fetch_to_bind(MYSQL_STMT *stmt, unsigned char *row)
+           stmt->bind[i].is_null= &stmt->bind[i].is_null_value;
+         *stmt->bind[i].is_null= 1;
+         stmt->bind[i].u.row_ptr= NULL;
++        if (!stmt->bind[i].length)
++          stmt->bind[i].length= &stmt->bind[i].length_value;
++        *stmt->bind[i].length= stmt->bind[i].length_value= 0;
+       }
+     } else
+     {
+@@ -426,6 +429,9 @@ int mthd_stmt_fetch_to_bind(MYSQL_STMT *stmt, unsigned char *row)
+         if (stmt->result_callback)
+           stmt->result_callback(stmt->user_data, i, &row);
+         else {
++          if (!stmt->bind[i].is_null)
++            stmt->bind[i].is_null= &stmt->bind[i].is_null_value;
++          *stmt->bind[i].is_null= 0;
+           if (mysql_ps_fetch_functions[stmt->fields[i].type].pack_len >= 0)
+             length= mysql_ps_fetch_functions[stmt->fields[i].type].pack_len;
+           else
+diff --git a/unittest/libmariadb/ps_bugs.c b/unittest/libmariadb/ps_bugs.c
+index 0e3202d7f..e6b46a890 100644
+--- a/unittest/libmariadb/ps_bugs.c
++++ b/unittest/libmariadb/ps_bugs.c
+@@ -5666,8 +5666,49 @@ static int test_conc176(MYSQL *mysql)
+   return OK;
+ }
+ 
++static int test_conc762(MYSQL *mysql)
++{
++  int rc;
++  MYSQL_STMT *stmt= mysql_stmt_init(mysql);
++  MYSQL_BIND bind[2];
++  my_bool is_null[2]= {1,1};
++  unsigned long length[2]= {1,1};
++
++  rc= mysql_stmt_prepare(stmt, SL("SELECT NULL, 'foo'"));
++  check_stmt_rc(rc, stmt);
++
++  memset(&bind, 0, sizeof(MYSQL_BIND) * 2);
++
++  bind[0].buffer_type = MYSQL_TYPE_STRING;
++  bind[1].buffer_type = MYSQL_TYPE_STRING;
++  bind[0].is_null= &is_null[0];
++  bind[1].is_null= &is_null[1];
++  bind[0].buffer_length= bind[1].buffer_length= 0;
++  bind[0].length= &length[0];
++  bind[1].length= &length[1];
++
++  rc= mysql_stmt_execute(stmt);
++  check_stmt_rc(rc, stmt);
++
++  rc= mysql_stmt_bind_result(stmt, bind);
++
++  mysql_stmt_fetch(stmt);
++  FAIL_IF(is_null[0]==0, "Expected NULL value");
++  FAIL_IF(is_null[1]==1, "Expected non NULL value");
++  FAIL_IF(length[0]!=0, "Expected length=0");
++  FAIL_IF(length[1]!=3, "Expected length=3");
++
++//  FAIL_IF(length[0] != 0, "Expected length=0");
++  
++//FAIL_IF(length[1] != 3, "Expected length=3)";
++
++  mysql_stmt_close(stmt);
++  return OK;
++}
++
+ 
+ struct my_tests_st my_tests[] = {
++  {"test_conc762", test_conc762, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
+   {"test_conc176", test_conc176, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
+   {"test_conc739", test_conc739, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
+   {"test_conc633", test_conc633, TEST_CONNECTION_DEFAULT, 0, NULL, NULL},
