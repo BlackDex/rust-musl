@@ -153,7 +153,7 @@ RUN <<EOF
 EOF
 
 # Build OpenSSL (used in curl, pq and mariadb)
-ARG SSL_VER="3.5.4"
+ARG SSL_VER="3.5.5"
 RUN <<EOF
     echo "OpenSSL"
 
