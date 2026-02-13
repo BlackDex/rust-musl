@@ -279,7 +279,7 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.13.0"
+ARG SCCACHE_VER="0.14.0"
 RUN <<EOF
     HOST_ARCH="$(uname -m)"
     ASSET_NAME="sccache-v${SCCACHE_VER}-${HOST_ARCH}-unknown-linux-musl"
@@ -290,7 +290,7 @@ EOF
 # Build libpq v15
 FROM build AS build-pq15
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_15_VER="15.15"
+ARG PQ_15_VER="15.16"
 WORKDIR /tmp/pq15
 RUN <<EOF
     echo "PostgreSQL v15"
@@ -356,7 +356,7 @@ EOF
 # Build libpq v16
 FROM build AS build-pq16
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_16_VER="16.11"
+ARG PQ_16_VER="16.12"
 WORKDIR /tmp/pq16
 RUN <<EOF
     echo "PostgreSQL v16"
@@ -423,7 +423,7 @@ EOF
 # Build libpq v17
 FROM build AS build-pq17
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_17_VER="17.7"
+ARG PQ_17_VER="17.8"
 WORKDIR /tmp/pq17
 RUN <<EOF
     echo "PostgreSQL v17"
@@ -489,7 +489,7 @@ EOF
 # Build libpq v18
 FROM build AS build-pq18
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_18_VER="18.1"
+ARG PQ_18_VER="18.2"
 WORKDIR /tmp/pq18
 RUN <<EOF
     echo "PostgreSQL v18"
