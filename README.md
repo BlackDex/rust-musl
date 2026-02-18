@@ -19,7 +19,7 @@ And since 2025-02-15 all images are available for amd64 and arm64 platforms.
 > Updated musl-cross-make and use gcc v14.3.0 and binutils v2.44
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* ZLib (`v1.3.1`)
+* ZLib (`v1.3.2`)
 * OpenSSL (`v3.5.5`)
 * cURL (`v8.18.0`)
 * sccache (`0.14.0`)

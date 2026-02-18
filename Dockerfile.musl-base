@@ -126,7 +126,7 @@ RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src && \
     ln -sfrn "${SYSROOT}" "/${TARGET}"
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
-ARG ZLIB_VER="1.3.1"
+ARG ZLIB_VER="1.3.2"
 RUN <<EOF
     echo "zlib"
 
