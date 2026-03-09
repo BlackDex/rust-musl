@@ -555,7 +555,7 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.51.2"
+ARG SQLITE_VER="3.52.0"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
@@ -749,7 +749,7 @@ EOF
 
 FROM build AS build-libxml2
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG LIBXML2_VER="2.15.1"
+ARG LIBXML2_VER="2.15.2"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
