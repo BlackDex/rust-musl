@@ -555,7 +555,7 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.52.0"
+ARG SQLITE_VER="3.53.0"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
