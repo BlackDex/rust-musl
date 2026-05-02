@@ -224,7 +224,7 @@ jobs:
           fi
 
       - name: Cache previous rustc stable hash
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         if: ${{ !github.event.act }}
         with:
           path: ~/rustc-stable.hash
@@ -444,7 +444,7 @@ jobs:
           persist-credentials: false
 
       - name: Docker Build - Rust Current Stable
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -667,7 +667,7 @@ jobs:
       - name: Docker Build - Rust Current Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -789,7 +789,7 @@ jobs:
         id: push_stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger }}
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -823,7 +823,7 @@ jobs:
 
       - name: Upload digest - Rust Current Stable
         if: ${{ steps.push_stable.outputs.digest != '' }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digests-stable-${{ matrix.image_tag }}-${{ steps.arch.outputs.type }}
           path: ${{ runner.temp }}/digests-stable-${{ matrix.image_tag }}/*
@@ -859,7 +859,7 @@ jobs:
       - name: Docker Build - Rust Vaultwarden Stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -980,7 +980,7 @@ jobs:
         id: push_vw_stable
         # Skip during nightly builds
         if: ${{ needs.mbuild_vars.outputs.stable_version != needs.mbuild_vars.outputs.vaultwarden_version && (needs.mbuild_vars.outputs.stable_trigger || !needs.mbuild_vars.outputs.nightly_trigger) }}
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -1013,7 +1013,7 @@ jobs:
 
       - name: Upload digest - Rust Vaultwarden Stable
         if: ${{ steps.push_vw_stable.outputs.digest != '' }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digests-vw-${{ matrix.image_tag }}-${{ steps.arch.outputs.type }}
           path: ${{ runner.temp }}/digests-vw-${{ matrix.image_tag }}/*
@@ -1047,7 +1047,7 @@ jobs:
       # ###
       # Rust Nightly
       - name: Docker Build - Rust Nightly
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -1158,7 +1158,7 @@ jobs:
 
       - name: Docker Push - Rust Nightly
         id: push_nightly
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         env:
           BUILDKIT_PROGRESS: plain
         with:
@@ -1191,7 +1191,7 @@ jobs:
 
       - name: Upload digest - Rust Nightly
         if: ${{ steps.push_nightly.outputs.digest != '' }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: digests-nightly-${{ matrix.image_tag }}-${{ steps.arch.outputs.type }}
           path: ${{ runner.temp }}/digests-nightly-${{ matrix.image_tag }}/*

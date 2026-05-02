@@ -221,7 +221,7 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.19.0"
+ARG CURL_VER="8.20.0"
 RUN <<EOF
     echo "libcurl"
 
@@ -279,7 +279,7 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.14.0"
+ARG SCCACHE_VER="0.15.0"
 RUN <<EOF
     HOST_ARCH="$(uname -m)"
     ASSET_NAME="sccache-v${SCCACHE_VER}-${HOST_ARCH}-unknown-linux-musl"
@@ -749,7 +749,7 @@ EOF
 
 FROM build AS build-libxml2
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG LIBXML2_VER="2.15.2"
+ARG LIBXML2_VER="2.15.3"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
