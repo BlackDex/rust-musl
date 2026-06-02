@@ -5,16 +5,49 @@ on:
   push:
     paths:
       - ".github/workflows/toolchain.yml"
-      - "Dockerfile.toolchain"
-      - "config.mak"
+      - "Dockerfile.crosstool"
+      - "cross-targets/**"
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # Finish running builds to tags and merging will be done correctly
+
+defaults:
+  run:
+    shell: bash
+
 ## ##
 ## To trigger this workflow using `act` (https://github.com/nektos/act) you can do the following.
-## Full run
+## Full run, both amd64 and arm64:
 ##   act push -j toolchain
+##
+## Run per architecture
+##   # amd64
+##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl
+##   # armv7
+##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:armv7-musleabihf
+##   # arm64
+##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:aarch64-musl
+##   # armv6
+##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:arm-musleabi
+##
+## If you want to build both amd64 and arm64 of a specific architecture, remove the os:ubuntu-24.04 matrix
+##   act push -j toolchain --matrix image_tag:x86_64-musl
+##
+## Or, if you want to build only arm64 of a specific architecture add os:ubuntu-24.04-arm
+##   act push -j toolchain --matrix os:ubuntu-24.04-arm --matrix image_tag:x86_64-musl
+##
+## If you want to use a local registry like `docker.io/registry:3`
+##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl --secret LOCAL_REGISTRY=localhost:5000
+##
 ## ##
+
+env:
+  BUILDKIT_PROGRESS: plain
+  DOCKER_BUILD_SUMMARY: ${{ !github.event.act }}
+  DOCKER_BUILD_RECORD_UPLOAD: ${{ !github.event.act }}
 
 jobs:
   # ###
@@ -23,20 +56,28 @@ jobs:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     name: Generate Build Variables
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     env:
-      HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
+      HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
+      HAVE_LOCAL_REGISTRY:  ${{ secrets.LOCAL_REGISTRY != '' }}
+      HAVE_BUILDKIT_SSH: ${{ secrets.BUILDKIT_PRIVATE_KEY != '' && secrets.BUILDKIT_ARM64_HOST  != '' && secrets.BUILDKIT_ARM64_USER  != '' }}
     outputs:
-      have_dockerhub_login: ${{ env.HAVE_DOCKERHUB_LOGIN }}
       have_ghcr_login: ${{ env.HAVE_GHCR_LOGIN }}
+      have_dockerhub_login: ${{ env.HAVE_DOCKERHUB_LOGIN }}
       have_quay_login: ${{ env.HAVE_QUAY_LOGIN }}
+      have_local_registry: ${{ env.HAVE_LOCAL_REGISTRY }}
+      have_buildkit_ssh: ${{ env.HAVE_BUILDKIT_SSH }}
+      docker_host_arm64: ${{ steps.registry.outputs.docker_host_arm64 }}
+
       tag_date: ${{ steps.date.outputs.tag }}
       registry_list: ${{ steps.registry.outputs.list }}
+      cache_ref: ${{ steps.registry.outputs.cache_ref }}
+      cache_opt: ${{ steps.registry.outputs.cache_opt }}
     steps:
       - name: Determine Container Date Tag
         id: date
-        shell: bash
         run: |
           # Get the current date
           echo "tag=$(date +'-%Y-%m-%d')" | tee -a "${GITHUB_OUTPUT}"
@@ -44,26 +85,168 @@ jobs:
       - name: Determine Container Registries
         id: registry
         env:
-          HAVE_DOCKERHUB_LOGIN: ${{ env.HAVE_DOCKERHUB_LOGIN }}
           HAVE_GHCR_LOGIN: ${{ env.HAVE_GHCR_LOGIN }}
+          HAVE_DOCKERHUB_LOGIN: ${{ env.HAVE_DOCKERHUB_LOGIN }}
           HAVE_QUAY_LOGIN: ${{ env.HAVE_QUAY_LOGIN }}
-          HAVE_LOCALHOST: ${{ github.event.act }}
-        shell: bash
+          HAVE_LOCAL_REGISTRY: ${{ env.HAVE_LOCAL_REGISTRY }}
+          LOCAL_REGISTRY: ${{ secrets.LOCAL_REGISTRY }}
+          HAVE_BUILDKIT_SSH: ${{ env.HAVE_BUILDKIT_SSH }}
+          BUILDKIT_ARM64_USER: ${{ secrets.BUILDKIT_ARM64_USER }}
+          BUILDKIT_ARM64_HOST: ${{ secrets.BUILDKIT_ARM64_HOST }}
+          CACHE_REGISTRY: >-
+            ${{ env.HAVE_GHCR_LOGIN == 'true' && 'ghcr.io'
+            || env.HAVE_LOCAL_REGISTRY == 'true' && secrets.LOCAL_REGISTRY
+            || '' }}
         run: |
+          function github_output () {
+            echo "${1}=${2}" | tee -a "${GITHUB_OUTPUT}"
+          }
+
           registries=""
-          if [[ "${HAVE_DOCKERHUB_LOGIN}" = true ]]; then
-            registries="${registries:+${registries} }docker.io"
-          fi
           if [[ "${HAVE_GHCR_LOGIN}" = true ]]; then
             registries="${registries:+${registries} }ghcr.io"
+          fi
+          if [[ "${HAVE_DOCKERHUB_LOGIN}" = true ]]; then
+            registries="${registries:+${registries} }docker.io"
           fi
           if [[ "${HAVE_QUAY_LOGIN}" = true ]]; then
             registries="${registries:+${registries} }quay.io"
           fi
-          if [[ "${HAVE_LOCALHOST}" = true ]]; then
-            registries="${registries:+${registries} }localhost:5000"
+          if [[ "${HAVE_LOCAL_REGISTRY}" = true ]]; then
+            registries="${registries:+${registries} }${LOCAL_REGISTRY}"
           fi
-          echo "list=${registries}" | tee -a "${GITHUB_OUTPUT}"
+          github_output "list" "${registries}"
+
+          # When testing via `act` and there is a special BuildKit host for arm64, generate the ssh:// host
+          if [[ "${HAVE_BUILDKIT_SSH}" = true ]]; then
+            github_output "docker_host_arm64" "ssh://${BUILDKIT_ARM64_USER}@${BUILDKIT_ARM64_HOST}"
+          else
+            github_output "docker_host_arm64" ""
+          fi
+
+          #
+          # Check if we are running this via act or not and determine the caching method
+          if [[ -z "${CACHE_REGISTRY}" ]]; then
+            github_output "cache_ref" ""
+            github_output "cache_opt" ""
+          else
+            github_output "cache_ref" "type=registry,ref=${CACHE_REGISTRY}/blackdex/musl-toolchain-buildcache:ubuntu-base"
+            github_output "cache_opt" "compression=zstd,compression-level=9,force-compression=true,mode=max"
+          fi
+          #
+
+  # ###
+  # Building Toolchain base for all targets which is the same
+  tbuild_base:
+    if: ${{ github.repository == 'BlackDex/rust-musl' }}
+    name: Cache Toolchain Base Image - ${{ matrix.os }}
+    needs:
+      - tbuild_vars
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      packages: write # Allow pushing images to ghcr.io
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+
+    steps:
+      - &arch
+        name: Arch Tag
+        id: arch
+        env:
+          MATRIX_OS: ${{ matrix.os }}
+        run: |
+          if [[ "${MATRIX_OS}" == *-arm ]]; then
+            echo "type=arm64" | tee -a "${GITHUB_OUTPUT}"
+          else
+            echo "type=amd64" | tee -a "${GITHUB_OUTPUT}"
+          fi
+
+      - &ssh-agent
+        name: Load ssh-agent for Remote BuildKit
+        if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: MrSquaare/ssh-setup-action@84a60849dca0e42e04b9b73f930036654e4672ab # v4.0.0
+        with:
+          host: ${{ secrets.BUILDKIT_ARM64_HOST }}
+          private-key: ${{ secrets.BUILDKIT_PRIVATE_KEY }}
+          private-key-name: buildkit_arm64_host
+
+      # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
+      # This uses SSH to connect to the remote/local BuildKit tooling
+      - &buildx-act
+        name: Setup Docker Buildx (act)
+        if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'true' }}
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        with:
+          use: true
+          name: act-multiarch-${{ steps.arch.outputs.type }}
+          driver: docker-container
+          cache-binary: false
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+          platforms: linux/amd64
+          append: |
+            - endpoint: ${{ needs.tbuild_vars.outputs.docker_host_arm64 }}
+              platforms: linux/arm64
+              driver-opts:
+                - network=host
+              buildkitd-config-inline: |
+                [registry."docker.io"]
+                  mirrors = ["mirror.gcr.io"]
+                [worker.oci]
+                  max-parallelism = 3
+
+      - &buildx
+        name: Setup Docker Buildx
+        if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'false' }}
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        with:
+          driver: docker-container
+          cache-binary: false
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+            [worker.oci]
+              max-parallelism = 3
+          driver-opts: |
+            network=host
+
+      - &ghcr-login
+        name: Login to ghcr.io
+        if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - &checkout
+        name: Checkout Repo
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Docker Build - Crosstool Base Toolchain
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          context: .
+          push: false
+          # Only build the Crosstool-NG base/source target for caching
+          target: source
+          file: ./Dockerfile.crosstool
+          cache-from: ${{ needs.tbuild_vars.outputs.cache_ref != '' && format('{0}-{1}', needs.tbuild_vars.outputs.cache_ref, steps.arch.outputs.type) || '' }}
+          cache-to: ${{ needs.tbuild_vars.outputs.cache_ref != '' && format('{0}-{1},{2}',  needs.tbuild_vars.outputs.cache_ref, steps.arch.outputs.type, needs.tbuild_vars.outputs.cache_opt) || '' }}
 
   # ###
   # Building Toolchain
@@ -72,25 +255,25 @@ jobs:
     name: Build Toolchain - ${{ matrix.image_tag }} - ${{ matrix.os }}
     needs:
       - tbuild_vars
+      - tbuild_base
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     permissions:
-      packages: write
+      packages: write # Allow pushing images to ghcr.io
       contents: read
+      attestations: write # Allow generating attestations on the container images
+      id-token: write # Allow generating attestations on the container images
     strategy:
-      max-parallel: ${{ github.event.act && 1 || 8 }}
+      fail-fast: false
       matrix:
-        act:
-          - ${{ github.event.act }}
         os:
           - ubuntu-24.04
-          - ${{ (github.event.act && github.event_name == 'qemu') && 'ubuntu-24.04-qemu-arm' || 'ubuntu-24.04-arm' }}
-        image_tag:
+          - ubuntu-24.04-arm
+        image_tag: &image_tag
           - x86_64-musl
           - aarch64-musl
           - armv7-musleabihf
           - arm-musleabi
-        # arch_common_config are based upon the `"COMMON_CONFIG +=` additions extracted
-        # from the MUSL Dockerfiles here: https://github.com/rust-embedded/cross/tree/master/docker
         include:
           - image_tag: x86_64-musl
             target: x86_64-unknown-linux-musl
@@ -98,83 +281,59 @@ jobs:
             target: aarch64-unknown-linux-musl
           - image_tag: armv7-musleabihf
             target: armv7-unknown-linux-musleabihf
-            arch_common_config: "--with-arch=armv7-a --with-float=hard --with-mode=thumb --with-fpu=vfp"
           - image_tag: arm-musleabi
             target: arm-unknown-linux-musleabi
-            arch_common_config: "--with-arch=armv6 --with-float=soft --with-mode=arm"
-        exclude:
-          - os: ubuntu-24.04-arm
-            act: true
     steps:
-      - name: "[act] Debug Matrix"
+      - &debug-matrix
+        name: "[act] Debug Matrix"
         if: ${{ github.event.act }}
-        shell: bash
         env:
+          BUILD_JSON: ${{ toJson(needs.tbuild_vars) }}
+          NEEDS_JSON: ${{ toJson(needs.toolchain) }}
           EVENT_NAME: ${{ github.event_name }}
           MATRIX_JSON: ${{ toJson(matrix) }}
-          NEEDS_JSON: ${{ toJson(needs)}}
           # GITHUB_JSON: ${{ toJson(github) }}
         run: |
+          echo ""
+          echo "# ##################### DEBUGGING #######################"
+          echo ""
           echo "event_name = ${EVENT_NAME}"
+          echo "build_json = ${BUILD_JSON}"
+          echo "needs_json = ${NEEDS_JSON}"
           echo ; echo "matrix = ${MATRIX_JSON}"
-          echo ; echo "needs = ${NEEDS_JSON}"
           # echo ; echo "github = ${GITHUB_JSON}"
+          echo ""
+          echo "# #######################################################"
+          echo ""
 
-      - name: Determine Arch Tag
-        id: arch
-        env:
-          MATRIX_OS: ${{ matrix.os }}
-        shell: bash
-        run: |
-          if [[ "${MATRIX_OS}" == *-arm ]]; then
-            echo "type=arm64-" | tee -a "${GITHUB_OUTPUT}"
-          else
-            echo "type=amd64-" | tee -a "${GITHUB_OUTPUT}"
-          fi
+      - *arch
 
-      - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-        with:
-          driver: docker-container
-          cache-binary: false
-          driver-opts: |
-            network=host
+      - *ssh-agent
+      - *buildx-act
 
-      - name: "[act] Start local registry"
-        if: ${{ github.event.act }}
-        shell: bash
-        run: |
-          # Start a local docker registry
-          docker run -d --name act-registry --network host registry:3 || \
-          docker start act-registry || true
+      - *buildx
 
-      - name: Login to DockerHub
+      - *ghcr-login
+
+      - &dockerhub-login
+        name: Login to DockerHub
         if: ${{ needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Login to ghcr.io
-        if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to quay.io
+      - &quay-login
+        name: Login to quay.io
         if: ${{ needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
 
-      - name: Generate Container Tags
-        continue-on-error: false
+      - name: Generate Arch Container Tags
         id: tags
-        shell: bash
         env:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
           ARCH_TYPE: ${{ steps.arch.outputs.type }}
@@ -184,8 +343,8 @@ jobs:
           tags=""
           for registry in ${REGISTRIES}; do
             echo "Generating tags for ${registry}:"
-            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${IMAGE_TAG}"
-            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}${IMAGE_TAG}${TAG_DATE}"
+            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}-${IMAGE_TAG}"
+            tags="${tags:+${tags},}${registry}/blackdex/musl-toolchain:${ARCH_TYPE}-${IMAGE_TAG}${TAG_DATE}"
           done
 
           if [[ "${tags}" = "" ]]; then
@@ -195,26 +354,48 @@ jobs:
 
           echo "tags=${tags}" | tee -a "${GITHUB_OUTPUT}"
 
-      - name: Checkout Repo
-        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
-        with:
-          persist-credentials: false
+      - *checkout
 
       - name: Docker Build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        env:
-          BUILDKIT_PROGRESS: plain
+        id: build_push
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
-          platforms: ${{ (matrix.os == 'ubuntu-24.04-arm' || matrix.os == 'ubuntu-24.04-qemu-arm') && 'linux/arm64' || 'linux/amd64'}}
-          outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true,push=true
+          platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
+          outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
           context: .
-          file: ./Dockerfile.toolchain
+          # Push the image to the available container registries
+          push: true
+          file: ./Dockerfile.crosstool
           build-args: |
-            QEMU_CPU=${{ matrix.os == 'ubuntu-24.04-qemu-arm' && 'max,pmu=off,pauth-impdef=on' || ''}}
             TARGET=${{ matrix.target }}
-            ARCH_COMMON_CONFIG=${{ matrix.arch_common_config }}
           tags: ${{ steps.tags.outputs.tags }}
-          load: ${{ github.event.act && 'true' || 'false' }}
+          cache-from: ${{ needs.tbuild_vars.outputs.cache_ref != '' && format('{0}-{1}', needs.tbuild_vars.outputs.cache_ref, steps.arch.outputs.type) || '' }}
+
+          # We do not use `cache-to` here, since these toolchains are not build that often, and caching makes no sense
+
+      - name: Attest - Toolchain - ghcr.io
+        if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: ghcr.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.build_push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Toolchain - docker.io
+        if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: docker.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.build_push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Toolchain - quay.io
+        if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_quay_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: quay.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.build_push.outputs.digest }}
+          push-to-registry: true
 
   # Merge the separate build amd64 and arm64 builds into one
   # https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
@@ -222,83 +403,33 @@ jobs:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     name: Merge Toolchain Container
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
-      packages: write
+      packages: write # Allow pushing images to ghcr.io
+      attestations: write # Allow generating attestations on the container images
+      id-token: write # Allow generating attestations on the container images
     needs:
       - tbuild_vars
       - toolchain
     strategy:
-      max-parallel: ${{ github.event.act && 1 || 8 }}
+      fail-fast: false
       matrix:
-        image_tag:
-          - x86_64-musl
-          - aarch64-musl
-          - armv7-musleabihf
-          - arm-musleabi
+        image_tag: *image_tag
     steps:
-      - name: "[act] Debug Matrix"
-        if: ${{ github.event.act }}
-        shell: bash
-        env:
-          BUILD_JSON: ${{ toJson(needs.tbuild_vars) }}
-          NEEDS_JSON: ${{ toJson(needs.toolchain) }}
-          EVENT_NAME: ${{ github.event_name }}
-          MATRIX_JSON: ${{ toJson(matrix) }}
-          # GITHUB_JSON: ${{ toJson(github) }}
-        run: |
-          echo "event_name = ${EVENT_NAME}"
-          echo "build_json = ${BUILD_JSON}"
-          echo "needs_json = ${NEEDS_JSON}"
-          echo ; echo "matrix = ${MATRIX_JSON}"
-          # echo ; echo "github = ${GITHUB_JSON}"
+      - *debug-matrix
 
-      - name: Setup Docker Buildx (setup-buildx-action)
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-        with:
-          driver: docker-container
-          cache-binary: false
-          driver-opts: |
-            network=host
+      - *buildx
 
-      - name: "[act] Start local registry"
-        if: ${{ github.event.act }}
-        shell: bash
-        run: |
-          # Start a local docker registry
-          docker run -d --name act-registry --network host registry:3 || \
-          docker start act-registry || true
-
-      - name: Login to DockerHub
-        if: ${{ needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to ghcr.io
-        if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to quay.io
-        if: ${{ needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_TOKEN }}
+      - *dockerhub-login
+      - *ghcr-login
+      - *quay-login
 
       - name: Create combined manifests for amd64/arm64
-        shell: bash
         env:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
           TAG_DATE: ${{ needs.tbuild_vars.outputs.tag_date }}
           IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
-          tags=""
           for registry in ${REGISTRIES}; do
             echo "Generating manifest for ${registry}:"
             docker buildx imagetools create \
@@ -309,13 +440,42 @@ jobs:
           done
 
       - name: Inspect manifests for amd64/arm64
-        shell: bash
+        id: merged_toolchain
         env:
           REGISTRIES: ${{ needs.tbuild_vars.outputs.registry_list }}
           IMAGE_TAG: ${{ matrix.image_tag }}
         run: |
-          tags=""
           for registry in ${REGISTRIES}; do
             echo "Inspecting manifest for ${registry}:"
             docker buildx imagetools inspect ${registry}/blackdex/musl-toolchain:${IMAGE_TAG}
+
+            # Extract the merged digest to run attest on this too
+            if [[ "${registry}" = "ghcr.io" ]]; then
+              merged_digest=$(docker buildx imagetools inspect --format "{{json .Manifest.Digest}}" ghcr.io/blackdex/musl-toolchain:${IMAGE_TAG})
+              echo "digest=${merged_digest//\"/}" | tee -a "${GITHUB_OUTPUT}"
+            fi
           done
+
+      - name: Attest - Merged Stable - ghcr.io
+        if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: ghcr.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Merged Stable - docker.io
+        if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: docker.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest - Merged Stable - quay.io
+        if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_quay_login == 'true' }}
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: quay.io/blackdex/musl-toolchain
+          subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
+          push-to-registry: true

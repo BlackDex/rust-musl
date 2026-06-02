@@ -1,0 +1,159 @@
+# syntax=docker/dockerfile:1
+
+# https://hub.docker.com/_/ubuntu
+FROM docker.io/library/ubuntu:26.04 AS base
+SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
+
+WORKDIR /
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    TZ=UTC \
+    TERM=xterm-256color
+
+# Make sure we have basic dev tools for building.
+# We only build the gcc musl based toolchain here
+# and use these compiled files later in other Docker builds.
+# This saves time during the building of the actual libraries
+# we want to build since the toolchain doesn't change that much anyway.
+#
+RUN <<EOF
+    apt-get update
+    apt-get install -y \
+        automake \
+        bison \
+        bzip2 \
+        cmake \
+        curl \
+        file \
+        flex \
+        g++ \
+        gawk \
+        gettext-base \
+        git \
+        help2man \
+        libncurses-dev \
+        libssl-dev \
+        libtool-bin \
+        make \
+        patch \
+        pkg-config \
+        python3 \
+        rsync \
+        texinfo \
+        unzip \
+        wget \
+        xz-utils \
+        ca-certificates \
+        --no-install-recommends
+
+    # Cleanup apt
+    apt-get autoremove -y --purge
+    apt-get clean -y
+    rm -rf /var/cache/* /var/lib/apt/lists/*
+    # Default cleanups
+    find /var/log -type f -delete
+    # Pre-Create the /opt/x-tools directory
+    mkdir -pv /opt/x-tools
+EOF
+
+WORKDIR /tmp
+
+# Now build crosstool-ng, this will not change often, and caching it in base is the best solution here.
+ARG CROSSTOOL_NG_HASH=14025c57ebf65d942c0925471421027d32b474c9 # Apr 29, 2026, 10:35 PM GMT+2 - Added musl v1.2.6 cve patch
+RUN <<EOF
+    echo "Downloading crosstool-ng"
+
+    # Download crosstool-ng from https://github.com/crosstool-ng/crosstool-ng based upon the provided $CROSSTOOL_NG_HASH
+    curl -w"%{stderr}URL: %{url_effective}\nTime: %{time_total}\nSize: %{size_download}\n" --retry 5 --retry-all-errors \
+      -sSL "https://github.com/crosstool-ng/crosstool-ng/archive/${CROSSTOOL_NG_HASH}.tar.gz" | \
+      tar xzf -
+
+    echo "Building crosstool-ng"
+
+    pushd "crosstool-ng-${CROSSTOOL_NG_HASH}"
+
+    ./bootstrap
+    ./configure --prefix=/opt/x-tools
+    make -j"$(nproc)"
+    make install
+
+    popd
+    rm -rf "crosstool-ng-${CROSSTOOL_NG_HASH}"
+EOF
+
+FROM base AS source
+COPY cross-targets/base cross-targets/base_x86_64 cross-targets/base_aarch64 /tmp/
+RUN <<EOF
+    cat <(set -a; source "./base_$(uname --machine)" ; set +a ; envsubst < ./base) | tee ./.config
+
+    echo "Pre download sources"
+    /opt/x-tools/bin/ct-ng upgradeconfig
+
+    # Allow running ct-ng as root
+    echo "CT_ALLOW_BUILD_AS_ROOT_SURE=y" | tee -a .config
+
+    # Download the sources
+    mkdir -pv /opt/src
+    /opt/x-tools/bin/ct-ng source
+EOF
+
+FROM base AS build
+ARG TARGET=x86_64-unknown-linux-musl
+
+COPY cross-targets/base cross-targets/base_x86_64 cross-targets/base_aarch64 /tmp/build/
+COPY cross-targets/${TARGET} /tmp/build/target-config
+COPY --link --from=source /opt/src /opt/src
+
+RUN <<EOF
+    # Create the target directory
+    mkdir -pv /usr/local/musl
+
+    pushd build
+
+    # Merge base and target config
+    cat <(set -a; source "./base_$(uname --machine)" ; set +a ; envsubst < ./base) | tee ./base_host
+    cat ./base_host <(set -a; source ./base_host ; set +a ; envsubst < ./target-config) | tee ./.config
+
+    # Upgrade the compressed crosstool-ng config to it's full state
+    /opt/x-tools/bin/ct-ng upgradeconfig
+
+    # Allow running ct-ng as root
+    echo "CT_ALLOW_BUILD_AS_ROOT_SURE=y" | tee -a .config
+
+    # Output the full .config, good for troubleshooting
+    echo -ne "\n-- Start crosstool-ng .config:\n"
+    cat .config
+    echo -ne "\n-- End crosstool-ng .config\n"
+
+    # Start the actual build
+    /opt/x-tools/bin/ct-ng "build.$(nproc)"
+
+    echo "Finished building target ${TARGET}"
+
+    echo "Cleanup so files"
+    # Remove so files from sysroot, as we only want to build static libraries
+    # Having these files also could cause issues during compiling
+    find "/usr/local/musl/${TARGET}/sysroot" -type f -iname "*.so*" -delete -print
+
+    popd
+    rm -rf /tmp/build
+EOF
+
+# https://hub.docker.com/_/busybox
+FROM docker.io/busybox:1.38.0-glibc
+WORKDIR /
+
+ENV PATH="${PATH}:/usr/local/musl/bin" \
+    LANG=C.UTF-8 \
+    TZ=UTC \
+    TERM=xterm-256color
+ARG TARGET=x86_64-unknown-linux-musl
+
+COPY --link --from=build /usr/local/musl /usr/local/musl
+
+LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
+LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.licenses="Apache License 2.0"
+LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
+LABEL org.opencontainers.image.description="MUSL Cross Build Toolchain for ${TARGET}"

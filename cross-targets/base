@@ -1,0 +1,53 @@
+CT_CONFIG_VERSION="4"
+CT_EXPERIMENTAL=y
+CT_LOG_PROGRESS_BAR=n
+
+# Kernel | Use the latest v5 LTS
+CT_KERNEL_LINUX=y
+CT_LINUX_V_5_15=y
+
+# Binutils
+CT_BINUTILS_VERSION="2.46.0"
+CT_BINUTILS_RELRO=y
+CT_BINUTILS_DETERMINISTIC_ARCHIVES=y
+CT_BINUTILS_EXTRA_CONFIG_ARRAY="--enable-new-dtags --disable-default-execstack --enable-warn-execstack=yes --enable-error-execstack=yes"
+
+# GCC
+CT_GCC_VERSION="15.2.0"
+CT_CC_LANG_CXX=y
+CT_CC_GCC_CONFIG_TLS=y
+CT_CC_GCC_ENABLE_DEFAULT_PIE=y
+CT_CC_GCC_USE_LTO=y
+CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY="--enable-host-pie --enable-default-ssp"
+CT_CC_GCC_EXTRA_CONFIG_ARRAY="--enable-host-pie --enable-static-pie --enable-host-bind-now --enable-default-ssp --enable-clocale=generic --enable-link-serialization=1 --disable-gnu-indirect-function --disable-rpath --disable-bootstrap --disable-gnu-unique-object --enable-initfini-array"
+
+# C Library
+CT_LIBC_MUSL=y
+CT_MUSL_VERSION="1.2.6"
+CT_LIBC_MUSL_DEBUG=n
+
+# Companion libs
+CT_GMP_VERSION="6.3.0"
+CT_MPFR_VERSION="4.2.2"
+CT_MPC_VERSION="1.3.1"
+CT_ISL_VERSION="0.27"
+
+# Source tarballs
+CT_LOCAL_TARBALLS_DIR="/opt/src"
+
+# General Target settings
+CT_TARGET_LDFLAGS="-Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--build-id=none -Wl,--strip-all"
+CT_TARGET_CFLAGS="-g0 -O2 -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all"
+CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES=y
+
+# General Host settings
+CT_EXTRA_LDFLAGS_FOR_HOST="-Wl,--gc-sections -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--build-id=none -Wl,-z,pack-relative-relocs -Wl,--strip-all"
+CT_EXTRA_CFLAGS_FOR_HOST="-g0 -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${CT_EXTRA_CFLAGS_FOR_HOST_MACHINE} -Wno-error"
+CT_STRIP_HOST_TOOLCHAIN_EXECUTABLES=y
+
+# Install prefix
+CT_PREFIX_DIR="/usr/local/musl/"
+CT_REMOVE_DOCS=y
+
+# Allow to build as root
+CT_ALLOW_BUILD_AS_ROOT_SURE=y

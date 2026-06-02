@@ -1,16 +1,36 @@
-# act secrets
-.secrets
+# Ignore all by default
+*
 
-# Makefile env
-.env
+# Exclude what we want
+!.github/
+!.github/**
+!cross-targets/
+!cross-targets/**
+!mak/
+!mak/**
+!patches/
+!patches/**
+!test/
+!test/**
 
-# Rust testing
-test/*crate/Cargo.lock
-test/*crate/target
-test/zlibcrate/data.tar.gz
-test/zlibcrate/output
-test/*crate/main.db
+!.actrc
+!.dockerignore
+!.gitignore
+!.secrets_template
+!CHANGELOG.md
+!Dockerfile.*
+!hadolint.yaml
+!LICENSE
+!Makefile
+!README.md
+!requirements.txt
+!test.sh
+!update_libs.py
 
-# Directories
-.vscode
-.artifacts
+# Re-Ignore testing crate files
+test/**/Cargo.lock
+test/**/target
+test/**/data.tar.gz
+test/**/output
+test/**/main.db
+test/**/.artifacts

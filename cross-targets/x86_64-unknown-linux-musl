@@ -1,0 +1,4 @@
+# Target
+CT_ARCH_X86=y
+CT_ARCH_64=y
+CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} -fcf-protection=full"

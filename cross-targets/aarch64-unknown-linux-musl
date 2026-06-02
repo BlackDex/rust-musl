@@ -1,0 +1,7 @@
+# Target
+CT_ARCH_ARM=y
+CT_ARCH_64=y
+CT_ARCH_FLOAT_HW=y
+CT_ARCH_ARCH="armv8-a"
+CT_CC_GCC_EXTRA_CONFIG_ARRAY="${CT_CC_GCC_EXTRA_CONFIG_ARRAY} --disable-cet"
+CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} -mno-outline-atomics -mbranch-protection=standard"

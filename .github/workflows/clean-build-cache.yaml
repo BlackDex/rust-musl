@@ -19,13 +19,13 @@ on:
 
 jobs:
   cleanup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     steps:
       - name: Delete older than (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
+        uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
         with:
           package: rust-musl-buildcache
           dry-run: ${{ inputs.dry_run }}
@@ -33,8 +33,24 @@ jobs:
 
       - name: Delete older than 30 days (Scheduled)
         if: ${{ github.event_name == 'schedule' }}
-        uses: dataaxiom/ghcr-cleanup-action@cd0cdb900b5dbf3a6f2cc869f0dbb0b8211f50c4 # v1.0.16
+        uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
         with:
           package: rust-musl-buildcache
+          dry-run: false
+          older-than: 30 days
+
+      - name: Delete older than (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
+        with:
+          package: musl-toolchain-buildcache
+          dry-run: ${{ inputs.dry_run }}
+          older-than: ${{ inputs.older_than }}
+
+      - name: Delete older than 30 days (Scheduled)
+        if: ${{ github.event_name == 'schedule' }}
+        uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
+        with:
+          package: musl-toolchain-buildcache
           dry-run: false
           older-than: 30 days

@@ -1,6 +1,6 @@
-// Ignore everything
+# Ignore everything
 *
 
-// Allow what is needed
+# Allow what is needed
 !patches/
-!config.mak
+!cross-targets/
