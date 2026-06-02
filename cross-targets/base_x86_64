@@ -1,0 +1,2 @@
+# Depending on the host machine type, x86_64 or aarch64 we need different flags
+CT_EXTRA_CFLAGS_FOR_HOST_MACHINE="-fcf-protection=full"
