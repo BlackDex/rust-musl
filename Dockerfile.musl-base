@@ -7,7 +7,7 @@ ARG TOOLCHAIN_REGISTRY=ghcr.io
 
 # First build the base image with all packages needed to build any target
 # https://hub.docker.com/_/ubuntu
-FROM docker.io/library/ubuntu:24.04 AS base
+FROM docker.io/library/ubuntu:26.04 AS base
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -34,24 +34,16 @@ RUN <<EOF
         ca-certificates \
         bison \
         flex \
-        gcc-14 \
+        gcc \
         libc6-dev \
-        libclang1-19 \
+        libclang1-22 \
         jimsh \
-        inotify-tools \
         --no-install-recommends \
 
     # Install only libtool
     cd /var/cache/
     apt-get download libtool
     dpkg-deb -x libtool_*.deb /
-
-    # Set GCC14 As default
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 90 \
-      --slave /usr/bin/cc cc /usr/bin/gcc-14 \
-      --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-14 \
-      --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-14 \
-      --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-14
 
     # Cleanup apt
     apt-get clean -y
@@ -68,79 +60,114 @@ EOF
 FROM base AS target_x86_64-musl
 ENV TARGET="x86_64-unknown-linux-musl" \
     OPENSSL_ARCH="linux-x86_64 enable-ec_nistp_64_gcc_128" \
-    ARCH_CPPFLAGS="-fcf-protection=full"
+    ARCH_CFLAGS="-fcf-protection=full" \
+    # Target specific env variables
+    AR_x86_64_unknown_linux_musl="x86_64-unknown-linux-musl-gcc-ar" \
+    CC_x86_64_unknown_linux_musl="x86_64-unknown-linux-musl-gcc" \
+    CXX_x86_64_unknown_linux_musl="x86_64-unknown-linux-musl-g++" \
+    RANLIB_x86_64_unknown_linux_musl="x86_64-unknown-linux-musl-gcc-ranlib"
 
 FROM base AS target_aarch64-musl
 ENV TARGET="aarch64-unknown-linux-musl" \
     OPENSSL_ARCH="linux-aarch64" \
-    ARCH_CPPFLAGS="-mno-outline-atomics -mbranch-protection=standard"
+    ARCH_CFLAGS="-mno-outline-atomics -mbranch-protection=standard" \
+    # Target specific env variables
+    AR_aarch64_unknown_linux_musl="aarch64-unknown-linux-musl-gcc-ar" \
+    CC_aarch64_unknown_linux_musl="aarch64-unknown-linux-musl-gcc" \
+    CXX_aarch64_unknown_linux_musl="aarch64-unknown-linux-musl-g++" \
+    RANLIB_aarch64_unknown_linux_musl="aarch64-unknown-linux-musl-gcc-ranlib"
 
 FROM base AS target_armv7-musleabihf
 ENV TARGET="armv7-unknown-linux-musleabihf" \
     OPENSSL_ARCH="linux-armv4" \
-    ARCH_CPPFLAGS=""
+    ARCH_CFLAGS="" \
+    # Target specific env variables
+    AR_armv7_unknown_linux_musleabihf="armv7-unknown-linux-musleabihf-gcc-ar" \
+    CC_armv7_unknown_linux_musleabihf="armv7-unknown-linux-musleabihf-gcc" \
+    CXX_armv7_unknown_linux_musleabihf="armv7-unknown-linux-musleabihf-g++" \
+    RANLIB_armv7_unknown_linux_musleabihf="armv7-unknown-linux-musleabihf-gcc-ranlib"
 
 FROM base AS target_arm-musleabi
 ENV TARGET="arm-unknown-linux-musleabi" \
     OPENSSL_ARCH="linux-armv4" \
-    ARCH_CPPFLAGS=""
+    ARCH_CFLAGS="" \
+    # Target specific env variables
+    AR_arm_unknown_linux_musleabi="arm-unknown-linux-musleabi-gcc-ar" \
+    CC_arm_unknown_linux_musleabi="arm-unknown-linux-musleabi-gcc" \
+    CXX_arm_unknown_linux_musleabi="arm-unknown-linux-musleabi-g++" \
+    RANLIB_arm_unknown_linux_musleabi="arm-unknown-linux-musleabi-gcc-ranlib"
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2025-11-14 AS musl-toolchain
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-06-02 AS musl-toolchain
 
 # Start building the musl-base
 FROM target_${IMAGE_TAG} AS build
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 
-ENV TARGET="${TARGET}" \
-    TARGET_PREFIX=/usr/local/musl \
+ENV TARGET_PREFIX=/usr/local/musl \
+    SYSROOT="/usr/local/musl/${TARGET}/sysroot" \
     RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
-    SYSROOT="/usr/local/musl/${TARGET}" \
-    CURL_CMD="curl --retry 5 --retry-all-errors -sSL"
+    CURL_CMD="curl --retry 6 --retry-all-errors -sSL"
 
 ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     TARGET_PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
     TARGET_LD="${TARGET}-ld" \
-    TARGET_AR="${TARGET}-ar" \
-    TARGET_CC="${TARGET}-gcc" \
     TARGET_CXX="${TARGET}-g++" \
-    TARGET_RANLIB="${TARGET}-ranlib" \
-    TARGET_LDFLAGS="-flto=auto -s -pie -static-libstdc++ -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
-    SHARED_CPPFLAGS="-I${TARGET_PREFIX}/include -I${SYSROOT}/include ${ARCH_CPPFLAGS}" \
-    SHARED_CFLAGS="-g0 -Os --sysroot=${SYSROOT} ${ARCH_CPPFLAGS} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none" \
+    TARGET_CC="${TARGET}-gcc" \
+    TARGET_AR="${TARGET}-gcc-ar" \
+    TARGET_NM="${TARGET}-gcc-nm" \
+    TARGET_RANLIB="${TARGET}-gcc-ranlib" \
+    TARGET_LDFLAGS="-static -static-libstdc++ -Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
+    TARGET_CPPFLAGS="--sysroot=${SYSROOT} -I${TARGET_PREFIX}/include -I${SYSROOT}/include" \
+    SHARED_CFLAGS="-g0 -O2" \
+    TARGET_CFLAGS="--sysroot=${SYSROOT} -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${ARCH_CFLAGS}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
     # pkg-config
+    PKG_CONFIG_ALL_STATIC=1 \
+    PKG_CONFIG_ALLOW_CROSS=1 \
     PKG_CONFIG_PATH="${TARGET_PREFIX}/lib/pkgconfig" \
-    PKG_CONFIG_LIBDIR="${TARGET_PREFIX}/lib:${SYSROOT}/lib" \
-    PKG_CONFIG_SYSTEM_LIBRARY_PATH="${TARGET_PREFIX}/lib:${SYSROOT}/lib" \
-    PKG_CONFIG_SYSTEM_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/include"
+    PKG_CONFIG_LIBDIR="${TARGET_PREFIX}/lib/pkgconfig" \
+    PKG_CONFIG_SYSTEM_LIBRARY_PATH="${TARGET_PREFIX}/lib:${SYSROOT}/lib:${SYSROOT}/usr/lib" \
+    PKG_CONFIG_SYSTEM_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/usr/include" \
+    # Some general CMAKE Flags
+    CROSS_CMAKE_SYSTEM_NAME=Linux \
+    CROSS_CMAKE_CRT=musl
 
 WORKDIR /tmp
 
 COPY --link --from=musl-toolchain "/usr/local/musl" "${TARGET_PREFIX}"
 
-RUN mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src && \
+RUN <<EOF
+    mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
     # Create a symlink to the SYSROOT, this could help with some builds
     ln -sfrn "${SYSROOT}" "/${TARGET}"
+EOF
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
 ARG ZLIB_VER="1.3.2"
+ARG ZLIB_HASH="d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"
 RUN <<EOF
     echo "zlib"
 
-    ${CURL_CMD} "https://zlib.net/zlib-${ZLIB_VER}.tar.xz" | tar xJ
+    ${CURL_CMD} -o "/tmp/zlib-${ZLIB_VER}.tar.xz" "https://zlib.net/zlib-${ZLIB_VER}.tar.xz"
+    echo "${ZLIB_HASH} /tmp/zlib-${ZLIB_VER}.tar.xz" | sha256sum -c -
+    tar -xJf "/tmp/zlib-${ZLIB_VER}.tar.xz" -C /tmp
+    rm -vf "/tmp/zlib-${ZLIB_VER}.tar.xz"
+
     cd "zlib-${ZLIB_VER}"
 
-    export PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}"
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
+    export CHOST="${TARGET}"
 
     ./configure \
       --static \
@@ -154,23 +181,29 @@ EOF
 
 # Build OpenSSL (used in curl, pq and mariadb)
 ARG SSL_VER="3.5.6"
+ARG SSL_HASH="deae7c80cba99c4b4f940ecadb3c3338b13cb77418409238e57d7f31f2a3b736"
 RUN <<EOF
     echo "OpenSSL"
 
-    ${CURL_CMD} "https://github.com/openssl/openssl/releases/download/openssl-${SSL_VER}/openssl-${SSL_VER}.tar.gz" | tar xz
+    ${CURL_CMD} -o "/tmp/openssl-${SSL_VER}.tar.gz" "https://github.com/openssl/openssl/releases/download/openssl-${SSL_VER}/openssl-${SSL_VER}.tar.gz"
+    echo "${SSL_HASH} /tmp/openssl-${SSL_VER}.tar.gz" | sha256sum -c -
+    tar -xzf "/tmp/openssl-${SSL_VER}.tar.gz" -C /tmp
+    rm -vf "/tmp/openssl-${SSL_VER}.tar.gz"
+
     cd "openssl-${SSL_VER}"
 
     # We can't enable `-flto=auto -ffat-lto-objects` for CFLAGS this generates an error which causes other libraries to also fail subsequently.
     # See: https://github.com/openssl/openssl/issues/18663
     #
     # The OpenSSL Architecture is defined by setting the correct `OPENSSL_ARCH` ARG
-    export PKG_CONFIG_PATH="${TARGET_PKG_CONFIG_PATH}"
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS}"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
     # Disable several features, either insecure or not working that well on musl libc or not needed at all
@@ -180,7 +213,7 @@ RUN <<EOF
       no-module \
       `# Not running tests` \
       no-tests \
-      no-unit-test \
+      no-docs \
       `# Disable compression` \
       no-comp \
       no-zlib \
@@ -201,8 +234,15 @@ RUN <<EOF
       enable-ktls \
       no-mdc2 \
       no-ec2m \
+      `# Misc` \
+      no-ssl-trace \
+      no-srp \
+      no-srtp \
+      no-afalgeng \
+      no-devcryptoeng \
       `# Set which OpenSSL Architecture needs to be used` \
       ${OPENSSL_ARCH} \
+      --release \
       --openssldir="${TARGET_PREFIX}/ssl" \
       --libdir="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}"
@@ -222,57 +262,62 @@ EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
 ARG CURL_VER="8.20.0"
+ARG CURL_HASH="63fe2dc148ba0ceae89922ef838f7e5c946272c2e78b7c59fab4b79d3ce2b896"
 RUN <<EOF
     echo "libcurl"
 
-    ${CURL_CMD} "https://curl.se/download/curl-${CURL_VER}.tar.xz" | tar xJ
+    ${CURL_CMD} -o "/tmp/curl-${CURL_VER}.tar.xz" "https://curl.se/download/curl-${CURL_VER}.tar.xz"
+    echo "${CURL_HASH} /tmp/curl-${CURL_VER}.tar.xz" | sha256sum -c -
+    tar -xJf "/tmp/curl-${CURL_VER}.tar.xz" -C /tmp
+    rm -vf "/tmp/curl-${CURL_VER}.tar.xz"
+
     cd "curl-${CURL_VER}"
 
-    # Rename libatomic.la to libatomic.la_disabled
+
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then
-      mv -vf "${SYSROOT}/lib/libatomic.la" "${SYSROOT}/lib/libatomic.la_disabled"
       export LIBS="-latomic"
     fi
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
     ./configure \
       --with-sysroot="${SYSROOT}" \
       --host="${TARGET}" \
-      --target="${TARGET}" \
       --disable-shared \
       --enable-static \
       --enable-ipv6 \
+      --enable-websockets \
+      --enable-symbol-hiding \
       --with-zlib \
       --with-openssl \
       --disable-ldap \
+      --disable-ldaps \
       --disable-manual \
       --disable-docs \
       --without-libpsl \
       --without-libgsasl \
       --without-libidn2 \
       --without-libssh2 \
-      --enable-optimize \
+      --without-zsh-functions-dir \
+      --without-fish-functions-dir \
       --with-ca-path=/etc/ssl/certs/ \
       --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
       --with-ca-fallback \
       --bindir="${TARGET_PREFIX}/tbin" \
       --sbindir="${TARGET_PREFIX}/tbin" \
       --prefix="${TARGET_PREFIX}"
-    make -j"$(nproc)" && make install
+    make -j"$(nproc)" LDFLAGS="${TARGET_LDFLAGS} -all-static"
+    make install LDFLAGS="${TARGET_LDFLAGS} -all-static"
 
     cd /tmp && rm -rf "curl-${CURL_VER}"
-
-    # Rename libatomic.la_disabled back to libatomic.la
-    if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then
-      mv -vf "${SYSROOT}/lib/libatomic.la_disabled" "${SYSROOT}/lib/libatomic.la"
-    fi
 
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
@@ -280,42 +325,77 @@ EOF
 
 # Install prebuilt sccache for the correct host platform
 ARG SCCACHE_VER="0.15.0"
+ARG SCCACHE_HASH_x86_64="782d2b5dd7ae0a55ebe368ab258114d0928d019ac2d949ab85d5d02f3926709e"
+ARG SCCACHE_HASH_aarch64="3a6a3712b49da3d263bf2d30d702de4302793016019e800bfb81c0c69401d8f8"
 RUN <<EOF
-    HOST_ARCH="$(uname -m)"
+    case "$(uname -m)" in
+      x86_64)
+        SCCACHE_HASH="${SCCACHE_HASH_x86_64}"
+        HOST_ARCH="x86_64"
+        ;;
+      aarch64|arm64)
+        SCCACHE_HASH="${SCCACHE_HASH_aarch64}"
+        HOST_ARCH="aarch64"
+        ;;
+      *)
+        echo "unsupported arch: $(uname -m)" >&2
+        exit 1
+        ;;
+    esac
+
     ASSET_NAME="sccache-v${SCCACHE_VER}-${HOST_ARCH}-unknown-linux-musl"
-    ${CURL_CMD} "https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VER}/${ASSET_NAME}.tar.gz" \
-      | tar -xz -C /usr/local/bin --strip-components=1 --no-same-owner "${ASSET_NAME}/sccache"
+    ${CURL_CMD} -o "/tmp/${ASSET_NAME}.tar.gz" "https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VER}/${ASSET_NAME}.tar.gz"
+
+    echo "${SCCACHE_HASH} /tmp/${ASSET_NAME}.tar.gz" | sha256sum -c -
+    tar -xzf "/tmp/${ASSET_NAME}.tar.gz" -C /usr/local/bin --strip-components=1 --no-same-owner "${ASSET_NAME}/sccache"
+    rm -vf "/tmp/${ASSET_NAME}.tar.gz"
 EOF
 
 # Build libpq v15
 FROM build AS build-pq15
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_15_VER="15.18"
+ARG PQ_15_HASH="11df0df97fe3ea4ba9a791faaf39cee1d2fe571e78885b5b55d8517d27c323b4"
 WORKDIR /tmp/pq15
 RUN <<EOF
     echo "PostgreSQL v15"
 
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.bz2" | tar -xj --strip-components=1
+    ${CURL_CMD} -o "/tmp/postgresql-${PQ_15_VER}.tar.bz2" "https://ftp.postgresql.org/pub/source/v${PQ_15_VER}/postgresql-${PQ_15_VER}.tar.bz2"
+    echo "${PQ_15_HASH} /tmp/postgresql-${PQ_15_VER}.tar.bz2" | sha256sum -c -
+    tar -xj --strip-components=1 -f "/tmp/postgresql-${PQ_15_VER}.tar.bz2"
+    rm -vf "/tmp/postgresql-${PQ_15_VER}.tar.bz2"
 
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
       export LIBS="-latomic"
     fi
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
    ./configure \
       --host="${TARGET}" \
-      --target="${TARGET}" \
       --without-readline \
-      --with-ssl=openssl \
+      --without-llvm \
+      --without-icu \
+      --without-gssapi \
+      --without-ldap \
+      --without-pam \
+      --without-bonjour \
+      --without-selinux \
+      --without-systemd \
+      --without-zstd \
+      --without-lz4 \
       --disable-rpath \
-      --with-system-tzdata=/usr/share/zoneinfo \
+      --with-ssl=openssl \
+      --with-includes="${TARGET_PREFIX}/include" \
+      --with-libraries="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}/pq15"
 
     # build common, port and libpq only
@@ -335,18 +415,21 @@ RUN <<EOF
       mkdir -v merge && cd merge
       # Extract the generated .a files
       # Use the _shlib files since those contain the correct object files to link with libpq.a
-      # https://web.archive.org/save/https://www.postgresql.org/message-id/2656597.1728582542%40sss.pgh.pa.us
-      "${TARGET_AR}" x ../libpq.a
-      "${TARGET_AR}" x ../libpgcommon_shlib.a
-      "${TARGET_AR}" x ../libpgport_shlib.a
+      # https://web.archive.org/web/20260520203346/https://www.postgresql.org/message-id/2656597.1728582542@sss.pgh.pa.us
+      # Create separate extraction directories to prevent name collision overwrites
+      mkdir -pv pq pgcommon pgport
+      "${TARGET_AR}" x ../libpq.a --output=./pq
+      "${TARGET_AR}" x ../libpgcommon_shlib.a --output=./pgcommon
+      "${TARGET_AR}" x ../libpgport_shlib.a --output=./pgport
       # Merge all these files again into one libpq.a file
       # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
-      "${TARGET_AR}" crsv libpq.a ./*.o
+      "${TARGET_AR}" crsv libpq.a ./pq/*.o ./pgcommon/*.o ./pgport/*.o
 
       # Move and cleanup
       mv -vf libpq.a ../libpq.a
       cd ../
       "${TARGET_AR}" sv libpq.a
+      "${TARGET}-strip" -g libpq.a
       rm -rf merge libpgcommon* libpgport*
 
     # Default cleanups
@@ -357,32 +440,47 @@ EOF
 FROM build AS build-pq16
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_16_VER="16.14"
+ARG PQ_16_HASH="f6d077142737920858ce958ccdb75c6ee137a63b5b0853c70693d401ac7e3471"
 WORKDIR /tmp/pq16
 RUN <<EOF
     echo "PostgreSQL v16"
 
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_16_VER}/postgresql-${PQ_16_VER}.tar.bz2" | tar -xj --strip-components=1
+    ${CURL_CMD} -o "/tmp/postgresql-${PQ_16_VER}.tar.bz2" "https://ftp.postgresql.org/pub/source/v${PQ_16_VER}/postgresql-${PQ_16_VER}.tar.bz2"
+    echo "${PQ_16_HASH} /tmp/postgresql-${PQ_16_VER}.tar.bz2" | sha256sum -c -
+    tar -xj --strip-components=1 -f "/tmp/postgresql-${PQ_16_VER}.tar.bz2"
+    rm -vf "/tmp/postgresql-${PQ_16_VER}.tar.bz2"
 
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
       export LIBS="-latomic"
     fi
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
    ./configure \
       --host="${TARGET}" \
-      --target="${TARGET}" \
       --without-readline \
-      --with-ssl=openssl \
-      --disable-rpath \
+      --without-llvm \
       --without-icu \
-      --with-system-tzdata=/usr/share/zoneinfo \
+      --without-gssapi \
+      --without-ldap \
+      --without-pam \
+      --without-bonjour \
+      --without-selinux \
+      --without-systemd \
+      --without-zstd \
+      --without-lz4 \
+      --disable-rpath \
+      --with-ssl=openssl \
+      --with-includes="${TARGET_PREFIX}/include" \
+      --with-libraries="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}/pq16"
 
     # build common, port and libpq only
@@ -402,18 +500,21 @@ RUN <<EOF
       mkdir -v merge && cd merge
       # Extract the generated .a files
       # Use the _shlib files since those contain the correct object files to link with libpq.a
-      # https://web.archive.org/save/https://www.postgresql.org/message-id/2656597.1728582542%40sss.pgh.pa.us
-      "${TARGET_AR}" x ../libpq.a
-      "${TARGET_AR}" x ../libpgcommon_shlib.a
-      "${TARGET_AR}" x ../libpgport_shlib.a
+      # https://web.archive.org/web/20260520203346/https://www.postgresql.org/message-id/2656597.1728582542@sss.pgh.pa.us
+      # Create separate extraction directories to prevent name collision overwrites
+      mkdir -pv pq pgcommon pgport
+      "${TARGET_AR}" x ../libpq.a --output=./pq
+      "${TARGET_AR}" x ../libpgcommon_shlib.a --output=./pgcommon
+      "${TARGET_AR}" x ../libpgport_shlib.a --output=./pgport
       # Merge all these files again into one libpq.a file
       # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
-      "${TARGET_AR}" crsv libpq.a ./*.o
+      "${TARGET_AR}" crsv libpq.a ./pq/*.o ./pgcommon/*.o ./pgport/*.o
 
       # Move and cleanup
       mv -vf libpq.a ../libpq.a
       cd ../
       "${TARGET_AR}" sv libpq.a
+      "${TARGET}-strip" -g libpq.a
       rm -rf merge libpgcommon* libpgport*
 
     # Default cleanups
@@ -424,31 +525,47 @@ EOF
 FROM build AS build-pq17
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_17_VER="17.10"
+ARG PQ_17_HASH="078a03516dcdbdb705fecaf415ea3d13a956c589e46f09fed68a06fb00598c90"
 WORKDIR /tmp/pq17
 RUN <<EOF
     echo "PostgreSQL v17"
 
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_17_VER}/postgresql-${PQ_17_VER}.tar.bz2" | tar -xj --strip-components=1
+    ${CURL_CMD} -o "/tmp/postgresql-${PQ_17_VER}.tar.bz2" "https://ftp.postgresql.org/pub/source/v${PQ_17_VER}/postgresql-${PQ_17_VER}.tar.bz2"
+    echo "${PQ_17_HASH} /tmp/postgresql-${PQ_17_VER}.tar.bz2" | sha256sum -c -
+    tar -xj --strip-components=1 -f "/tmp/postgresql-${PQ_17_VER}.tar.bz2"
+    rm -vf "/tmp/postgresql-${PQ_17_VER}.tar.bz2"
 
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
       export LIBS="-latomic"
     fi
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
    ./configure \
       --host="${TARGET}" \
       --without-readline \
-      --with-ssl=openssl \
-      --disable-rpath \
+      --without-llvm \
       --without-icu \
-      --with-system-tzdata=/usr/share/zoneinfo \
+      --without-gssapi \
+      --without-ldap \
+      --without-pam \
+      --without-bonjour \
+      --without-selinux \
+      --without-systemd \
+      --without-zstd \
+      --without-lz4 \
+      --disable-rpath \
+      --with-ssl=openssl \
+      --with-includes="${TARGET_PREFIX}/include" \
+      --with-libraries="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}/pq17"
 
     # build common, port and libpq only
@@ -468,18 +585,21 @@ RUN <<EOF
       mkdir -v merge && cd merge
       # Extract the generated .a files
       # Use the _shlib files since those contain the correct object files to link with libpq.a
-      # https://web.archive.org/save/https://www.postgresql.org/message-id/2656597.1728582542%40sss.pgh.pa.us
-      "${TARGET_AR}" x ../libpq.a
-      "${TARGET_AR}" x ../libpgcommon_shlib.a
-      "${TARGET_AR}" x ../libpgport_shlib.a
+      # https://web.archive.org/web/20260520203346/https://www.postgresql.org/message-id/2656597.1728582542@sss.pgh.pa.us
+      # Create separate extraction directories to prevent name collision overwrites
+      mkdir -pv pq pgcommon pgport
+      "${TARGET_AR}" x ../libpq.a --output=./pq
+      "${TARGET_AR}" x ../libpgcommon_shlib.a --output=./pgcommon
+      "${TARGET_AR}" x ../libpgport_shlib.a --output=./pgport
       # Merge all these files again into one libpq.a file
       # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
-      "${TARGET_AR}" crsv libpq.a ./*.o
+      "${TARGET_AR}" crsv libpq.a ./pq/*.o ./pgcommon/*.o ./pgport/*.o
 
       # Move and cleanup
       mv -vf libpq.a ../libpq.a
       cd ../
       "${TARGET_AR}" sv libpq.a
+      "${TARGET}-strip" -g libpq.a
       rm -rf merge libpgcommon* libpgport*
 
     # Default cleanups
@@ -490,31 +610,48 @@ EOF
 FROM build AS build-pq18
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG PQ_18_VER="18.4"
+ARG PQ_18_HASH="81a81ec695fb0c7901407defaa1d2f7973617154cf27ba74e3a7ab8e64436094"
 WORKDIR /tmp/pq18
 RUN <<EOF
     echo "PostgreSQL v18"
 
-    ${CURL_CMD} "https://ftp.postgresql.org/pub/source/v${PQ_18_VER}/postgresql-${PQ_18_VER}.tar.bz2" | tar -xj --strip-components=1
+    ${CURL_CMD} -o "/tmp/postgresql-${PQ_18_VER}.tar.bz2" "https://ftp.postgresql.org/pub/source/v${PQ_18_VER}/postgresql-${PQ_18_VER}.tar.bz2"
+    echo "${PQ_18_HASH} /tmp/postgresql-${PQ_18_VER}.tar.bz2" | sha256sum -c -
+    tar -xj --strip-components=1 -f "/tmp/postgresql-${PQ_18_VER}.tar.bz2"
+    rm -vf "/tmp/postgresql-${PQ_18_VER}.tar.bz2"
 
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
       export LIBS="-latomic"
     fi
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
    ./configure \
       --host="${TARGET}" \
       --without-readline \
-      --with-ssl=openssl \
-      --disable-rpath \
+      --without-llvm \
       --without-icu \
-      --with-system-tzdata=/usr/share/zoneinfo \
+      --without-gssapi \
+      --without-ldap \
+      --without-pam \
+      --without-bonjour \
+      --without-selinux \
+      --without-systemd \
+      --without-zstd \
+      --without-lz4 \
+      --without-liburing \
+      --disable-rpath \
+      --with-ssl=openssl \
+      --with-includes="${TARGET_PREFIX}/include" \
+      --with-libraries="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}/pq18"
 
     # build common, port and libpq only
@@ -534,18 +671,21 @@ RUN <<EOF
       mkdir -v merge && cd merge
       # Extract the generated .a files
       # Use the _shlib files since those contain the correct object files to link with libpq.a
-      # https://web.archive.org/save/https://www.postgresql.org/message-id/2656597.1728582542%40sss.pgh.pa.us
-      "${TARGET_AR}" x ../libpq.a
-      "${TARGET_AR}" x ../libpgcommon_shlib.a
-      "${TARGET_AR}" x ../libpgport_shlib.a
+      # https://web.archive.org/web/20260520203346/https://www.postgresql.org/message-id/2656597.1728582542@sss.pgh.pa.us
+      # Create separate extraction directories to prevent name collision overwrites
+      mkdir -pv pq pgcommon pgport
+      "${TARGET_AR}" x ../libpq.a --output=./pq
+      "${TARGET_AR}" x ../libpgcommon_shlib.a --output=./pgcommon
+      "${TARGET_AR}" x ../libpgport_shlib.a --output=./pgport
       # Merge all these files again into one libpq.a file
       # This is needed because the pq-sys crate only checks this file: https://github.com/sgrif/pq-sys/issues/27
-      "${TARGET_AR}" crsv libpq.a ./*.o
+      "${TARGET_AR}" crsv libpq.a ./pq/*.o ./pgcommon/*.o ./pgport/*.o
 
       # Move and cleanup
       mv -vf libpq.a ../libpq.a
       cd ../
       "${TARGET_AR}" sv libpq.a
+      "${TARGET}-strip" -g libpq.a
       rm -rf merge libpgcommon* libpgport*
 
     # Default cleanups
@@ -555,21 +695,27 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.53.1"
+ARG SQLITE_VER="3.53.2"
+ARG SQLITE_HASH="025328da165109f48abccc6e7478508060804412bed2bd81d47e98ba1b72983b"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
 
     SQL_ID="$(echo -n "${SQLITE_VER}" | xargs -d '.' printf '%d%02d%02d00')"
-    ${CURL_CMD} "https://www.sqlite.org/2026/sqlite-autoconf-${SQL_ID}.tar.gz" | tar xz --strip-components=1
+    ${CURL_CMD} -o "/tmp/sqlite-autoconf-${SQL_ID}.tar.gz" "https://www.sqlite.org/2026/sqlite-autoconf-${SQL_ID}.tar.gz"
+    echo "${SQLITE_HASH} /tmp/sqlite-autoconf-${SQL_ID}.tar.gz" | cksum -a sha3 -l 256 -c -
+    tar -xz --strip-components=1 -f "/tmp/sqlite-autoconf-${SQL_ID}.tar.gz"
+    rm -vf "/tmp/sqlite-autoconf-${SQL_ID}.tar.gz"
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
     export CC="${TARGET_CC}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
 
     # libsqlite3-sys crate default flags
     CFLAGS+=" -DSQLITE_CORE"
@@ -617,36 +763,21 @@ RUN <<EOF
       --sbindir="${TARGET_PREFIX}/tbin" \
       --prefix="${TARGET_PREFIX}"
 
-    make -j"$(nproc)" libsqlite3.a
+    make -j"$(nproc)"
 
-    inotifywait -m -r -q -e create,modify,moved_to --exclude ".*(/man|/share/man|/share/doc|/share/gtk-doc).*" --format '%w%f' "$TARGET_PREFIX" > "/tmp/sqlite.log" & INOTIFY_PID=$!
-    sleep 0.7
-
-    make -j1 install
-
-    sleep 0.7
-    kill $INOTIFY_PID && wait $INOTIFY_PID || true
-
-    echo "== Found SQLite files:"
-    sort -u /tmp/sqlite.log
-
-    mkdir -pv "/out"
-    if [ -f "/tmp/sqlite.log" ]; then
-        sort -u "/tmp/sqlite.log" | while IFS= read -r file_path; do
-            # Ensure the path is not empty and exists
-            if [ -n "$file_path" ] && [ -e "$file_path" ]; then
-                cp --parents -dpR "$file_path" /out/
-            fi
-        done
-    fi
-    echo "== Copied SQLite files:"
-    find /out/
+    mkdir -pv /out
+    /usr/bin/install -Dm0644 libsqlite3.a "/out${TARGET_PREFIX}/lib/libsqlite3.a"
+    /usr/bin/install -Dm0644 sqlite3.h    "/out${TARGET_PREFIX}/include/sqlite3.h"
+    /usr/bin/install -Dm0644 sqlite3ext.h "/out${TARGET_PREFIX}/include/sqlite3ext.h"
+    /usr/bin/install -Dm0644 sqlite3.pc   "/out${TARGET_PREFIX}/lib/pkgconfig/sqlite3.pc"
+    /usr/bin/install -Dm0755 sqlite3      "/out${TARGET_PREFIX}/tbin/sqlite3"
 EOF
 
 # Building MariaDB
 FROM build AS build-mariadb
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG MARIADB_VER="3.4.8"
+ARG MARIADB_HASH="ced7e5063c91fe2bfafd9d63a759490fe53e81df80599a9abad01c570c202f0c"
 WORKDIR /tmp/mariadb
 # Copy patches for mariadb to fix build issues
 # https://gitlab.alpinelinux.org/alpine/aports/-/blob/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
@@ -655,7 +786,11 @@ COPY patches/mariadb-unused-parameter.patch patches/mariadb-revert-stmt-bug.patc
 RUN <<EOF
     echo "MariaDB Connector/C"
 
-    ${CURL_CMD} "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v${MARIADB_VER}.tar.gz" | tar xz --strip-components=1
+    ${CURL_CMD} -o "/tmp/v${MARIADB_VER}.tar.gz" "https://github.com/mariadb-corporation/mariadb-connector-c/archive/refs/tags/v${MARIADB_VER}.tar.gz"
+    echo "${MARIADB_HASH} /tmp/v${MARIADB_VER}.tar.gz" | sha256sum -c -
+    tar -xz --strip-components=1 -f "/tmp/v${MARIADB_VER}.tar.gz"
+    rm -vf "/tmp/v${MARIADB_VER}.tar.gz"
+
     # Apply the Alpine patch
     git apply --reject --verbose mariadb-unused-parameter.patch
 
@@ -664,38 +799,59 @@ RUN <<EOF
 
     # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
-    export _GCC_SPECS=
+
+    # export _GCC_SPECS=
+    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
+    #   echo -e "%rename libgcc old_libgcc\n*libgcc:\n-latomic %(old_libgcc)" > /tmp/gcc-atomic-patch.specs
+    #   export _GCC_SPECS="-specs=/tmp/gcc-atomic-patch.specs"
+    # fi
+
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
-      echo -e "%rename libgcc old_libgcc\n*libgcc:\n-latomic %(old_libgcc)" > /tmp/gcc-atomic-patch.specs
-      export _GCC_SPECS="-specs=/tmp/gcc-atomic-patch.specs"
+      export LIBS="-latomic"
     fi
 
     # Build the patched version
     mkdir build && cd build
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${_GCC_SPECS} ${SHARED_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
     export CC="${TARGET_CC}"
 
     cmake \
       -LAH \
       -DWITH_DOCS=OFF \
+      -DCMAKE_C_COMPILER="${TARGET_CC}" \
+      -DCMAKE_AR="$(command -v "${TARGET_AR}")" \
+      -DCMAKE_NM="$(command -v "${TARGET_NM}")" \
+      -DCMAKE_LINKER="$(command -v "${TARGET_LD}")" \
+      -DCMAKE_RANLIB="$(command -v "${TARGET_RANLIB}")" \
       -DCMAKE_SYSROOT="${SYSROOT}" \
       -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
+      -DCMAKE_PREFIX_PATH="${TARGET_PREFIX}" \
       -DINSTALL_BINDIR="tbin" \
       -DBUILD_SHARED_LIBS=OFF \
       -DCMAKE_SYSTEM_NAME=Linux \
-      -DCMAKE_HOST_SYSTEM_NAME=Linux \
+      -DCMAKE_FIND_ROOT_PATH="${TARGET_PREFIX};${SYSROOT}" \
+      -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+      -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+      -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+      -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
       -DINSTALL_LIBDIR=lib \
       -DINSTALL_INCLUDEDIR=include/mysql \
-      -DCMAKE_BUILD_TYPE=MinSizeRel \
+      -DCMAKE_BUILD_TYPE=Release \
       -DWITH_EXTERNAL_ZLIB=ON \
+      -DZLIB_USE_STATIC_LIBS=ON \
+      `# -DZLIB_ROOT="${TARGET_PREFIX}"` \
       -DWITH_SSL=OPENSSL \
+      -DOPENSSL_USE_STATIC_LIBS=ON \
+      `# -DOPENSSL_ROOT_DIR="${TARGET_PREFIX}"` \
       -DWITH_MYSQLCOMPAT=ON \
       -DWITH_UNIT_TESTS=OFF \
       -DCLIENT_PLUGIN_DIALOG=STATIC \
@@ -712,59 +868,56 @@ RUN <<EOF
 
     make -j"$(nproc)"
 
-    inotifywait -m -r -q -e create,modify,moved_to --exclude ".*(/man|/share/man|/share/doc|/share/gtk-doc).*" --format '%w%f' "$TARGET_PREFIX" > "/tmp/mariadb.log" & INOTIFY_PID=$!
-    sleep 0.7
+    mkdir -pv /out
+    make DESTDIR=/out install
+    # Remove man pages
+    rm -rf /out/usr/local/musl/man
+    # Delete all .so files, we only want static libraries
+    find /out -name '*.so' -delete
 
-    make -j1 install
+    # Validate there is a `libmysqlclient.a`
+    test -f "/out${TARGET_PREFIX}/lib/libmysqlclient.a"
 
     # Create some compatibilty symlinks so pkg-config and diesel can find all the correct files
-    ln -sfnr "${TARGET_PREFIX}/include/mysql/mariadb_version.h" "${TARGET_PREFIX}/include/mysql/mysql_version.h"
+    ln -sfnr "/out${TARGET_PREFIX}/include/mysql/mariadb_version.h" "/out${TARGET_PREFIX}/include/mysql/mysql_version.h"
 
     # Create and fix the default pkg-config for mysqlclient using the libmariadb generated file
     # We need the library to point to mysqlclient instead of mariadb, else mysqlclient-sys crate will not link it statically!
-    sed "s#Name: libmariadb#Name: mysqlclient#g" "${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc" | \
-      sed "s#${TARGET_PREFIX}/lib/lib##g" | \
-      sed 's#\.a##g' | \
-      sed 's#-ldl\s##g' | \
-      sed 's#-lmariadb#-lmysqlclient#g' > "${TARGET_PREFIX}/lib/pkgconfig/mysqlclient.pc"
+    # Also, fix the library path locations, as it points to absolute paths, which it shouldn't
+    sed -i -E 's#(-l)?/usr/local/musl/lib/lib([a-zA-Z0-9_]+)\.a#-l\2#g' "/out${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc"
 
-    sleep 0.7
-    kill $INOTIFY_PID && wait $INOTIFY_PID || true
-
-    echo "== Found MariaDB files"
-    sort -u /tmp/mariadb.log
-
-    mkdir -pv "/out"
-    if [ -f "/tmp/mariadb.log" ]; then
-        sort -u "/tmp/mariadb.log" | while IFS= read -r file_path; do
-            # Ensure the path is not empty and exists
-            if [ -n "$file_path" ] && [ -e "$file_path" ]; then
-                cp -v --parents -dpR "$file_path" /out/
-            fi
-        done
-    fi
-    echo "== Copied MariaDB files:"
-    find /out/
+    sed "s#Name: libmariadb#Name: mysqlclient#g" "/out${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc" | \
+      sed 's#-lmariadb#-lmysqlclient#g' > "/out${TARGET_PREFIX}/lib/pkgconfig/mysqlclient.pc"
 EOF
 
 FROM build AS build-libxml2
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
 ARG LIBXML2_VER="2.15.3"
+ARG LIBXML2_HASH="5c6060277173270356c3f1c321a640ab629bdabc5e5ba9095b99e00759ba0c39"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
     echo "libxml2"
 
-    ${CURL_CMD} "https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VER}.tar.gz" | tar xz --strip-components=1
+    ${CURL_CMD} -o "/tmp/v${LIBXML2_VER}.tar.gz" "https://github.com/GNOME/libxml2/archive/refs/tags/v${LIBXML2_VER}.tar.gz"
+    echo "${LIBXML2_HASH} /tmp/v${LIBXML2_VER}.tar.gz" | sha256sum -c -
+    tar -xz --strip-components=1 -f "/tmp/v${LIBXML2_VER}.tar.gz"
+    rm -vf "/tmp/v${LIBXML2_VER}.tar.gz"
 
+    export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
+    export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
-    export LDFLAGS="${TARGET_LDFLAGS}"
-    export CPPFLAGS="${SHARED_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} -flto=auto -ffat-lto-objects -fno-semantic-interposition"
+    export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 doesn't still think we build dynamic libraries
+    export CPPFLAGS="${TARGET_CPPFLAGS}"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects -fno-semantic-interposition"
     export CC="${TARGET_CC}"
     export NOCONFIGURE="true"
+
+    if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
+      export LIBS="-latomic"
+    fi
 
     # autogen
     ./autogen.sh
@@ -772,7 +925,6 @@ RUN <<EOF
     # configure
     ./configure \
       --host="${TARGET}" \
-      --target="${TARGET}" \
       --enable-static \
       --disable-shared \
       --without-python \
@@ -784,28 +936,8 @@ RUN <<EOF
 
     make -j"$(nproc)"
 
-    inotifywait -m -r -q -e create,modify,moved_to --exclude ".*(/man|/share/man|/share/doc|/share/gtk-doc).*" --format '%w%f' "$TARGET_PREFIX" > "/tmp/libxml2.log" & INOTIFY_PID=$!
-    sleep 0.7
-
-    make -j1 install
-
-    sleep 0.7
-    kill $INOTIFY_PID && wait $INOTIFY_PID || true
-
-    echo "== Found libxml2 files:"
-    sort -u /tmp/libxml2.log
-
     mkdir -pv "/out"
-    if [ -f "/tmp/libxml2.log" ]; then
-        sort -u "/tmp/libxml2.log" | while IFS= read -r file_path; do
-            # Ensure the path is not empty and exists
-            if [ -n "$file_path" ] && [ -e "$file_path" ]; then
-                cp -v --parents -dpR "$file_path" /out/
-            fi
-        done
-    fi
-    echo "== Copied libxml2 files:"
-    find /out/
+    make DESTDIR=/out install
 EOF
 
 FROM build AS release
@@ -827,7 +959,7 @@ RUN <<EOF
         --target "${RUST_MUSL_CROSS_TARGET}"
 
     # Truncate all files within the share folder, since we do not need them, but removing them prevents us from installing or updating toolchains
-    find "${RUSTUP_HOME}/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} \;
+    find "${RUSTUP_HOME}/toolchains/${RUST_CHANNEL}-$(uname -m)-unknown-linux-gnu/share/" -type f -exec truncate -s0 {} +;
 
     # When the Rust channel is stable, we create a symlink to the stable folder with the version number
     # This prevents cargo from downloading the same stuff twice if someone overrules the version with a version number instead of stable
@@ -842,13 +974,11 @@ target = "${RUST_MUSL_CROSS_TARGET}"
 rustflags = [
     "-Ctarget-feature=+crt-static",
     "-Clink-self-contained=yes",
-    "-Cprefer-dynamic=no",
-    "-L${TARGET_PREFIX}/lib",
-    "-L${SYSROOT}/lib"
+    "-Cprefer-dynamic=no"
 ]
 
 [target.${RUST_MUSL_CROSS_TARGET}]
-linker = "${RUST_MUSL_CROSS_TARGET}-ld"
+linker = "${TARGET_CC}"
 TOML_EOF
 
     #
@@ -869,15 +999,12 @@ COPY --link --from=build-sqlite /out/ /
 COPY --link --from=build-mariadb /out/ /
 COPY --link --from=build-libxml2 /out/ /
 
-ENV HOST="x86_64-unknown-linux-gnu" \
+ENV CROSS_COMPILE=1 \
     # General
     CARGO_BUILD_TARGET="${TARGET}" \
-    BINDGEN_EXTRA_CLANG_ARGS="--sysroot=${SYSROOT} ${SHARED_CPPFLAGS}" \
-    TARGET_C_INCLUDE_PATH="${SHARED_CPPFLAGS}" \
-    PKG_CONFIG_ALLOW_CROSS=1 \
-    PKG_CONFIG_ALL_STATIC=1 \
+    BINDGEN_EXTRA_CLANG_ARGS="${TARGET_CPPFLAGS}" \
+    TARGET_C_INCLUDE_PATH="${PKG_CONFIG_SYSTEM_INCLUDE_PATH}" \
     TARGET_PKG_CONFIG_ALLOW_CROSS=1 \
-    TARGET_PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" \
     TARGET_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR}" \
     # pq-sys (PosgreSQL) support
     PQ_LIB_STATIC=1 \
@@ -903,16 +1030,9 @@ ENV HOST="x86_64-unknown-linux-gnu" \
     SQLITE3_INCLUDE_DIR="${TARGET_PREFIX}/include" \
     # Rust libxml2 support
     LIBXML_2.0_STATIC=1 \
-    # If the ARCH_CPPFLAGS is set, we probably also need to pass it on to Rust.
-    # For example aarch64 needs `-mno-outline-atomic` set during builds.
-    # Here we pass-on the ARCH_CPPFLAGS so that Rust is able to use the same
-    # Also set the correct library path to make sure all pre-build libraries will be found.
-    # And some hardening flags, the same as used above to keep the binary as secure as possible.
-    TARGET_CPPFLAGS="${SHARED_CPPFLAGS}" \
-    TARGET_CFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
-    TARGET_CXXFLAGS="--sysroot=${SYSROOT} -D_GLIBCXX_ASSERTIONS -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing -ftrivial-auto-var-init=zero -fstack-protector-strong -fstack-clash-protection -fstrict-flex-arrays=3 -fno-common -fPIE -pie -fpie -static -ffunction-sections -fdata-sections -s -Wl,-gc-sections -Wl,-pie -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib ${ARCH_CPPFLAGS}" \
-    # Tell some crates that we are cross compiling
-    CROSS_COMPILE=1
+    # TARGET_CPPFLAGS="${TARGET_CPPFLAGS}" \ # No need to redefine, but keep commented as a reminder that it needs to be here
+    # TARGET_CFLAGS="${TARGET_CFLAGS}" \ # No need to redefine, but keep commented as a reminder that it needs to be here
+    TARGET_CXXFLAGS="${TARGET_CFLAGS} -D_GLIBCXX_ASSERTIONS"
 
 WORKDIR /home/rust/src
 
@@ -920,4 +1040,4 @@ LABEL org.opencontainers.image.authors="BlackDex <black.dex@gmail.com>"
 LABEL org.opencontainers.image.documentation="https://github.com/BlackDex/rust-musl/"
 LABEL org.opencontainers.image.licenses="Apache License 2.0"
 LABEL org.opencontainers.image.url="https://github.com/BlackDex/rust-musl/"
-LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL (v15,v16,v17) , SQLite, MariaDB and LibXML2 static libraries"
+LABEL org.opencontainers.image.description="MUSL Cross Build Base Image for Rust ${TARGET} with ZLib, OpenSSL, cURL, PostgreSQL (v15,v16,v17,v18), SQLite, MariaDB and LibXML2 static libraries"

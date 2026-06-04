@@ -1,5 +1,12 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
+
+// The `openssl` crate must be included before the `diesel` crate.
+// Else, this generates linking errors with the static build libpq because it needs libssl, but pq-sys never includes it.
+#[cfg(feature = "_enable_openssl")]
+#[allow(unused_extern_crates)]
+extern crate openssl;
 
 #[macro_use]
 extern crate diesel;
@@ -43,6 +50,18 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 fn main() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { libsqlite3_sys::sqlite3_libversion_number() };
+    println!("sqlite3 lib version: {lib_version:?}",);
+
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "main.db".into());
-    SqliteConnection::establish(&database_url).unwrap();
+    let mut conn = SqliteConnection::establish(&database_url).unwrap();
+
+    let sqlite_version = diesel::select(diesel::dsl::sql::<diesel::sql_types::Text>(
+        "sqlite_version();",
+    ))
+    .get_result::<String>(&mut conn)
+    .unwrap_or_else(|_| "Unknown".to_owned());
+
+    println!("SQLite version query: {sqlite_version}")
 }

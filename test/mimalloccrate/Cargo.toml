@@ -1,9 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "mimalloccrate"
-version = "0.5.0"
-edition = "2021"
-resolver = "2"
+version = "0.6.0"
+edition = "2024"
 
 [dependencies]
 mimalloc = { version = "*", features = ["secure", "extended"] , default-features = false }
@@ -16,7 +15,9 @@ mimalloc = { version = "*", features = ["secure", "extended"] , default-features
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

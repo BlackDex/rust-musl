@@ -91,7 +91,15 @@ fn test_sqlite() {
     println!("sqlite3 lib version: {lib_version:?}",);
 
     let database_url = std::env::var("DATABASE_URL_SQLITE").unwrap_or_else(|_| "main.db".into());
-    SqliteConnection::establish(&database_url).unwrap();
+    let mut conn = SqliteConnection::establish(&database_url).unwrap();
+
+    let sqlite_version = diesel::select(diesel::dsl::sql::<diesel::sql_types::Text>(
+        "sqlite_version();",
+    ))
+    .get_result::<String>(&mut conn)
+    .unwrap_or_else(|_| "Unknown".to_owned());
+
+    println!("SQLite version query: {sqlite_version}")
 }
 
 fn test_postgres() {

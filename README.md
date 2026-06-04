@@ -8,15 +8,9 @@
 This project generates docker images to build static musl binaries using the Rust language.
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
-These container images are based upon Ubuntu 24.04 and use GCC v14.2.0 to build the toolchains and GCC v15.1.0 for the libraries.<br>
-Since 2024-03-15 all images are build using musl v1.2.5 using https://github.com/richfelker/musl-cross-make.<br>
-And since 2025-02-15 all images are available for amd64 and arm64 platforms.
-
-> [!NOTE]
-> **2025-11-14:**
-> Updated gcc toolchain to v15.1.0
-> **2025-07-23:**
-> Updated musl-cross-make and use gcc v14.3.0 and binutils v2.44
+These container images are based upon Ubuntu 26.04 and use GCC v15.2.0 to build the toolchains and GCC v15.2.0 for the libraries.<br>
+Since 2026-06 all images are build using musl v1.2.6 using https://github.com/crosstool-ng/crosstool-ng.<br>
+And since 2025-02-15 all images are available for amd64 and arm64 host platforms.
 
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.3.2`)
@@ -24,9 +18,15 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * cURL (`v8.20.0`)
 * sccache (`0.15.0`)
 * PostgreSQL lib (`v17.10`) + (`v18.4`), (`v16.14`) and (`v15.18`)
-* SQLite (`v3.53.1`)
+* SQLite (`v3.53.2`)
 * MariaDB Connector/C (`v3.4.8`) (MySQL Compatible)
 * libxml2 (`v2.15.3`)
+
+
+## Changelog
+
+To see changes done checkout the [Changelog](./CHANGELOG.md)
+
 
 ## Available architectures
 
@@ -46,20 +46,6 @@ Stables builds are automatically triggered if there is a new version available.
 > This means that you can build x86_64 (amd64) binaries on an aarch64 (arm64) host.<br>
 > The OCI images are multi-platform containers and all should work the same for both platforms.
 
-### OpenSSL v3
-
-> [!NOTE]
-> **2025-07-02:**
-> Build using OpenSSL v3.5.x LTS
-
-> [!NOTE]
-> **2024-03-15:**
-> I stopped adding the `-openssl3` postfix to the tags.
-
-> [!NOTE]
-> **2023-09-29:**
-> I stopped building OpenSSL v1.1.1 since it's EOL.<br>
-> Now only OpenSSL v3.0 is being build.
 
 ### PostgreSQL v17 & v18 & v16 & v15
 
@@ -68,39 +54,11 @@ If you want to use v17 or v15 you need to overwrite an environment variable so t
 <br>
 Adding `-e PQ_LIB_DIR="/usr/local/musl/pq17/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq17/lib"` to your custom build image will trigger the v17 version to be used during the build.
 
-> [!NOTE]
-> **2025-10-12:**
-> Building libpq v18 and set v17 as default
-
-> [!NOTE]
-> **2025-02-18:**
-> Building libpq v17 besides v15 and v16
-
-> [!NOTE]
-> **2024-11-26:**
-> Stopped building libpq v11, it has been deprecated for a while now.
-
-> [!NOTE]
-> **2024-08-08:**
-> libpq v16 is now the default version. v15 and v11 are still build and available.
-
-> [!NOTE]
-> **2024-08-02:**
-> In some situations it could be that the libpq v11 was still used. Depending if during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different libpq.a.<br>
-> This has been solved now by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable your self to anything else then the v15 directory.
-
 <br>
 
 ## Usage
 
-> [!WARNING]
-> **2023-04-23:**
-> Stopped building `arm-unknown-linux-musleabihf` and `armv5te-unknown-linux-musleabi`.<br>
-> They do not seem to be used at all. If someone is using them, please open an issue and let me know.
-
-<br>
-
-|        Cross Target            |    Docker Tag    |
+|        Cross Target            |  Container Tag   |
 | ------------------------------ | ---------------- |
 | x86\_64-unknown-linux-musl     | x86\_64-musl     |
 | armv7-unknown-linux-musleabihf | armv7-musleabihf |
@@ -117,21 +75,21 @@ The images are pushed to multiple container registries.
 
 |                       Container Registry                       |
 |----------------------------------------------------------------|
+| https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl |
 | https://hub.docker.com/r/blackdex/rust-musl                    |
 | https://quay.io/repository/blackdex/rust-musl                  |
-| https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl |
 
 <br>
 
 ### Using a Dockerfile
 
 ```dockerfile
-FROM docker.io/blackdex/rust-musl:aarch64-musl as build
+FROM ghcr.io/blackdex/rust-musl:aarch64-musl as build
 
 COPY . /home/rust/src
 
-# If you want to use PostgreSQL v15 add and uncomment the following ENV
-# ENV PQ_LIB_DIR="/usr/local/musl/pq15/lib"
+# If you want to use PostgreSQL v18 add and uncomment the following ENV
+# ENV PQ_LIB_DIR="/usr/local/musl/pq18/lib"
 
 RUN cargo build --release
 
@@ -147,18 +105,18 @@ CMD ["/my-application-name"]
 
 ### Using the CLI
 
-If you want to use PostgreSQL `v17` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq17/lib"` before the `-v "$(pwd)"` argument.
+If you want to use PostgreSQL `v18` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq18/lib"` before the `-v "$(pwd)"` argument.
 
 ```bash
 # First pull the image:
-docker pull docker.io/blackdex/rust-musl:aarch64-musl
+docker pull ghcr.io/blackdex/rust-musl:aarch64-musl
 
 # Then you could either create an alias
-alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarch64-musl'
+alias rust-musl-builder='docker run --rm -it -v "$(pwd)":/home/rust/src ghcr.io/blackdex/rust-musl:aarch64-musl'
 rust-musl-builder cargo build --release
 
 # Or use it directly
-docker run --rm -it -v "$(pwd)":/home/rust/src docker.io/blackdex/rust-musl:aarch64-musl cargo build --release
+docker run --rm -it -v "$(pwd)":/home/rust/src ghcr.io/blackdex/rust-musl:aarch64-musl cargo build --release
 ```
 
 <br>
@@ -193,11 +151,11 @@ jobs:
 
 ### Verify container images
 
-Since 2025-02-15 you can verify all my images using the `gh` client.<br>
+You can verify all my images using the `gh` client.<br>
 
-For example, to verify the aarch64 v1.84.1 image.
+For example, to verify the aarch64 v1.96.0 image.
 ```bash
-gh attestation verify --owner BlackDex oci://ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.84.1
+gh attestation verify --owner BlackDex oci://ghcr.io/blackdex/rust-musl:aarch64-musl-stable-1.96.0
 ```
 
 ### Using a different allocator
@@ -243,5 +201,8 @@ Some projects i got my inspiration from:
 * https://github.com/emk/rust-musl-builder
 
 Projects used to get this working:
+* https://github.com/crosstool-ng/crosstool-ng
+* https://github.com/cross-rs/cross
+
+Other links for projects used in the past:
 * https://github.com/richfelker/musl-cross-make
-* https://github.com/rust-embedded/cross

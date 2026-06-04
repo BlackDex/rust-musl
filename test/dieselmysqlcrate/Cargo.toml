@@ -1,16 +1,17 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselmysqlcrate"
-version = "0.6.1"
-edition = "2021"
-resolver = "2"
+version = "0.7.0"
+edition = "2024"
 
 [features]
 default = []
 vendored_openssl = ["openssl/vendored"]
+vendored_mysql = ["mysqlclient-sys/bundled"]
 
 [dependencies]
-openssl = "*"
+openssl = { version = "*", optional = true }
+mysqlclient-sys = "*"
 
 # Tell Diesel to use MySQL features
 diesel = { version = "2.3.*", features = ["mysql", "chrono", "r2d2"] }
@@ -24,7 +25,9 @@ diesel_migrations = { version = "2.3.*", features = ["mysql"] }
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

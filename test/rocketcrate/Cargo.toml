@@ -1,9 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "rocketcrate"
-version = "0.3.2"
-edition = "2021"
-resolver = "2"
+version = "0.4.0"
+edition = "2024"
 
 [dependencies]
 rocket = { version = "0.5", default-features = false }
@@ -16,7 +15,9 @@ rocket = { version = "0.5", default-features = false }
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

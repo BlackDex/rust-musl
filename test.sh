@@ -18,6 +18,7 @@ docker_build() {
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
+    "${DOCKER_UNSET[@]}" \
     "${PQ_LIB_DIR[@]}" \
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
@@ -46,6 +47,7 @@ docker_build_armv7() {
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
+    "${DOCKER_UNSET[@]}" \
     "${PQ_LIB_DIR[@]}" \
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
@@ -75,6 +77,7 @@ docker_build_aarch64() {
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
+    "${DOCKER_UNSET[@]}" \
     "${PQ_LIB_DIR[@]}" \
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
@@ -103,6 +106,7 @@ docker_build_arm() {
   docker run --rm \
     -v "$PWD/test/${crate}:/home/rust/src" \
     -v cargo-cache:/root/.cargo/registry \
+    "${DOCKER_UNSET[@]}" \
     "${PQ_LIB_DIR[@]}" \
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
@@ -161,6 +165,25 @@ elif [[ -z "${PQ_LIB-unset}" ]]; then
 else
   # Else, use the defined PQ_LIB version
   PQ_LIB_DIR=(-e "PQ_LIB_DIR=/usr/local/musl/pq${PQ_LIB}/lib")
+fi
+
+DOCKER_UNSET=()
+if [[ -n "${FEATURES}" ]]; then
+  if [[ "${FEATURES}" == *"vendored_openssl" ]]; then
+    DOCKER_UNSET+=(-e "OPENSSL_DIR=")
+    DOCKER_UNSET+=(-e "OPENSSL_LIB_DIR=")
+    DOCKER_UNSET+=(-e "OPENSSL_INCLUDE_DIR=")
+    DOCKER_UNSET+=(-e "DEP_OPENSSL_INCLUDE=")
+  fi
+
+  if [[ "${FEATURES}" == *"vendored_sqlite" || "${FEATURES}" == *"vendored_sqlcipher" ]]; then
+    DOCKER_UNSET+=(-e "SQLITE3_LIB_DIR=")
+    DOCKER_UNSET+=(-e "SQLITE3_INCLUDE_DIR=")
+  fi
+
+  if [[ "${FEATURES}" == *"vendored_pq" ]]; then
+    DOCKER_UNSET+=(-e "PQ_LIB_DIR=")
+  fi
 fi
 
 if [[ "${ARCH}" == "armv7" ]]; then

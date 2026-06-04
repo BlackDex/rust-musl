@@ -1,9 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "rustlscrate"
-version = "0.2.0"
-edition = "2021"
-resolver = "2"
+version = "0.3.0"
+edition = "2024"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -21,7 +20,9 @@ http-body-util = { version = "*" }
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

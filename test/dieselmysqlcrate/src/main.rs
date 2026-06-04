@@ -2,11 +2,6 @@
 #![warn(rust_2021_compatibility)]
 #![warn(rust_2024_compatibility)]
 
-// openssl must be included before diesel atm.
-// needed to avoid link errors even if we don't use it directly
-#[allow(unused_extern_crates)]
-extern crate openssl;
-
 #[macro_use]
 extern crate diesel;
 // Also include diesel_migrations because it causes some other issues during compiling.
@@ -49,12 +44,16 @@ use diesel::mysql::MysqlConnection;
 use diesel::prelude::*;
 
 fn main() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { mysqlclient_sys::mysql_get_client_version() };
+    println!("mysql/mariadb lib version: {lib_version:?}",);
+
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "mysql://localhost?connect_timeout=1&sslmode=require".into());
     match MysqlConnection::establish(&database_url) {
         Err(e) => {
             println!("Should fail to connect here:");
-            println!("{}", e);
+            println!("{e}");
         }
         Ok(_) => {
             unreachable!();

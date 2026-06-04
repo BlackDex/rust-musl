@@ -1,9 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselpgcrate"
-version = "0.5.1"
-edition = "2021"
-resolver = "2"
+version = "0.6.0"
+edition = "2024"
 
 [features]
 default = []
@@ -13,7 +12,7 @@ vendored_pq_no_ssl = ["pq-sys/bundled_without_openssl"]
 
 [dependencies]
 openssl = "*"
-pq-sys = { version = "*", optional = true }
+pq-sys = "*"
 
 diesel = { version = "2.3.*", features = ["postgres", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.3.*", features = ["postgres"] }
@@ -26,7 +25,9 @@ diesel_migrations = { version = "2.3.*", features = ["postgres"] }
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

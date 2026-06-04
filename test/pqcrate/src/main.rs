@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
 // needed to avoid link errors even if we don't use it directly
 #[allow(unused_extern_crates)]
