@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
 #[macro_use]
 extern crate serde;
@@ -17,7 +18,7 @@ fn main() {
     let serialized = serde_json::to_string(&point).unwrap();
 
     // Prints serialized = {"x":1,"y":2}
-    println!("serialized = {}", serialized);
+    println!("serialized = {serialized}");
 
     // Convert the JSON string back to a Point.
     let deserialized: Point = serde_json::from_str(&serialized).unwrap();

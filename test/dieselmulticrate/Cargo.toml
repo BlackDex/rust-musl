@@ -1,9 +1,8 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselmulticrate"
-version = "0.5.2"
-edition = "2021"
-resolver = "2"
+version = "0.6.0"
+edition = "2024"
 
 [features]
 default = []
@@ -11,6 +10,7 @@ vendored_openssl = ["openssl/vendored"]
 vendored_sqlite = ["libsqlite3-sys/bundled"]
 vendored_pq = ["pq-sys/bundled"]
 vendored_pq_no_ssl = ["pq-sys/bundled_without_openssl"]
+vendored_mysql = ["mysqlclient-sys/bundled"]
 
 [dependencies]
 openssl = { version = "*", optional = true }
@@ -31,7 +31,9 @@ diesel_migrations = { version = "2.3.*", features = ["sqlite", "mysql", "postgre
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

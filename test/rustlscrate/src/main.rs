@@ -1,7 +1,7 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
-// use http::Uri;
 use http_body_util::{BodyExt, Empty};
 use hyper::body::Bytes;
 use hyper_rustls::ConfigBuilderExt;
@@ -15,13 +15,13 @@ fn main() {
 
     // Send GET request and inspect result, with proper error handling.
     if let Err(e) = run_client() {
-        eprintln!("FAILED: {}", e);
+        eprintln!("FAILED: {e}");
         std::process::exit(1);
     }
 }
 
 fn error(err: String) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, err)
+    io::Error::other(err)
 }
 
 #[tokio::main]

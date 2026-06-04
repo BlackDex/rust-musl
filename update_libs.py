@@ -35,13 +35,13 @@ HEADERS = {
 SESSION = requests.Session()
 SESSION.headers.update(HEADERS)
 
-def convert_sqlite_version(ver: str):
-    """Convert SQLite package versions to match upstream's format
+def convert_version(ver: str):
+    """Convert package versions to change `_` to `.`
 
-    >>> convert_sqlite_version('3.39.3')
-    '3390300'
-    >>> convert_sqlite_version('3_39_3')
-    '3390300'
+    >>> convert_version('8_20_0')
+    '8.20.30'
+    >>> convert_version('3_53_1')
+    '3.39.3'
     """
 
     return ver.replace("_", ".")
@@ -61,7 +61,6 @@ def pkgver(package: str):
     url = f'https://www.archlinux.org/packages/search/json/?name={package}'
     with SESSION.get(url, stream=False, timeout=(2, 3)) as res:
         metadata = res.json()
-
 
     try:
         return metadata['results'][0]['pkgver']
@@ -235,13 +234,13 @@ if __name__ == '__main__':
         # Print the latest versions available from there main mirrors/release-pages
         'ZLIB': mirrorver('https://zlib.net/', r'zlib-\d\.\d+', r'zlib-', r'\.tar\.gz'),
         'SSL': githubver('openssl/openssl', r'openssl-3\.5\..*', r'openssl-'),
-        'CURL': mirrorver('https://curl.se/download/', r'download\/curl-[89]\.\d+\.\d+', r'download/curl-', r'\.tar\.xz'),
+        'CURL': convert_version(githubver('curl/curl', r'^curl-\d_', 'curl-')),
         'SCCACHE': githubver('mozilla/sccache', r'v\d\..*', r'v'),
         'PQ_15': mirrorver('https://ftp.postgresql.org/pub/source/', r'v15\.', 'v'),
         'PQ_16': mirrorver('https://ftp.postgresql.org/pub/source/', r'v16\.', 'v'),
         'PQ_17': mirrorver('https://ftp.postgresql.org/pub/source/', r'v17\.', 'v'),
         'PQ_18': mirrorver('https://ftp.postgresql.org/pub/source/', r'v18\.', 'v'),
-        'SQLITE': convert_sqlite_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
+        'SQLITE': convert_version(mirrorver('https://www.sqlite.org/chronology.html', r'releaselog\/\d_\d+\_\d+', r'releaselog/', r'\.html')),
         'MARIADB': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.4\.+', 'connector-c-', r'\/'),
         # 'MYSQL': mirrorver('https://dev.mysql.com/downloads/mysql/?tpl=files&os=src&version=8.4', r'\/downloads\/gpg\/\?file=mysql-8.4', r'/downloads/gpg/?file=mysql-', r'\.tar\.gz.*'),
         'LIBXML2': githubver('GNOME/libxml2', r'v2\..*', r'v'),
@@ -255,7 +254,7 @@ if __name__ == '__main__':
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
         'PQ_ALPINE': alpinever('postgresql17'),
-        'SQLITE_ARCH': convert_sqlite_version(pkgver('sqlite')),
+        'SQLITE_ARCH': convert_version(pkgver('sqlite')),
         'MARIADB_3_X': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),
         'LIBXML2_ARCH': pkgver('libxml2'),

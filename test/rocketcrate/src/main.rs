@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
 #[macro_use]
 extern crate rocket;
@@ -11,7 +12,7 @@ fn index() -> &'static str {
 
 #[get("/hello/<name>/<age>")]
 fn hello(name: String, age: u8) -> String {
-    format!("Hello, {} year old named {}!", age, name)
+    format!("Hello, {age} year old named {name}!")
 }
 
 #[launch]

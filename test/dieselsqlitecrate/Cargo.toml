@@ -1,16 +1,20 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "dieselsqlitecrate"
-version = "0.5.1"
-edition = "2021"
-resolver = "2"
+version = "0.6.0"
+edition = "2024"
 
 [features]
 default = []
 vendored_sqlite = ["libsqlite3-sys/bundled"]
+# For sqlcipher you need to link openssl first, same issue as with Postgres, they do not link libssl from within the crate
+vendored_sqlcipher = ["libsqlite3-sys/bundled-sqlcipher", "_enable_openssl"]
+vendored_sqlcipher_and_ssl = ["libsqlite3-sys/bundled-sqlcipher-vendored-openssl"]
+_enable_openssl = ["dep:openssl"]
 
 [dependencies]
-libsqlite3-sys = { version = "*", optional = true }
+openssl = { version = "*", optional = true }
+libsqlite3-sys = "*"
 
 diesel = { version = "2.3.*", features = ["sqlite", "chrono", "r2d2"] }
 diesel_migrations = { version = "2.3.*", features = ["sqlite"] }
@@ -23,7 +27,9 @@ diesel_migrations = { version = "2.3.*", features = ["sqlite"] }
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

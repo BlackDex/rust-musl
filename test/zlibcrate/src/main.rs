@@ -1,5 +1,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
 use std::env;
 use std::fs::{self, File};
@@ -38,7 +39,7 @@ fn compress(input_file: &str, output_file: PathBuf) -> io::Result<()> {
 
 fn verify(res: io::Result<()>) {
     let _ = res.map_err(|e| {
-        println!("error: {}", e);
+        println!("error: {e}");
         process::exit(1);
     });
 }

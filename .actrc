@@ -4,6 +4,6 @@
 --eventpath ./.github/act-event.json
 --artifact-server-path ./.artifacts
 --use-new-action-cache
---concurrent-jobs 1
+--concurrent-jobs 2
 --network host
 --rm

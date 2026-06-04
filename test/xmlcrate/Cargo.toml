@@ -1,17 +1,11 @@
 [package]
 authors = ["BlackDex <black.dex@gmail.com>"]
 name = "xmlcrate"
-version = "0.1.0"
-edition = "2021"
-resolver = "2"
+version = "0.2.0"
+edition = "2024"
 
 [dependencies]
 libxml = "*"
-
-# [patch.crates-io]
-# libxml = { path = '.artifacts/rust-libxml' }
-# libxml = { git = 'https://github.com/KWARC/rust-libxml.git', rev = "2484a6d5c8ef6faa7674d8091bd3c4c4854d2cd2" }
-# libxml = { git = 'https://github.com/wetneb/rust-libxml.git', rev = "6627396ee167f809cc7dc677952628f850838c87"}
 
 # Strip symbols from the release builds
 # https://doc.rust-lang.org/stable/rustc/codegen-options/index.html#strip
@@ -21,7 +15,9 @@ libxml = "*"
 # https://doc.rust-lang.org/stable/cargo/reference/profiles.html#lto
 [profile.release]
 strip = "symbols"
-lto = "thin"
+codegen-units = 1
+debug = false
+lto = "fat"
 
 [profile.dev]
-strip = "symbols"
+strip = "debuginfo"

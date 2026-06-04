@@ -1,8 +1,9 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 
-// openssl must be included before diesel atm.
-// needed to avoid link errors even if we don't use it directly
+// The `openssl` crate must be included before the `diesel` crate.
+// Else, this generates linking errors with the static build libpq because it needs libssl, but pq-sys never includes it.
 #[allow(unused_extern_crates)]
 extern crate openssl;
 
@@ -49,12 +50,16 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 
 fn main() {
+    // Unsafe function to extract the library version
+    let lib_version = unsafe { pq_sys::PQlibVersion() };
+    println!("postgres lib version: {lib_version:?}",);
+
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://localhost?connect_timeout=1&sslmode=require".into());
     match PgConnection::establish(&database_url) {
         Err(e) => {
             println!("Should fail to connect here:");
-            println!("{}", e);
+            println!("{e}");
         }
         Ok(_) => {
             unreachable!();

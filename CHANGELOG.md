@@ -11,6 +11,16 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
+## 2026-06-04
+
+### Changed
+  - Build libraries with the new toolchain
+  - Updated GitHub Workflows
+  - Updated all test crates to edition 2024
+  - Updated/Fixed some testing crates
+  - Updated SQLite to v3.53.2
+
+
 ## 2026-06-02
 
 ### Changed

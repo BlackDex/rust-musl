@@ -10,12 +10,13 @@ on:
         type: boolean
         default: true
       older_than:
-        description: "Delete older then n"
+        description: "Delete older then"
         required: true
         default: "30 days"
 
   schedule:
     - cron: "0 1 * * FRI"
+      timezone: UTC
 
 jobs:
   cleanup:
@@ -39,7 +40,7 @@ jobs:
           dry-run: false
           older-than: 30 days
 
-      - name: Delete older than (Manual)
+      - name: Delete older than (Manual) - Toolchain
         if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
         with:
@@ -47,7 +48,7 @@ jobs:
           dry-run: ${{ inputs.dry_run }}
           older-than: ${{ inputs.older_than }}
 
-      - name: Delete older than 30 days (Scheduled)
+      - name: Delete older than 30 days (Scheduled) - Toolchain
         if: ${{ github.event_name == 'schedule' }}
         uses: dataaxiom/ghcr-cleanup-action@f092b48ba3b604b2a83690dc4b2bbb3392e1045f # v1.2.1
         with:
