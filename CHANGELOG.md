@@ -11,6 +11,12 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
+## 2026-06-10
+
+### Changed
+  - Update OpenSSL to v3.5.7
+
+
 ## 2026-06-04
 
 ### Changed
