@@ -13,6 +13,7 @@ CT_BINUTILS_DETERMINISTIC_ARCHIVES=y
 CT_BINUTILS_EXTRA_CONFIG_ARRAY="--enable-new-dtags --disable-default-execstack --enable-warn-execstack=yes --enable-error-execstack=yes"
 
 # GCC
+CT_GCC_V_15=y
 CT_GCC_VERSION="15.3.0"
 CT_CC_LANG_CXX=y
 CT_CC_GCC_CONFIG_TLS=y
