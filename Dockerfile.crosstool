@@ -60,7 +60,7 @@ EOF
 WORKDIR /tmp
 
 # Now build crosstool-ng, this will not change often, and caching it in base is the best solution here.
-ARG CROSSTOOL_NG_HASH=14025c57ebf65d942c0925471421027d32b474c9 # Apr 29, 2026, 10:35 PM GMT+2 - Added musl v1.2.6 cve patch
+ARG CROSSTOOL_NG_HASH=203a48cb11ebb39e288b386e9c35d99ab4e7714b # Jun 19, 2026, 01:15 GMT+2
 RUN <<EOF
     echo "Downloading crosstool-ng"
 
