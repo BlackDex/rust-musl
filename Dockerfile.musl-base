@@ -99,7 +99,7 @@ ENV TARGET="arm-unknown-linux-musleabi" \
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-06-02 AS musl-toolchain
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-06-19 AS musl-toolchain
 
 # Start building the musl-base
 FROM target_${IMAGE_TAG} AS build
@@ -119,8 +119,8 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     TARGET_AR="${TARGET}-gcc-ar" \
     TARGET_NM="${TARGET}-gcc-nm" \
     TARGET_RANLIB="${TARGET}-gcc-ranlib" \
-    TARGET_LDFLAGS="-static -static-libstdc++ -Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib" \
-    TARGET_CPPFLAGS="--sysroot=${SYSROOT} -I${TARGET_PREFIX}/include -I${SYSROOT}/include" \
+    TARGET_LDFLAGS="-static -static-libstdc++ -Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib -L${SYSROOT}/usr/lib" \
+    TARGET_CPPFLAGS="--sysroot=${SYSROOT} -I${TARGET_PREFIX}/include -I${SYSROOT}/usr/include" \
     SHARED_CFLAGS="-g0 -O2" \
     TARGET_CFLAGS="--sysroot=${SYSROOT} -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${ARCH_CFLAGS}" \
     RUST_MUSL_CROSS_TARGET="${TARGET}" \
@@ -324,9 +324,9 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.15.0"
-ARG SCCACHE_HASH_x86_64="782d2b5dd7ae0a55ebe368ab258114d0928d019ac2d949ab85d5d02f3926709e"
-ARG SCCACHE_HASH_aarch64="3a6a3712b49da3d263bf2d30d702de4302793016019e800bfb81c0c69401d8f8"
+ARG SCCACHE_VER="0.16.0"
+ARG SCCACHE_HASH_x86_64="aec995a83ad3dff3d14b6314e08858b7b73d35ca85a5bcf3d3a9ec07dee35588"
+ARG SCCACHE_HASH_aarch64="f73a5c39f96bb6ebb89cc7915cf182260d4cbf30765322c5e793d0fe8bd80784"
 RUN <<EOF
     case "$(uname -m)" in
       x86_64)
@@ -909,7 +909,7 @@ RUN <<EOF
     export LD="${TARGET_LD}"
     export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
-    export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 doesn't still think we build dynamic libraries
+    export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 does not think we build dynamic libraries
     export CPPFLAGS="${TARGET_CPPFLAGS}"
     export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects -fno-semantic-interposition"
     export CC="${TARGET_CC}"
@@ -919,10 +919,8 @@ RUN <<EOF
       export LIBS="-latomic"
     fi
 
-    # autogen
     ./autogen.sh
 
-    # configure
     ./configure \
       --host="${TARGET}" \
       --enable-static \

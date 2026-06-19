@@ -18,11 +18,16 @@ on:
     - cron: "0 1 * * FRI"
       timezone: UTC
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # Finish running builds to tags and merging will be done correctly
+
 jobs:
   cleanup:
+    name: Clean ghcr.io buildcache
     runs-on: ubuntu-24.04
     permissions:
-      packages: write
+      packages: write # Allow cleaning images from ghcr.io
     steps:
       - name: Delete older than (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}

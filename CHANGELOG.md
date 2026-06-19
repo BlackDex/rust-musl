@@ -16,6 +16,9 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
   - Build GCC v15.3.0 toolchains
   - Updated binutils to v2.46.1
   - Kernel v5.15 LTS headers updated to the latest version
+  - Updated sccache to v0.16.0
+  - Fixed some CPPFLAGS and LDFLAGS parameters, some were pointing to a wrong directory
+  - Updated GitHub Workflows
 
 ## 2026-06-10
 
