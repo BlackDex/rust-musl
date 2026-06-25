@@ -1,0 +1,428 @@
+From 40806da977ae073e13e64e3b68dc42e3f63020b0 Mon Sep 17 00:00:00 2001
+From: Georg Richter <georg@mariadb.com>
+Date: Thu, 26 Mar 2026 08:31:24 +0100
+Subject: [PATCH] Follow up of 5fe4d03f26045d1215e894d16054935ddd65ecc0:
+
+Always initialize length variables of MYSQL_BIND structure
+to make MSAN happy.
+---
+ libmariadb/ma_stmt_codec.c    | 66 +++++++++++++++++------------------
+ libmariadb/mariadb_stmt.c     |  9 +++++
+ unittest/libmariadb/ps_bugs.c | 48 ++++++++++++++++++-------
+ 3 files changed, 78 insertions(+), 45 deletions(-)
+
+diff --git a/libmariadb/ma_stmt_codec.c b/libmariadb/ma_stmt_codec.c
+index 957e1cd58..5ac0948de 100644
+--- a/libmariadb/ma_stmt_codec.c
++++ b/libmariadb/ma_stmt_codec.c
+@@ -1,19 +1,19 @@
+ /****************************************************************************
+    Copyright (C) 2012 Monty Program AB
+-   
++
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Library General Public
+    License as published by the Free Software Foundation; either
+    version 2 of the License, or (at your option) any later version.
+-   
++
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Library General Public License for more details.
+-   
++
+    You should have received a copy of the GNU Library General Public
+    License along with this library; if not see <http://www.gnu.org/licenses>
+-   or write to the Free Software Foundation, Inc., 
++   or write to the Free Software Foundation, Inc.,
+    51 Franklin St., Fifth Floor, Boston, MA 02110, USA
+ 
+    Part of this code includes code from the PHP project which
+@@ -21,7 +21,7 @@
+ *****************************************************************************/
+ 
+ /* The implementation for prepared statements was ported from PHP's mysqlnd
+-   extension, written by Andrey Hristov, Georg Richter and Ulf Wendel 
++   extension, written by Andrey Hristov, Georg Richter and Ulf Wendel
+ 
+    Original file header:
+   +----------------------------------------------------------------------+
+@@ -409,7 +409,7 @@ static int parse_date(const char *str, size_t length, const char **end_ptr, MYSQ
+ }
+ 
+ /*
+-  Parse (not null terminated) string representing 
++  Parse (not null terminated) string representing
+   TIME, DATE, or DATETIME into MYSQL_TIME structure
+ 
+   The supported formats by this functions are
+@@ -473,7 +473,7 @@ int str_to_TIME(const char *str, size_t length, MYSQL_TIME *tm)
+   {
+     if (parse_time(p, end - p, &p, tm))
+       goto error;
+-    
++
+     tm->year = tm->month = tm->day = 0;
+     tm->time_type = MYSQL_TIMESTAMP_TIME;
+     return 0;
+@@ -634,7 +634,7 @@ static void convert_from_long(MYSQL_BIND *r_param, const MYSQL_FIELD *field, lon
+       doublestore(r_param->buffer, dbl);
+ 
+       *r_param->error = (dbl != ceil(dbl)) ||
+-                         (is_unsigned ? (ulonglong )dbl != (ulonglong)val : 
++                         (is_unsigned ? (ulonglong )dbl != (ulonglong)val :
+                                         (longlong)dbl != (longlong)val);
+ 
+       r_param->buffer_length= 8;
+@@ -646,7 +646,7 @@ static void convert_from_long(MYSQL_BIND *r_param, const MYSQL_FIELD *field, lon
+       fval= is_unsigned ? (float)(ulonglong)(val) : (float)val;
+       floatstore((uchar *)r_param->buffer, fval);
+       *r_param->error= (fval != ceilf(fval)) ||
+-                        (is_unsigned ? (ulonglong)fval != (ulonglong)val : 
++                        (is_unsigned ? (ulonglong)fval != (ulonglong)val :
+                                        (longlong)fval != val);
+       r_param->buffer_length= 4;
+     }
+@@ -695,7 +695,7 @@ void ps_fetch_null(MYSQL_BIND *r_param __attribute__((unused)),
+ /* }}} */
+ 
+ #define GET_LVALUE_FROM_ROW(is_unsigned, data, ucast, scast)\
+-  (is_unsigned) ? (longlong)(ucast) *(longlong *)(data) : (longlong)(scast) *(longlong *)(data) 
++  (is_unsigned) ? (longlong)(ucast) *(longlong *)(data) : (longlong)(scast) *(longlong *)(data)
+ /* {{{ ps_fetch_int8 */
+ static
+ void ps_fetch_int8(MYSQL_BIND *r_param, const MYSQL_FIELD * const field,
+@@ -757,7 +757,7 @@ void ps_fetch_int32(MYSQL_BIND *r_param, const MYSQL_FIELD * const field,
+     case MYSQL_TYPE_INT24:
+     case MYSQL_TYPE_LONG:
+       ps_fetch_from_1_to_8_bytes(r_param, field, row, 4);
+-    break; 
++    break;
+     default:
+     {
+       int32 sval= sint4korr(*row);
+@@ -824,14 +824,14 @@ static void convert_from_float(MYSQL_BIND *r_param, const MYSQL_FIELD *field, fl
+         ushort sval= (ushort)val;
+         shortstore(buf, sval);
+         *r_param->error= check_trunc_val != (double)sval;
+-      } else { 
++      } else {
+         short sval= (short)val;
+         shortstore(buf, sval);
+         *r_param->error= check_trunc_val != (double)sval;
+-      } 
++      }
+       r_param->buffer_length= 2;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_LONG:
+     {
+       if (r_param->is_unsigned)
+@@ -846,7 +846,7 @@ static void convert_from_float(MYSQL_BIND *r_param, const MYSQL_FIELD *field, fl
+       }
+       r_param->buffer_length= 4;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_LONGLONG:
+     {
+       if (r_param->is_unsigned)
+@@ -861,7 +861,7 @@ static void convert_from_float(MYSQL_BIND *r_param, const MYSQL_FIELD *field, fl
+       }
+       r_param->buffer_length= 8;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_DOUBLE:
+     {
+       double dval= (double)val;
+@@ -898,9 +898,9 @@ static void convert_from_float(MYSQL_BIND *r_param, const MYSQL_FIELD *field, fl
+       }
+ 
+       convert_froma_string(r_param, buff, length);
+-    }  
++    }
+     break;
+-  } 
++  }
+ }
+ 
+ static void convert_from_double(MYSQL_BIND *r_param, const MYSQL_FIELD *field, double val, int size __attribute__((unused)))
+@@ -923,14 +923,14 @@ static void convert_from_double(MYSQL_BIND *r_param, const MYSQL_FIELD *field, d
+         ushort sval= (ushort)val;
+         shortstore(buf, sval);
+         *r_param->error= check_trunc_val != (double)sval;
+-      } else { 
++      } else {
+         short sval= (short)val;
+         shortstore(buf, sval);
+         *r_param->error= check_trunc_val != (double)sval;
+-      } 
++      }
+       r_param->buffer_length= 2;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_LONG:
+     {
+       if (r_param->is_unsigned)
+@@ -945,7 +945,7 @@ static void convert_from_double(MYSQL_BIND *r_param, const MYSQL_FIELD *field, d
+       }
+       r_param->buffer_length= 4;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_LONGLONG:
+     {
+       if (r_param->is_unsigned)
+@@ -960,7 +960,7 @@ static void convert_from_double(MYSQL_BIND *r_param, const MYSQL_FIELD *field, d
+       }
+       r_param->buffer_length= 8;
+     }
+-    break; 
++    break;
+     case MYSQL_TYPE_FLOAT:
+     {
+       float fval= (float)val;
+@@ -997,9 +997,9 @@ static void convert_from_double(MYSQL_BIND *r_param, const MYSQL_FIELD *field, d
+        length= field->length;
+      }
+      convert_froma_string(r_param, buff, length);
+-    } 
++    }
+     break;
+-  } 
++  }
+ }
+ 
+ 
+@@ -1069,7 +1069,7 @@ static void convert_to_datetime(MYSQL_TIME *t, unsigned char **row, uint len, en
+     unsigned char *to= *row;
+     int has_date= 0;
+     uint offset= 7;
+-    
++
+     if (type == MYSQL_TYPE_TIME)
+     {
+       t->neg= to[0];
+@@ -1134,7 +1134,7 @@ void ps_fetch_datetime(MYSQL_BIND *r_param, const MYSQL_FIELD * field,
+       shortstore(r_param->buffer, tm.year);
+       break;
+     }
+-    default: 
++    default:
+     {
+       char dtbuffer[60];
+       MYSQL_TIME tm;
+@@ -1186,7 +1186,7 @@ void ps_fetch_string(MYSQL_BIND *r_param,
+                      unsigned char **row)
+ {
+   /* C-API differs from PHP. While PHP just converts string to string,
+-     C-API needs to convert the string to the defined type with in 
++     C-API needs to convert the string to the defined type with in
+      the result bind buffer.
+    */
+   ulong field_length= net_field_length(row);
+@@ -1198,7 +1198,7 @@ void ps_fetch_string(MYSQL_BIND *r_param,
+ 
+ /* {{{ ps_fetch_bin */
+ static
+-void ps_fetch_bin(MYSQL_BIND *r_param, 
++void ps_fetch_bin(MYSQL_BIND *r_param,
+              const MYSQL_FIELD *field,
+              unsigned char **row)
+ {
+@@ -1266,7 +1266,7 @@ void mysql_init_ps_subsystem(void)
+   mysql_ps_fetch_functions[MYSQL_TYPE_DOUBLE].func    = ps_fetch_double;
+   mysql_ps_fetch_functions[MYSQL_TYPE_DOUBLE].pack_len  = 8;
+   mysql_ps_fetch_functions[MYSQL_TYPE_DOUBLE].max_len  = MAX_DOUBLE_STRING_REP_LENGTH;
+-  
++
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIME].func  = ps_fetch_datetime;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIME].pack_len  = MYSQL_PS_SKIP_RESULT_W_LEN;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIME].max_len  = 17;
+@@ -1278,7 +1278,7 @@ void mysql_init_ps_subsystem(void)
+   mysql_ps_fetch_functions[MYSQL_TYPE_NEWDATE].func    = ps_fetch_string;
+   mysql_ps_fetch_functions[MYSQL_TYPE_NEWDATE].pack_len  = MYSQL_PS_SKIP_RESULT_W_LEN;
+   mysql_ps_fetch_functions[MYSQL_TYPE_NEWDATE].max_len  = -1;
+-  
++
+   mysql_ps_fetch_functions[MYSQL_TYPE_DATETIME].func  = ps_fetch_datetime;
+   mysql_ps_fetch_functions[MYSQL_TYPE_DATETIME].pack_len= MYSQL_PS_SKIP_RESULT_W_LEN;
+   mysql_ps_fetch_functions[MYSQL_TYPE_DATETIME].max_len  = 30;
+@@ -1286,7 +1286,7 @@ void mysql_init_ps_subsystem(void)
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIMESTAMP].func  = ps_fetch_datetime;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIMESTAMP].pack_len= MYSQL_PS_SKIP_RESULT_W_LEN;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TIMESTAMP].max_len  = 30;
+-  
++
+   mysql_ps_fetch_functions[MYSQL_TYPE_TINY_BLOB].func  = ps_fetch_bin;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TINY_BLOB].pack_len= MYSQL_PS_SKIP_RESULT_STR;
+   mysql_ps_fetch_functions[MYSQL_TYPE_TINY_BLOB].max_len  = -1;
+@@ -1294,7 +1294,7 @@ void mysql_init_ps_subsystem(void)
+   mysql_ps_fetch_functions[MYSQL_TYPE_BLOB].func    = ps_fetch_bin;
+   mysql_ps_fetch_functions[MYSQL_TYPE_BLOB].pack_len  = MYSQL_PS_SKIP_RESULT_STR;
+   mysql_ps_fetch_functions[MYSQL_TYPE_BLOB].max_len  = -1;
+-  
++
+   mysql_ps_fetch_functions[MYSQL_TYPE_MEDIUM_BLOB].func  = ps_fetch_bin;
+   mysql_ps_fetch_functions[MYSQL_TYPE_MEDIUM_BLOB].pack_len= MYSQL_PS_SKIP_RESULT_STR;
+   mysql_ps_fetch_functions[MYSQL_TYPE_MEDIUM_BLOB].max_len  = -1;
+diff --git a/libmariadb/mariadb_stmt.c b/libmariadb/mariadb_stmt.c
+index bf3c5b86d..cbd2de098 100644
+--- a/libmariadb/mariadb_stmt.c
++++ b/libmariadb/mariadb_stmt.c
+@@ -1409,7 +1409,15 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
+     if (!stmt->bind[i].error)
+       stmt->bind[i].error= &stmt->bind[i].error_value;
+ 
++    if (mysql_ps_fetch_functions[stmt->bind[i].buffer_type].pack_len >= 0)
++    {
++      *stmt->bind[i].length= stmt->bind[i].length_value= mysql_ps_fetch_functions[stmt->bind[i].buffer_type].pack_len;
++    } else {
++      *stmt->bind[i].length= stmt->bind[i].length_value= 0;
++    }
++
+     /* set length values for numeric types */
++/*
+     switch(bind[i].buffer_type) {
+     case MYSQL_TYPE_NULL:
+       *stmt->bind[i].length= stmt->bind[i].length_value= 0;
+@@ -1439,6 +1447,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *bind)
+     default:
+       break;
+     }
++*/
+   }
+   stmt->bind_result_done= 1;
+   CLEAR_CLIENT_STMT_ERROR(stmt);
+diff --git a/unittest/libmariadb/ps_bugs.c b/unittest/libmariadb/ps_bugs.c
+index 629513d69..07e6fe44a 100644
+--- a/unittest/libmariadb/ps_bugs.c
++++ b/unittest/libmariadb/ps_bugs.c
+@@ -4851,7 +4851,7 @@ static int test_codbc138(MYSQL *mysql)
+   {0,0,0, 0,0,0, 0,0, MYSQL_TIMESTAMP_ERROR}
+   },
+ 
+-  {"SELECT '10:15:00'", 
++  {"SELECT '10:15:00'",
+   {0,0,0, 10,15,0, 0,0, MYSQL_TIMESTAMP_TIME}
+   },
+   {"SELECT '10:15:01'",
+@@ -4875,7 +4875,7 @@ static int test_codbc138(MYSQL *mysql)
+   {"SELECT '-838:59:59'",
+   {0,0,0, 838,59,59, 0, 1, MYSQL_TIMESTAMP_TIME},
+   },
+- 
++
+   {"SELECT '00:60:00'",
+   {0,0,0, 0,0,0, 0,0, MYSQL_TIMESTAMP_ERROR},
+   },
+@@ -4891,7 +4891,7 @@ static int test_codbc138(MYSQL *mysql)
+   {"SELECT '1999-12-31 23:59:59.9999999'",
+   {1999,12,31, 23,59,59, 999999, 0, MYSQL_TIMESTAMP_DATETIME},
+   },
+-  {"SELECT '00-08-11 8:46:40'", 
++  {"SELECT '00-08-11 8:46:40'",
+   {2000,8,11, 8,46,40, 0,0, MYSQL_TIMESTAMP_DATETIME},
+   },
+   {"SELECT '1999-12-31 25:59:59.999999'",
+@@ -4972,7 +4972,7 @@ static int test_conc344(MYSQL *mysql)
+ 
+   rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+   check_mysql_rc(rc, mysql);
+- 
++
+   rc= mysql_query(mysql, "CREATE TABLE t1 (a int, b int)");
+   check_mysql_rc(rc, mysql);
+   rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1,1), (2,2),(3,3),(4,4),(5,5)");
+@@ -5256,7 +5256,7 @@ static int test_mdev_21920(MYSQL *mysql)
+ 
+   mysql_stmt_close(stmt);
+ 
+-  return OK; 
++  return OK;
+ }
+ 
+ static int test_returning(MYSQL *mysql)
+@@ -5717,7 +5717,7 @@ static int test_conc633(MYSQL *mysql)
+   {
+     diag("Error: expected stmt_id=-1");
+     goto end;
+-  }  
++  }
+ 
+   if (!(my= test_connect(NULL)))
+   {
+@@ -5752,7 +5752,7 @@ static int test_conc633(MYSQL *mysql)
+   {
+     diag("Error: no stmt_id assigned");
+     goto end;
+-  }  
++  }
+ 
+   rc= mysql_query(my, "UNLOCK TABLES");
+   check_mysql_rc(rc, mysql);
+@@ -5793,7 +5793,7 @@ static int test_conc702(MYSQL *ma)
+   rc= mysql_stmt_execute(stmt);
+   check_stmt_rc(rc, stmt);
+ 
+- 
++
+   mysql_stmt_store_result(stmt);
+   check_stmt_rc(rc, stmt);
+ 
+@@ -5945,7 +5945,7 @@ static int test_conc762(MYSQL *mysql)
+   my_bool is_null[2]= {1,1};
+   unsigned long length[2]= {1,1};
+ 
+-  rc= mysql_stmt_prepare(stmt, SL("SELECT NULL, 'foo'"));
++  rc= mysql_stmt_prepare(stmt, SL("SELECT NULL, 'foo' union select 'bar', NULL union select NULL, 'foobar'"));
+   check_stmt_rc(rc, stmt);
+ 
+   memset(&bind, 0, sizeof(MYSQL_BIND) * 2);
+@@ -5963,15 +5963,39 @@ static int test_conc762(MYSQL *mysql)
+ 
+   rc= mysql_stmt_bind_result(stmt, bind);
+ 
++
+   mysql_stmt_fetch(stmt);
+   FAIL_IF(is_null[0]==0, "Expected NULL value");
+   FAIL_IF(is_null[1]==1, "Expected non-NULL value");
+   FAIL_IF(length[0]!=0, "Expected length=0");
+   FAIL_IF(length[1]!=3, "Expected length=3");
+ 
+-//  FAIL_IF(length[0] != 0, "Expected length=0");
+-  
+-//FAIL_IF(length[1] != 3, "Expected length=3)";
++  mysql_stmt_fetch(stmt);
++  FAIL_IF(is_null[1]==0, "Expected NULL value");
++  FAIL_IF(is_null[0]==1, "Expected non-NULL value");
++  FAIL_IF(length[1]!=0, "Expected length=0");
++  FAIL_IF(length[0]!=3, "Expected length=3");
++
++  mysql_stmt_fetch(stmt);
++  FAIL_IF(is_null[0]==0, "Expected NULL value");
++  FAIL_IF(is_null[1]==1, "Expected non-NULL value");
++  FAIL_IF(length[0]!=0, "Expected length=0");
++  FAIL_IF(length[1]!=6, "Expected length=3");
++
++  /* Also check with MYSQL_TYPE_NULL */
++  length[0]= 3;
++
++  rc= mysql_stmt_prepare(stmt, SL("SELECT NULL"));
++  check_stmt_rc(rc, stmt);
++
++  rc= mysql_stmt_execute(stmt);
++  check_stmt_rc(rc, stmt);
++
++  rc= mysql_stmt_bind_result(stmt, bind);
++  check_stmt_rc(rc, stmt);
++
++  mysql_stmt_fetch(stmt);
++  FAIL_IF(length[0]!=0, "Expected length=0");
+ 
+   mysql_stmt_close(stmt);
+   return OK;

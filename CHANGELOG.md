@@ -12,6 +12,12 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 
 
 ## 2026-06-19
+  - Update cURL to v8.21.0
+  - Update MariaDB to v3.4.9 with 1 commit reverted
+    This commit breaks Diesel migrations and some other features
+
+
+## 2026-06-19
   - Update crosstools-ng to latest commit
   - Build GCC v15.3.0 toolchains
   - Updated binutils to v2.46.1

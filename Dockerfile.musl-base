@@ -25,6 +25,7 @@ RUN <<EOF
         pkg-config \
         curl \
         patch \
+        patchutils \
         file \
         bzip2 \
         xz-utils \
@@ -261,8 +262,8 @@ RUN <<EOF
 EOF
 
 # Build curl (needs with-zlib and all this stuff to allow https)
-ARG CURL_VER="8.20.0"
-ARG CURL_HASH="63fe2dc148ba0ceae89922ef838f7e5c946272c2e78b7c59fab4b79d3ce2b896"
+ARG CURL_VER="8.21.0"
+ARG CURL_HASH="aa1b66a70eace83dc624508745646c08ae561de512ab403adffb93ac87fc72e6"
 RUN <<EOF
     echo "libcurl"
 
@@ -776,13 +777,13 @@ EOF
 # Building MariaDB
 FROM build AS build-mariadb
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG MARIADB_VER="3.4.8"
-ARG MARIADB_HASH="ced7e5063c91fe2bfafd9d63a759490fe53e81df80599a9abad01c570c202f0c"
+ARG MARIADB_VER="3.4.9"
+ARG MARIADB_HASH="2c70b74393d589df0bde9b3e17cb7b571d30a45aaf006eda7a273120fb660f3a"
 WORKDIR /tmp/mariadb
 # Copy patches for mariadb to fix build issues
 # https://gitlab.alpinelinux.org/alpine/aports/-/blob/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
 # https://github.com/mariadb-corporation/mariadb-connector-c/commit/28a1e4b5994f842aa722f9c91969513d3e047e51.patch
-COPY patches/mariadb-unused-parameter.patch patches/mariadb-revert-stmt-bug.patch ./
+COPY patches/mariadb-unused-parameter.patch patches/mariadb-revert-stmt-bug-v2.patch ./
 RUN <<EOF
     echo "MariaDB Connector/C"
 
@@ -795,7 +796,7 @@ RUN <<EOF
     git apply --reject --verbose mariadb-unused-parameter.patch
 
     # Revert a specific commit which breaks Diesel/mysqlclient-sys
-    sed -n '/^diff.*mariadb_stmt.c/,/^diff.*[^mariadb_stmt.c]/p' mariadb-revert-stmt-bug.patch | git apply --reject --verbose --reverse
+    filterdiff --include='*/mariadb_stmt.c' mariadb-revert-stmt-bug-v2.patch | git apply --reject --verbose --reverse
 
     # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
