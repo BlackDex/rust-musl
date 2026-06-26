@@ -11,7 +11,14 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
-## 2026-06-19
+## 2026-06-26
+  - Adjusted the `toolchain.cmake` file to work with this image.
+    If crates used cmake to build code, it could happen that it did not found the pre-compiled libraries.
+    By creating a custom file which basically does the same as all `TARGET_` environment variables this works again.
+    Tested this by building `mysqlclient-sys` using the `bundled` feature.
+
+
+## 2026-06-25
   - Update cURL to v8.21.0
   - Update MariaDB to v3.4.9 with 1 commit reverted
     This commit breaks Diesel migrations and some other features

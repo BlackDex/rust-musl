@@ -133,6 +133,7 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     PKG_CONFIG_SYSTEM_LIBRARY_PATH="${TARGET_PREFIX}/lib:${SYSROOT}/lib:${SYSROOT}/usr/lib" \
     PKG_CONFIG_SYSTEM_INCLUDE_PATH="${TARGET_PREFIX}/include:${SYSROOT}/usr/include" \
     # Some general CMAKE Flags
+    CMAKE_TOOLCHAIN_FILE="${TARGET_PREFIX}/toolchain.cmake" \
     CROSS_CMAKE_SYSTEM_NAME=Linux \
     CROSS_CMAKE_CRT=musl
 
@@ -144,6 +145,49 @@ RUN <<EOF
     mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
     # Create a symlink to the SYSROOT, this could help with some builds
     ln -sfrn "${SYSROOT}" "/${TARGET}"
+EOF
+
+# Create a custom cmake config to help cmake build libraries
+RUN <<EOF
+    echo "Generate cmake config"
+
+    # Move the original toolchain.cmake, else it will be detected and used instead of our custom config
+    mv -v "${TARGET_PREFIX}/toolchain.cmake" "${TARGET_PREFIX}/toolchain-base.cmake"
+
+    # Comment-out the CMAKE_SYSTEM_NAME, as that tends to break some compilations
+    chmod 0664 "${TARGET_PREFIX}/toolchain-base.cmake"
+    sed -i '/^[[:space:]]*set(CMAKE_SYSTEM_NAME Linux)/s/^/#/' /usr/local/musl/toolchain-base.cmake
+    chmod 0444 "${TARGET_PREFIX}/toolchain-base.cmake"
+
+    tee "${TARGET_PREFIX}/toolchain.cmake" <<CMAKE_EOF
+# Wraps the crosstool-ng toolchain-base.cmake, adding some extra settings.
+include(\${CMAKE_CURRENT_LIST_DIR}/toolchain-base.cmake)
+
+# All prefixes for the final binaries are located in the main directory
+list(APPEND CMAKE_FIND_ROOT_PATH \${CMAKE_CURRENT_LIST_DIR})
+
+# Ignore Ubuntu base image paths
+set(CMAKE_IGNORE_PATH "/usr/include")
+
+# crosstool-ng sets only C/CXX compilers; add the rest.
+set(CMAKE_ASM_COMPILER \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_CC})
+set(CMAKE_AR           \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_AR})
+set(CMAKE_NM           \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_NM})
+set(CMAKE_LINKER       \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_LD})
+set(CMAKE_RANLIB       \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_RANLIB})
+
+# Compile flags
+set(CMAKE_C_FLAGS_INIT   "${TARGET_CFLAGS}")
+set(CMAKE_CXX_FLAGS_INIT "${TARGET_CFLAGS} -D_GLIBCXX_ASSERTIONS")
+
+# Link flags
+set(CMAKE_EXE_LINKER_FLAGS_INIT    "${TARGET_LDFLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "${TARGET_LDFLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${TARGET_LDFLAGS}")
+CMAKE_EOF
+
+    # Make the file read-only
+    chmod 0444 "${TARGET_PREFIX}/toolchain.cmake"
 EOF
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
@@ -827,23 +871,11 @@ RUN <<EOF
     cmake \
       -LAH \
       -DWITH_DOCS=OFF \
-      -DCMAKE_C_COMPILER="${TARGET_CC}" \
-      -DCMAKE_AR="$(command -v "${TARGET_AR}")" \
-      -DCMAKE_NM="$(command -v "${TARGET_NM}")" \
-      -DCMAKE_LINKER="$(command -v "${TARGET_LD}")" \
-      -DCMAKE_RANLIB="$(command -v "${TARGET_RANLIB}")" \
       -DCMAKE_SYSROOT="${SYSROOT}" \
-      -DCMAKE_IGNORE_PATH="/usr/include" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
       -DCMAKE_PREFIX_PATH="${TARGET_PREFIX}" \
       -DINSTALL_BINDIR="tbin" \
       -DBUILD_SHARED_LIBS=OFF \
-      -DCMAKE_SYSTEM_NAME=Linux \
-      -DCMAKE_FIND_ROOT_PATH="${TARGET_PREFIX};${SYSROOT}" \
-      -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-      -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-      -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-      -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
       -DINSTALL_LIBDIR=lib \
       -DINSTALL_INCLUDEDIR=include/mysql \
       -DCMAKE_BUILD_TYPE=Release \
