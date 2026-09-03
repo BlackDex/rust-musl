@@ -15,7 +15,7 @@ And since 2025-02-15 all images are available for amd64 and arm64 host platforms
 The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.3.2`)
 * OpenSSL (`v3.5.8`)
-* cURL (`v8.21.0`)
+* cURL (`v8.22.0`)
 * sccache (`0.17.0`)
 * PostgreSQL lib (`v17.11`) + (`v18.6`), (`v16.15`) and (`v15.19`)
 * SQLite (`v3.53.4`)

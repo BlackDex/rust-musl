@@ -11,6 +11,10 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
+## 2026-09-03
+  - Updated cURL to v8.22.0
+
+
 ## 2026-08-26
   - Updated OpenSSL to v3.5.8
   - Updated GHA
