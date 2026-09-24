@@ -11,6 +11,14 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
+## 2026-09-24
+  * Toolchain:
+    - Update CrossTool-NG to latest commit
+      * Updated binutils to v2.47
+      * Using latest Linux v5.15 Kernel
+    - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
+
+
 ## 2026-09-03
   - Updated cURL to v8.22.0
 

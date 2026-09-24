@@ -7,10 +7,10 @@ CT_KERNEL_LINUX=y
 CT_LINUX_V_5_15=y
 
 # Binutils
-CT_BINUTILS_VERSION="2.46.1"
+CT_BINUTILS_VERSION="2.47"
 CT_BINUTILS_RELRO=y
 CT_BINUTILS_DETERMINISTIC_ARCHIVES=y
-CT_BINUTILS_EXTRA_CONFIG_ARRAY="--enable-new-dtags --disable-default-execstack --enable-warn-execstack=yes --enable-error-execstack=yes"
+CT_BINUTILS_EXTRA_CONFIG_ARRAY="--enable-new-dtags --disable-default-execstack --enable-warn-execstack=yes --enable-error-execstack=yes --enable-warn-rwx-segments --enable-error-rwx-segments --enable-textrel-check=error --enable-separate-code"
 
 # GCC
 CT_GCC_V_15=y
@@ -20,7 +20,7 @@ CT_CC_GCC_CONFIG_TLS=y
 CT_CC_GCC_ENABLE_DEFAULT_PIE=y
 CT_CC_GCC_USE_LTO=y
 CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY="--enable-host-pie --enable-default-ssp"
-CT_CC_GCC_EXTRA_CONFIG_ARRAY="--enable-host-pie --enable-static-pie --enable-host-bind-now --enable-default-ssp --enable-clocale=generic --enable-link-serialization=1 --disable-gnu-indirect-function --disable-rpath --disable-bootstrap --disable-gnu-unique-object --enable-initfini-array"
+CT_CC_GCC_EXTRA_CONFIG_ARRAY="--enable-host-pie --enable-static-pie --enable-host-bind-now --enable-default-ssp --enable-clocale=generic --enable-link-serialization=1 --disable-gnu-indirect-function --disable-rpath --disable-bootstrap --disable-gnu-unique-object --enable-initfini-array --with-specs='%{!fno-stack-clash-protection:-fstack-clash-protection} %{!ftrivial-auto-var-init*:-ftrivial-auto-var-init=zero} %{!fzero-call-used-regs*:-fzero-call-used-regs=used-gpr} %{!fstrict-flex-arrays*:-fstrict-flex-arrays=3} %{!fzero-init-padding-bits*:-fzero-init-padding-bits=all} %{!fstrict-aliasing:-fno-strict-aliasing} %{!fstrict-overflow:-fno-strict-overflow} %{!fdelete-null-pointer-checks:-fno-delete-null-pointer-checks}'"
 
 # C Library
 CT_LIBC_MUSL=y
@@ -38,12 +38,12 @@ CT_LOCAL_TARBALLS_DIR="/opt/src"
 
 # General Target settings
 CT_TARGET_LDFLAGS="-Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--build-id=none -Wl,--strip-all"
-CT_TARGET_CFLAGS="-g0 -O2 -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all"
+CT_TARGET_CFLAGS="-g0 -O2 -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all -D_GLIBCXX_ASSERTIONS"
 CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES=y
 
 # General Host settings
 CT_EXTRA_LDFLAGS_FOR_HOST="-Wl,--gc-sections -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--build-id=none -Wl,-z,pack-relative-relocs -Wl,--strip-all"
-CT_EXTRA_CFLAGS_FOR_HOST="-g0 -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${CT_EXTRA_CFLAGS_FOR_HOST_MACHINE} -Wno-error"
+CT_EXTRA_CFLAGS_FOR_HOST="-g0 -O2 -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${CT_EXTRA_CFLAGS_FOR_HOST_MACHINE} -Wno-error -D_GLIBCXX_ASSERTIONS"
 CT_STRIP_HOST_TOOLCHAIN_EXECUTABLES=y
 
 # Install prefix

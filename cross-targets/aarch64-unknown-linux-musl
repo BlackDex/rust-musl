@@ -3,5 +3,6 @@ CT_ARCH_ARM=y
 CT_ARCH_64=y
 CT_ARCH_FLOAT_HW=y
 CT_ARCH_ARCH="armv8-a"
-CT_CC_GCC_EXTRA_CONFIG_ARRAY="${CT_CC_GCC_EXTRA_CONFIG_ARRAY} --disable-cet"
-CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} -mno-outline-atomics -mbranch-protection=standard"
+CT_CC_GCC_EXTRA_CONFIG_ARRAY="${CT_CC_GCC_EXTRA_CONFIG_ARRAY} --disable-cet --enable-standard-branch-protection --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419"
+CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY="${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY} --enable-standard-branch-protection --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419"
+CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} -mno-outline-atomics -mbranch-protection=standard -mfix-cortex-a53-835769 -mfix-cortex-a53-843419"

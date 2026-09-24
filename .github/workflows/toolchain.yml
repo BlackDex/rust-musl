@@ -181,7 +181,7 @@ jobs:
       - &buildx-act
         name: Setup Docker Buildx (act)
         if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'true' }}
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
           use: true
           name: act-multiarch-${{ steps.arch.outputs.type }}
@@ -209,7 +209,7 @@ jobs:
       - &buildx
         name: Setup Docker Buildx
         if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'false' }}
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
           driver: docker-container
           cache-binary: false
@@ -224,7 +224,7 @@ jobs:
       - &ghcr-login
         name: Login to ghcr.io
         if: ${{ needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -232,12 +232,12 @@ jobs:
 
       - &checkout
         name: Checkout Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Docker Build - Crosstool Base Toolchain
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           context: .
@@ -318,7 +318,7 @@ jobs:
       - &dockerhub-login
         name: Login to DockerHub
         if: ${{ needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -326,7 +326,7 @@ jobs:
       - &quay-login
         name: Login to quay.io
         if: ${{ needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
@@ -358,7 +358,7 @@ jobs:
 
       - name: Docker Build
         id: build_push
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
@@ -375,7 +375,7 @@ jobs:
 
       - name: Attest - Toolchain - ghcr.io
         if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ghcr.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.build_push.outputs.digest }}
@@ -383,7 +383,7 @@ jobs:
 
       - name: Attest - Toolchain - docker.io
         if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: docker.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.build_push.outputs.digest }}
@@ -391,7 +391,7 @@ jobs:
 
       - name: Attest - Toolchain - quay.io
         if: ${{ !github.event.act && steps.build_push.outputs.digest != '' && needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: quay.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.build_push.outputs.digest }}
@@ -458,7 +458,7 @@ jobs:
 
       - name: Attest - Merged Stable - ghcr.io
         if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_ghcr_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ghcr.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
@@ -466,7 +466,7 @@ jobs:
 
       - name: Attest - Merged Stable - docker.io
         if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_dockerhub_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: docker.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
@@ -474,7 +474,7 @@ jobs:
 
       - name: Attest - Merged Stable - quay.io
         if: ${{ !github.event.act && steps.merged_toolchain.outputs.digest != '' && needs.tbuild_vars.outputs.have_quay_login == 'true' }}
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: quay.io/blackdex/musl-toolchain
           subject-digest: ${{ steps.merged_toolchain.outputs.digest }}
