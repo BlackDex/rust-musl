@@ -17,19 +17,8 @@ import toml
 from natsort import natsorted
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Fetch-Dest': 'document',
-    'Sec-Fetch-Mode': 'navigate',
-    'Sec-Fetch-Site': 'none',
-    'Sec-Fetch-User': '?1',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': 'Linux',
-    'Sec-Ch-Ua': "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"",
+    'User-Agent': 'curl/8.22.0',
+    'Accept': '*/*',
 }
 
 SESSION = requests.Session()
@@ -94,7 +83,7 @@ def alpinever(package: str):
     """
 
     try:
-        url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD'
+        url = f'https://gitlab.alpinelinux.org/alpine/aports/-/raw/master/main/{package}/APKBUILD?inline=false'
         max_bytes = 1024
         chunks: list[str] = []
         seen = 0
@@ -253,7 +242,7 @@ if __name__ == '__main__':
         'ZLIB_ARCH': pkgver('zlib'),
         'RUSTUP': rustup_version(),
         'PQ_ARCH': pkgver('postgresql'),
-        'PQ_ALPINE': alpinever('postgresql17'),
+        'PQ_ALPINE': alpinever('postgresql18'),
         'SQLITE_ARCH': convert_version(pkgver('sqlite')),
         'MARIADB_3_X': mirrorver('https://archive.mariadb.org/?C=M&O=D', r'connector-c-3\.\d+\.', 'connector-c-', r'\/'),
         'MARIADB_ALPINE': alpinever('mariadb-connector-c'),

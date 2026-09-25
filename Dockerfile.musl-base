@@ -5,7 +5,7 @@ ARG IMAGE_TAG=x86_64-musl
 # Which registry to use for the musl-toolchain
 ARG TOOLCHAIN_REGISTRY=ghcr.io
 # Default RUSTFLAGS to be used per triple env
-ARG CARGO_TARGET_RUSTFLAGS="-Ctarget-feature=+crt-static -Clink-self-contained=yes -Cprefer-dynamic=no"
+ARG CARGO_TARGET_RUSTFLAGS="-Ctarget-feature=+crt-static -Cprefer-dynamic=no -Clink-arg=-Wl,-z,pack-relative-relocs"
 
 # First build the base image with all packages needed to build any target
 # https://hub.docker.com/_/ubuntu
@@ -77,8 +77,8 @@ ENV OPENSSL_ARCH="linux-x86_64 enable-ec_nistp_64_gcc_128" \
 ARG CARGO_TARGET_RUSTFLAGS
 FROM base AS target_aarch64-musl
 ENV TARGET="aarch64-unknown-linux-musl"
-ENV OPENSSL_ARCH="linux-aarch64" \
-    ARCH_CFLAGS="-mno-outline-atomics -mbranch-protection=standard" \
+ENV OPENSSL_ARCH="linux-aarch64 enable-ec_nistp_64_gcc_128" \
+    ARCH_CFLAGS="-mno-outline-atomics -mbranch-protection=standard -mfix-cortex-a53-835769 -mfix-cortex-a53-843419" \
     # Target specific env variables
     AR_aarch64_unknown_linux_musl="${TARGET}-gcc-ar" \
     CC_aarch64_unknown_linux_musl="${TARGET}-gcc" \
@@ -118,7 +118,7 @@ ENV OPENSSL_ARCH="linux-armv4" \
 
 # Extract the pre-build toolchain from the musl-toolchain image
 # This doesn't need to be build everytime since not much will change
-FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-06-19 AS musl-toolchain
+FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-09-24 AS musl-toolchain
 
 # Start building the musl-base
 FROM target_${IMAGE_TAG} AS build
@@ -138,10 +138,10 @@ ENV PATH="${TARGET_PREFIX}/bin:${CARGO_HOME}/bin:${PATH}" \
     TARGET_AR="${TARGET}-gcc-ar" \
     TARGET_NM="${TARGET}-gcc-nm" \
     TARGET_RANLIB="${TARGET}-gcc-ranlib" \
-    TARGET_LDFLAGS="-static -static-libstdc++ -Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib -L${SYSROOT}/usr/lib" \
+    TARGET_LDFLAGS="-static-pie -static-libstdc++ -Wl,--no-dynamic-linker -Wl,--gc-sections -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -Wl,--sort-common -Wa,--noexecstack -Wl,--strip-all -Wl,--build-id=none -Wl,-z,pack-relative-relocs -L${TARGET_PREFIX}/lib -L${SYSROOT}/lib -L${SYSROOT}/usr/lib" \
     TARGET_CPPFLAGS="--sysroot=${SYSROOT} -I${TARGET_PREFIX}/include -I${SYSROOT}/usr/include" \
     SHARED_CFLAGS="-g0 -O2" \
-    TARGET_CFLAGS="--sysroot=${SYSROOT} -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-align-loops -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${ARCH_CFLAGS}" \
+    TARGET_CFLAGS="--sysroot=${SYSROOT} -isystem ${TARGET_PREFIX}/include/fortify -D_FORTIFY_SOURCE=3 -fdata-sections -ffunction-sections -fno-common -fno-align-functions -fno-align-jumps -fno-align-labels -fno-delete-null-pointer-checks -fno-strict-aliasing -fno-strict-overflow -fPIE -fstack-clash-protection -fstack-protector-strong -fstrict-flex-arrays=3 -ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr -fzero-init-padding-bits=all ${ARCH_CFLAGS}" \
     # pkg-config
     PKG_CONFIG_ALL_STATIC=1 \
     PKG_CONFIG_ALLOW_CROSS=1 \
@@ -162,6 +162,25 @@ RUN <<EOF
     mkdir -p "${TARGET_PREFIX}/tbin" /home/rust/src
     # Create a symlink to the SYSROOT, this could help with some builds
     ln -sfrn "${SYSROOT}" "/${TARGET}"
+    # Let rustc link with -Clink-self-contained=no: its unwind crate asks for -lunwind,
+    # and the GCC unwinder in libgcc_eh.a provides the same _Unwind_* API.
+    ln -sfn "$(${TARGET_CC} -print-file-name=libgcc_eh.a)" "${SYSROOT}/usr/lib/libunwind.a"
+EOF
+
+# Install fortify-headers, musl has no _FORTIFY_SOURCE support of its own
+ARG FORTIFY_HEADERS_VER="3.0.2"
+ARG FORTIFY_HEADERS_HASH="a4aab14c56eb00239cbd61ac65b3e778cf29ec82f06116ba343a50552882f587"
+RUN <<EOF
+    echo "fortify-headers"
+
+    ${CURL_CMD} -o "/tmp/fortify-headers-${FORTIFY_HEADERS_VER}.tar.gz" "https://github.com/jvoisin/fortify-headers/archive/refs/tags/${FORTIFY_HEADERS_VER}.tar.gz"
+    echo "${FORTIFY_HEADERS_HASH} /tmp/fortify-headers-${FORTIFY_HEADERS_VER}.tar.gz" | sha256sum -c -
+    tar -xzf "/tmp/fortify-headers-${FORTIFY_HEADERS_VER}.tar.gz" -C /tmp
+    rm -vf "/tmp/fortify-headers-${FORTIFY_HEADERS_VER}.tar.gz"
+
+    # Installs to ${TARGET_PREFIX}/include/fortify/{*.h,sys/*.h}
+    make -C "/tmp/fortify-headers-${FORTIFY_HEADERS_VER}" install PREFIX="${TARGET_PREFIX}"
+    rm -rf "/tmp/fortify-headers-${FORTIFY_HEADERS_VER}"
 EOF
 
 # Create a custom cmake config to help cmake build libraries
@@ -194,13 +213,17 @@ set(CMAKE_LINKER       \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_LD})
 set(CMAKE_RANLIB       \${CMAKE_CURRENT_LIST_DIR}/bin/${TARGET_RANLIB})
 
 # Compile flags
+# Remove the `-isystem` Fortify from CXX flags, as CXX does not use this, and it causes compile failures
+# This because it will cause the fortify library to be included first, and it will fail lookups of needed files
 set(CMAKE_C_FLAGS_INIT   "${TARGET_CFLAGS}")
-set(CMAKE_CXX_FLAGS_INIT "${TARGET_CFLAGS} -D_GLIBCXX_ASSERTIONS")
+set(CMAKE_CXX_FLAGS_INIT "${TARGET_CFLAGS/-isystem ${TARGET_PREFIX}\/include\/fortify /} -D_GLIBCXX_ASSERTIONS")
 
 # Link flags
-set(CMAKE_EXE_LINKER_FLAGS_INIT    "${TARGET_LDFLAGS}")
-set(CMAKE_SHARED_LINKER_FLAGS_INIT "${TARGET_LDFLAGS}")
-set(CMAKE_MODULE_LINKER_FLAGS_INIT "${TARGET_LDFLAGS}")
+# Remove `-static-pie` because cmake might add `-static` it self,
+# and that will clashes and a builds will fail
+set(CMAKE_EXE_LINKER_FLAGS_INIT    "${TARGET_LDFLAGS/-static-pie/-static}")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "${TARGET_LDFLAGS/-static-pie/-static}")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "${TARGET_LDFLAGS/-static-pie/-static}")
 CMAKE_EOF
 
     # Make the file read-only
@@ -254,20 +277,19 @@ RUN <<EOF
 
     cd "openssl-${SSL_VER}"
 
-    # We can't enable `-flto=auto -ffat-lto-objects` for CFLAGS this generates an error which causes other libraries to also fail subsequently.
-    # See: https://github.com/openssl/openssl/issues/18663
-    #
+    if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then
+      export LIBS="-latomic"
+    fi
+
     # The OpenSSL Architecture is defined by setting the correct `OPENSSL_ARCH` ARG
     export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
     export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
-    # OpenSSL's Configure does `disable('static', 'pic', 'threads')` if it finds a bare `-static` in LDFLAGS.
-    # Pass it via CFLAGS instead, `BIN_CFLAGS` includes $(CFLAGS) and is on the program link line, so static linking is unaffected.
-    export LDFLAGS="${TARGET_LDFLAGS//-static /}"
+    export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -static"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
     # Disable several features, either insecure or not working that well on musl libc or not needed at all
@@ -340,7 +362,6 @@ RUN <<EOF
 
     cd "curl-${CURL_VER}"
 
-
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then
       export LIBS="-latomic"
     fi
@@ -352,7 +373,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
     ./configure \
@@ -381,8 +402,8 @@ RUN <<EOF
       --bindir="${TARGET_PREFIX}/tbin" \
       --sbindir="${TARGET_PREFIX}/tbin" \
       --prefix="${TARGET_PREFIX}"
-    make -j"$(nproc)" LDFLAGS="${TARGET_LDFLAGS} -all-static"
-    make install LDFLAGS="${TARGET_LDFLAGS} -all-static"
+    make -j"$(nproc)" LDFLAGS="${TARGET_LDFLAGS}"
+    make install LDFLAGS="${TARGET_LDFLAGS}"
 
     cd /tmp && rm -rf "curl-${CURL_VER}"
 
@@ -391,9 +412,9 @@ RUN <<EOF
 EOF
 
 # Install prebuilt sccache for the correct host platform
-ARG SCCACHE_VER="0.17.0"
-ARG SCCACHE_HASH_x86_64="67c4a96dd237c1f518f6b36083f270f9976d516f1e57fce891755ea782e50006"
-ARG SCCACHE_HASH_aarch64="821a86343191aa1cbab74bd42f9e93c9a63bf85e4742945f40d3ae84193c1c77"
+ARG SCCACHE_VER="0.18.0"
+ARG SCCACHE_HASH_x86_64="45f1447fbe231e3037bde351ef70677dd212216c8d62ae7ca409fecc4d6acc89"
+ARG SCCACHE_HASH_aarch64="2b3284d5da3b46a47dc4229e75bb7b88ac4aa99c8d754fb7d2f84997e5a4354a"
 RUN <<EOF
     case "$(uname -m)" in
       x86_64)
@@ -443,7 +464,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
    ./configure \
@@ -528,7 +549,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
    ./configure \
@@ -613,7 +634,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
    ./configure \
@@ -698,7 +719,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
    ./configure \
@@ -774,6 +795,10 @@ RUN <<EOF
     tar -xz --strip-components=1 -f "/tmp/sqlite-autoconf-${SQL_ID}.tar.gz"
     rm -vf "/tmp/sqlite-autoconf-${SQL_ID}.tar.gz"
 
+    if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]] ; then
+      export LIBS="-latomic"
+    fi
+
     export PKG_CONFIG="pkg-config --static"
     export AR="${TARGET_AR}"
     export LD="${TARGET_LD}"
@@ -782,7 +807,7 @@ RUN <<EOF
     export LDFLAGS="${TARGET_LDFLAGS}"
     export CPPFLAGS="${TARGET_CPPFLAGS}"
     export CC="${TARGET_CC}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
 
     # libsqlite3-sys crate default flags
     CFLAGS+=" -DSQLITE_CORE"
@@ -820,6 +845,7 @@ RUN <<EOF
       --disable-shared \
       --enable-static \
       --disable-readline \
+      --disable-rpath \
       --enable-fts3 \
       --enable-fts4 \
       --enable-fts5 \
@@ -867,12 +893,6 @@ RUN <<EOF
     # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
 
-    # export _GCC_SPECS=
-    # if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
-    #   echo -e "%rename libgcc old_libgcc\n*libgcc:\n-latomic %(old_libgcc)" > /tmp/gcc-atomic-patch.specs
-    #   export _GCC_SPECS="-specs=/tmp/gcc-atomic-patch.specs"
-    # fi
-
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
       export LIBS="-latomic"
     fi
@@ -885,13 +905,14 @@ RUN <<EOF
     export LD="${TARGET_LD}"
     export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
-    export LDFLAGS="${TARGET_LDFLAGS}"
+    # export LDFLAGS="${TARGET_LDFLAGS}" # Do not export LDFLAGS here, it clashes with -static/-static-pie
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
 
     cmake \
       -LAH \
+      -DCMAKE_EXE_LINKER_FLAGS="${TARGET_LDFLAGS}" \
       -DWITH_DOCS=OFF \
       -DCMAKE_SYSROOT="${SYSROOT}" \
       -DCMAKE_INSTALL_PREFIX="${TARGET_PREFIX}" \
@@ -916,7 +937,6 @@ RUN <<EOF
       -DCLIENT_PLUGIN_MYSQL_OLD_PASSWORD=OFF \
       -DCLIENT_PLUGIN_REMOTE_IO=OFF \
       -DDEFAULT_CHARSET=utf8mb4 \
-      -DDEFAULT_SSL_VERIFY_SERVER_CERT=OFF \
       ../
 
     make -j"$(nproc)"
@@ -934,6 +954,9 @@ RUN <<EOF
     # Create some compatibilty symlinks so pkg-config and diesel can find all the correct files
     ln -sfnr "/out${TARGET_PREFIX}/include/mysql/mariadb_version.h" "/out${TARGET_PREFIX}/include/mysql/mysql_version.h"
 
+    # Ensure OpenSSL symbols are added
+    echo "Requires.private: openssl" >> "/out${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc"
+
     # Create and fix the default pkg-config for mysqlclient using the libmariadb generated file
     # We need the library to point to mysqlclient instead of mariadb, else mysqlclient-sys crate will not link it statically!
     # Also, fix the library path locations, as it points to absolute paths, which it shouldn't
@@ -945,8 +968,8 @@ EOF
 
 FROM build AS build-libxml2
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG LIBXML2_VER="2.15.3"
-ARG LIBXML2_HASH="5c6060277173270356c3f1c321a640ab629bdabc5e5ba9095b99e00759ba0c39"
+ARG LIBXML2_VER="2.15.4"
+ARG LIBXML2_HASH="bb01bd9ac9a7403f9706816fd6d3e7888041d32b0211075feb20e755d2a9f29d"
 WORKDIR /tmp/libxml2
 # Build libxml2
 RUN <<EOF
@@ -964,7 +987,7 @@ RUN <<EOF
     export RANLIB="${TARGET_RANLIB}"
     export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 does not think we build dynamic libraries
     export CPPFLAGS="${TARGET_CPPFLAGS}"
-    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS} -flto=auto -ffat-lto-objects -fno-semantic-interposition"
+    export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
     export NOCONFIGURE="true"
 
@@ -1070,7 +1093,7 @@ ENV CROSS_COMPILE=1 \
     LIBXML_2.0_STATIC=1 \
     # TARGET_CPPFLAGS="${TARGET_CPPFLAGS}" \ # No need to redefine, but keep commented as a reminder that it needs to be here
     # TARGET_CFLAGS="${TARGET_CFLAGS}" \ # No need to redefine, but keep commented as a reminder that it needs to be here
-    TARGET_CXXFLAGS="${TARGET_CFLAGS} -D_GLIBCXX_ASSERTIONS"
+    TARGET_CXXFLAGS="${TARGET_CFLAGS/-isystem ${TARGET_PREFIX}\/include\/fortify /} -D_GLIBCXX_ASSERTIONS"
 
 WORKDIR /home/rust/src
 

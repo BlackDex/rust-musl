@@ -16,11 +16,11 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 * ZLib (`v1.3.2`)
 * OpenSSL (`v3.5.8`)
 * cURL (`v8.22.0`)
-* sccache (`0.17.0`)
+* sccache (`0.18.0`)
 * PostgreSQL lib (`v17.11`) + (`v18.6`), (`v16.15`) and (`v15.19`)
 * SQLite (`v3.53.4`)
 * MariaDB Connector/C (`v3.4.8`) (MySQL Compatible)
-* libxml2 (`v2.15.3`)
+* libxml2 (`v2.15.4`)
 
 
 ## Changelog
@@ -166,6 +166,14 @@ One way to improve the performance is to use a different allocator within your R
 For example, Vaultwarden uses [MiMalloc](https://github.com/microsoft/mimalloc) via [mimalloc_rust](https://github.com/purpleprotocol/mimalloc_rust).<br>
 Other Memory Allocators exists too, just see which one fits your application the best.<br>
 The tests done after building are testing the MiMalloc crate.
+
+### Building bundled (vendored) MySQL from mysqlclient-sys crate
+
+If you want to build the bundled/vendored Oracle MySQL Client Library provided by the [mysqlclient-sys](https://github.com/sgrif/mysqlclient-sys) crate, you need to add a special file to the container so that the cmake build script thinks the host is running Alpine. This ensures some special handling is done for musl based compilers. It is as simple as just running `touch /etc/alpine-release` before you run any `cargo build` action.
+<br>
+In the `test.sh` script this is done automatically when the `vendored_mysql` feature is used for testing.
+<br>
+Note that Oracle MySQL can only be built on 64bit architectures, and thus will only work on amd64/x86_64 or arm64/aarch64 builds.
 
 ## Testing
 

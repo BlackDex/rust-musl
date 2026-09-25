@@ -2,9 +2,12 @@
 
 # ########################################
 # Some testing RUSTFLAGS
-# -e RUSTFLAGS='-Clink-arg=-s' \
-# -e RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s' \
-# -e RUSTFLAGS='-Clink-arg=-latomic -Clink-arg=-s' \
+# # Do not use self-contained musl library, use this image's musl libc instead
+# RUSTFLAGS='-Ctarget-feature=+crt-static -Clink-self-contained=no -Cprefer-dynamic=no'
+# # Compact the binary a bit more
+# RUSTFLAGS='-Clink-arg=-Wl,-z,pack-relative-relocs'
+# # Use a different linker
+# RUSTFLAGS='-Clinker=rust-lld -Clink-arg=-s'
 #
 # Adding a custom CFLAG for a specific architecture
 # -e CFLAGS_aarch64_unknown_linux_musl="-mno-outline-atomics" \
@@ -23,12 +26,12 @@ docker_build() {
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
     -it "${IMAGE_REGISTRY}/blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
+    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
   set +x
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
   set -x
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
@@ -52,13 +55,12 @@ docker_build_armv7() {
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
     -it "${IMAGE_REGISTRY}/blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
-    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
+    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
   set +x
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu cortex-a8,vfp=on -d unimp,guest_errors ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
-  # qemu-arm-static -cpu cortex-a7,vfp=v4 -d unimp,guest_errors ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu cortex-a8,vfp=on -d unimp,guest_errors ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
   set -x
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
@@ -82,12 +84,12 @@ docker_build_aarch64() {
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
     -it "${IMAGE_REGISTRY}/blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
-    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
+    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
   set +x
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-aarch64-static -cpu cortex-a53 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-aarch64-static -cpu cortex-a53 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
   set -x
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
@@ -111,12 +113,12 @@ docker_build_arm() {
     "${DOCKER_RUSTFLAGS[@]}" \
     -e RUST_BACKTRACE=full \
     -it "${IMAGE_REGISTRY}/blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
-    bash -c "rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
+    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
   set +x
 
   cd "test/${crate}" || return
   echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu arm1176 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited with: $?\n"
+  qemu-arm-static -cpu arm1176 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
   set -x
   file "target/${target}/${RELTYPE}/${crate}"
   ldd "target/${target}/${RELTYPE}/${crate}"
@@ -169,21 +171,28 @@ fi
 
 DOCKER_UNSET=()
 if [[ -n "${FEATURES}" ]]; then
-  if [[ "${FEATURES}" == *"vendored_openssl" ]]; then
+  if [[ "${FEATURES}" == *"vendored_openssl"* ]]; then
     DOCKER_UNSET+=(-e "OPENSSL_DIR=")
     DOCKER_UNSET+=(-e "OPENSSL_LIB_DIR=")
     DOCKER_UNSET+=(-e "OPENSSL_INCLUDE_DIR=")
     DOCKER_UNSET+=(-e "DEP_OPENSSL_INCLUDE=")
   fi
 
-  if [[ "${FEATURES}" == *"vendored_sqlite" || "${FEATURES}" == *"vendored_sqlcipher" ]]; then
+  if [[ "${FEATURES}" == *"vendored_sqlite"* || "${FEATURES}" == *"vendored_sqlcipher"* ]]; then
     DOCKER_UNSET+=(-e "SQLITE3_LIB_DIR=")
     DOCKER_UNSET+=(-e "SQLITE3_INCLUDE_DIR=")
   fi
 
-  if [[ "${FEATURES}" == *"vendored_pq" ]]; then
+  if [[ "${FEATURES}" == *"vendored_pq"* ]]; then
     DOCKER_UNSET+=(-e "PQ_LIB_DIR=")
   fi
+fi
+
+PRE_CMD=""
+if [[ "${FEATURES}" == *"vendored_mysql"* ]]; then
+  # Because the Oracle MySQL Client build process does some special checks for musl/alpine support we need to add this
+  # This should help build the mysqlclient-sys crate the vendored client library
+  PRE_CMD="touch /etc/alpine-release ; "
 fi
 
 if [[ "${ARCH}" == "armv7" ]]; then

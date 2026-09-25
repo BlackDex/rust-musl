@@ -11,12 +11,31 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ---
 
 
-## 2026-09-24
+## 2026-09-24/25
   * Toolchain:
     - Update CrossTool-NG to latest commit
       * Updated binutils to v2.47
       * Using latest Linux v5.15 Kernel
     - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
+
+  * Rust-Musl:
+    - Updated toolchain tag
+    - Adjusted `update_libs.py` to fetch Alpine versions again
+    - Added `enable-ec_nistp_64_gcc_128` for `aarch64` to the OpenSSL build arg
+    - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
+    - Added [Fortify Headers](https://github.com/jvoisin/fortify-headers) to be used during builds
+    - Allow building with `-Clink-self-contained=no` by providing the correct static library for libunwind
+    - Remove lto flags, this was not really used, and doesn't really have impact on the Rust binary
+    - Added the `-latomic` to all libraries for `arm-unknown-linux-musleabi`
+    - Ensure MariaDB embeds the correct OpenSSL symbols, this is useful for building with the `mysqlclient-sys` crate
+    - Fixed building with cmake or cmake-rs if `-static` is added
+    - Added chapter in the readme regarding building `mysqlclient-sys` bundled/vendored client
+      Also adjusted the `test.sh` script to detect this feature and apply the fix
+    - Updated sccache to v0.18
+    - Updated libxml2 to v2.15.4
+
+  * General:
+    - Updated GitHub Actions
 
 
 ## 2026-09-03
