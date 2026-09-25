@@ -38,7 +38,7 @@ defaults:
 ## Full run no/different rustc_hash: (This triggers a fresh stable, since the rustc_hash is not available)
 ##   act push -j musl_base
 ##
-## Run per architecutre
+## Run per architecture
 ##   # amd64
 ##   act push -j musl_base --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl
 ##   # armv7
@@ -106,7 +106,7 @@ jobs:
       nightly_trigger: ${{ steps.build_vars.outputs.nightly_trigger }}
       stable_trigger: ${{ steps.build_vars.outputs.stable_trigger }}
       #
-      # Set versions extacted during the rust_versions step
+      # Set versions extracted during the rust_versions step
       stable_version: ${{ steps.rust_versions.outputs.stable_version }}
       stable_semver: ${{ steps.rust_versions.outputs.stable_semver }}
       # We also append the value of workflow input fresh_stable here.
@@ -590,7 +590,7 @@ jobs:
           platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true
           context: .
-          # Set load to true so that we can test the builded image in the next step (default with docker driver)
+          # Set load to true so that we can test the built image in the next step (default with docker driver)
           load: true
           # Do not push the image just yet, we first want to test it
           push: false
@@ -725,7 +725,7 @@ jobs:
           platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true
           context: .
-          # Set load to true so that we can test the builded image in the next step (default with docker driver)
+          # Set load to true so that we can test the built image in the next step (default with docker driver)
           load: true
           # Do not push the image just yet, we first want to test it
           push: false
@@ -856,7 +856,7 @@ jobs:
           platforms: ${{ endsWith(matrix.os, '-arm') && 'linux/arm64' || 'linux/amd64'}}
           outputs: type=image,oci-mediatypes=true
           context: .
-          # Set load to true so that we can test the builded image in the next step (default with docker driver)
+          # Set load to true so that we can test the built image in the next step (default with docker driver)
           load: true
           # Do not push the image just yet, we first want to test it
           push: false

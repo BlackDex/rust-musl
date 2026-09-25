@@ -1,18 +1,18 @@
 [![GHA Build](https://img.shields.io/github/actions/workflow/status/BlackDex/rust-musl/rust-musl.yml?style=for-the-badge&logo=github&logoColor=fff&label=Build%20Workflow)](https://github.com/BlackDex/rust-musl/actions/workflows/rust-musl.yml)
-[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-005AA4?style=for-the-badge&logo=github&logoColor=fff&cacheSeconds=14400)](https://quay.io/repository/blackdex/rust-musl)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-download-005AA4?style=for-the-badge&logo=github&logoColor=fff&cacheSeconds=14400)](https://github.com/BlackDex/rust-musl/pkgs/container/rust-musl)
 [![Docker Pulls](https://img.shields.io/docker/pulls/blackdex/rust-musl.svg?style=for-the-badge&logo=docker&logoColor=fff&color=005AA4&label=docker.io%20pulls)](https://hub.docker.com/r/blackdex/rust-musl)
 [![Quay.io](https://img.shields.io/badge/quay.io-download-005AA4?style=for-the-badge&logo=redhat&cacheSeconds=14400)](https://quay.io/repository/blackdex/rust-musl) <br>
 
 # rust-musl
 
-This project generates docker images to build static musl binaries using the Rust language.
+This project generates Docker images to build static musl binaries using the Rust language.
 It has several pre-build C/C++ libraries to either speedup the compile time of the Rust project or make it possible to build a project at all like Diesel with MySQL.
 
 These container images are based upon Ubuntu 26.04 and use GCC v15.2.0 to build the toolchains and GCC v15.3.0 for the libraries.<br>
-Since 2026-06 all images are build using musl v1.2.6 using https://github.com/crosstool-ng/crosstool-ng.<br>
+Since 2026-06 all images are built using musl v1.2.6 using https://github.com/crosstool-ng/crosstool-ng.<br>
 And since 2025-02-15 all images are available for amd64 and arm64 host platforms.
 
-The following libraries are pre-build and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
+The following libraries are pre-built and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
 * ZLib (`v1.3.2`)
 * OpenSSL (`v3.5.8`)
 * cURL (`v8.22.0`)
@@ -25,34 +25,34 @@ The following libraries are pre-build and marked as `STATIC` already via `ENV` v
 
 ## Changelog
 
-To see changes done checkout the [Changelog](./CHANGELOG.md)
+To see the changes, check out the [Changelog](./CHANGELOG.md)
 
 
 ## Available architectures
 
 Both stable and nightly builds are available.
-The latest nightly's are always postfixed with `-nightly`, if you want to use a specific date check if the images exists then you can use the `-nightly-YYYY-MM-DD` tag.
-Nightly's are build every morning around 9:30 UTC.
+The latest nightly's are always suffixed with `-nightly`, if you want to use a specific date, check whether the image exists then use the `-nightly-YYYY-MM-DD` tag.
+Nightly's are built every morning around 9:30 UTC (If GitHub Allows it).
 
 For stable you can just use the tags listed below, or add `-stable` to it.
 If you want to be sure that you are using a specific stable version you can use `-X.Y.Z` or `-stable-X.Y.Z`.
-Stables builds are automatically triggered if there is a new version available.
+Stables builds are triggered automatically when a new version is available.
 
 > [!TIP]
 > **2025-02-15:**
-> Created aarch64 (arm64) images as base container!<br>
+> Created aarch64 (arm64) images as base containers!<br>
 > From this day on you can also build on aarch64 (arm64) architectures like on a Raspberry Pi 4 or 5.<br>
-> Or even use the GitHub arm64 runners (Which are used to build the containers for this repo too).<br>
+> Or even use the GitHub arm64 runners (which are also used to build the containers for this repo).<br>
 > This means that you can build x86_64 (amd64) binaries on an aarch64 (arm64) host.<br>
 > The OCI images are multi-platform containers and all should work the same for both platforms.
 
 
-### PostgreSQL v17 & v18 & v16 & v15
+### PostgreSQL v18 & v17 & v16 & v15
 
-The default PostgreSQL lib used is v17.<br>
-If you want to use v17 or v15 you need to overwrite an environment variable so that the postgresql crate will look at the right directory.<br>
+The default PostgreSQL lib used is `v17`.<br>
+If you want to use `v18` or `v15` you need to overwrite an environment variable so that the `pq-sys` crate will look at the right directory.<br>
 <br>
-Adding `-e PQ_LIB_DIR="/usr/local/musl/pq17/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq17/lib"` to your custom build image will trigger the v17 version to be used during the build.
+Adding `-e PQ_LIB_DIR="/usr/local/musl/pq18/lib"` at the cli or `ENV PQ_LIB_DIR="/usr/local/musl/pq18/lib"` to your custom build image will trigger the v18 version to be used during the build.
 
 <br>
 
@@ -65,7 +65,7 @@ Adding `-e PQ_LIB_DIR="/usr/local/musl/pq17/lib"` at the cli or `ENV PQ_LIB_DIR=
 | aarch64-unknown-linux-musl     | aarch64-musl     |
 | arm-unknown-linux-musleabi     | arm-musleabi     |
 
-To make use of these images you can either use them as your main `FROM` in your `Dockerfile` or use something like this:
+To make use of these images you can either use them as your main `FROM` in your `Dockerfile`.
 
 <br>
 
@@ -84,7 +84,7 @@ The images are pushed to multiple container registries.
 ### Using a Dockerfile
 
 ```dockerfile
-FROM ghcr.io/blackdex/rust-musl:aarch64-musl as build
+FROM ghcr.io/blackdex/rust-musl:aarch64-musl AS build
 
 COPY . /home/rust/src
 
@@ -105,7 +105,7 @@ CMD ["/my-application-name"]
 
 ### Using the CLI
 
-If you want to use PostgreSQL `v18` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq18/lib"` before the `-v "$(pwd)"` argument.
+If you want to use the PostgreSQL `v18` client library add `-e PQ_LIB_DIR="/usr/local/musl/pq18/lib"` before the `-v "$(pwd)"` argument.
 
 ```bash
 # First pull the image:
@@ -124,7 +124,7 @@ docker run --rm -it -v "$(pwd)":/home/rust/src ghcr.io/blackdex/rust-musl:aarch6
 ### Using as GitHub Actions container
 
 You can also use these images as a GitHub Actions container.<br>
-A very simple way looks like this to build aarch64 binaries.
+A simple workflow to build aarch64 binaries looks like this.
 
 ```yaml
 name: "Build container"
@@ -151,7 +151,7 @@ jobs:
 
 ### Verify container images
 
-You can verify all my images using the `gh` client.<br>
+You can verify all my images using the `gh` client.
 
 For example, to verify the aarch64 v1.96.0 image.
 ```bash
@@ -161,15 +161,15 @@ gh attestation verify --owner BlackDex oci://ghcr.io/blackdex/rust-musl:aarch64-
 ### Using a different allocator
 
 Sometimes musl based binaries are slower than glibc based binaries.<br>
-This is mostly because of the Memory Allocator (malloc) which just isn't that fast.<br>
+This is mostly because of the memory allocator (malloc) which is not that fast.<br>
 One way to improve the performance is to use a different allocator within your Rust project.<br>
 For example, Vaultwarden uses [MiMalloc](https://github.com/microsoft/mimalloc) via [mimalloc_rust](https://github.com/purpleprotocol/mimalloc_rust).<br>
-Other Memory Allocators exists too, just see which one fits your application the best.<br>
-The tests done after building are testing the MiMalloc crate.
+Other memory allocators exists too, just see which one fits your application the best.<br>
+The tests that run after building also test the MiMalloc crate.
 
 ### Building bundled (vendored) MySQL from mysqlclient-sys crate
 
-If you want to build the bundled/vendored Oracle MySQL Client Library provided by the [mysqlclient-sys](https://github.com/sgrif/mysqlclient-sys) crate, you need to add a special file to the container so that the cmake build script thinks the host is running Alpine. This ensures some special handling is done for musl based compilers. It is as simple as just running `touch /etc/alpine-release` before you run any `cargo build` action.
+If you want to build the bundled/vendored Oracle MySQL Client Library provided by the [mysqlclient-sys](https://github.com/sgrif/mysqlclient-sys) crate, you need to add a special file to the container so that the cmake build script thinks the host runs Alpine. This enables special handling that is done for musl based compilers. It is as simple as just run `touch /etc/alpine-release` before you run any `cargo build` action.
 <br>
 In the `test.sh` script this is done automatically when the `vendored_mysql` feature is used for testing.
 <br>
@@ -177,17 +177,17 @@ Note that Oracle MySQL can only be built on 64bit architectures, and thus will o
 
 ## Testing
 
-During the automatic build workflow the images are first tested on a Rust projects which test all build C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-build libraries.
+During the automatic build workflow the images are first tested with Rust projects that test all built C/C++ Libraries using Diesel for the database libraries, and openssl, zlib and curl for the other pre-built libraries.
 
-If the test fails, the image will not be pushed to docker hub.
+If the test fails, the image will not be pushed to Docker Hub.
 
 <br>
 
 ## Linking issues (atomic)
 
-Because of some strange bugs/quirks it sometimes happens that on some platforms it reports missing `__atomic*` libraries. The strange thing is, these are available, but for some reason ignored by the linker or rustc (If someone knows a good solution here, please share).<br>
+Because of some strange bugs/quirks it sometimes happens that on some platforms the linker reports missing `__atomic*` symbols. The strange thing is, these are available, but for some reason ignored by the linker or rustc (if someone knows a good solution here, please share).<br>
 <br>
-Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides the correct location of the c archive `.a` file.<br>
+Because of this some platforms need an extra `RUSTFLAGS` which provides the correct location of the c archive `.a` file.<br>
 
 | Cross Target                   |  RUSTFLAG             |
 | ------------------------------ | --------------------- |
@@ -197,13 +197,13 @@ Because of this some platforms may need a(n) (extra) `RUSTFLAGS` which provides 
 
 ## History
 
-I started this project to make it possible for [Vaultwarden](https://github.com/dani-garcia/vaultwarden) to be build statically with all database's supported. SQLite is not really an issue, since that has a bundled option. But PostgreSQL and MariaDB/MySQL do not have a bundled/vendored feature available.
+I started this project to make it possible for [Vaultwarden](https://github.com/dani-garcia/vaultwarden) to be built statically with all supported databases. SQLite is not really an issue, since that has a bundled option. But PostgreSQL and MariaDB/MySQL do not have a bundled/vendored feature available or not for all architectures.
 
-I also wanted to get a better understanding of the whole musl toolchain and Github Actions, which i did.
+I also wanted to get a better understanding of the whole musl toolchain and Github Actions, which I did.
 
 ## Credits
 
-Some projects i got my inspiration from:
+Some projects I got my inspiration from:
 * https://github.com/messense/rust-musl-cross
 * https://github.com/clux/muslrust
 * https://github.com/emk/rust-musl-builder

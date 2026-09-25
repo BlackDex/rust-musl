@@ -5,37 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 We do not use Semantic Versioning, because our images are tagged based on Rust releases and nightly/build-dates.
 
-For maximum stablity, use images with tags like `blackdex/rust-musl:aarch64-musl-1.96.0`, `blackdex/rust-musl:arm-musleabi-stable-1.96.0` or `blackdex/rust-musl:x86\_64-musl-nightly-2026-06-02`.<br>
-These may occasionally be rebuilt, but only while they're "current", or possibly if they're recent and serious security issues are discovered in a library.
+For maximum stability, use images with tags like `blackdex/rust-musl:aarch64-musl-1.96.0`, `blackdex/rust-musl:arm-musleabi-stable-1.96.0` or `blackdex/rust-musl:x86\_64-musl-nightly-2026-06-02`.<br>
+These may occasionally be rebuilt, but only while they are "current", or possibly if they're recent and serious security issues are discovered in a library.
 
 ---
 
 
 ## 2026-09-24/25
   * Toolchain:
-    - Update CrossTool-NG to latest commit
+    - Updated crosstool-ng to the latest commit
       * Updated binutils to v2.47
-      * Using latest Linux v5.15 Kernel
-    - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
+      * Updated Kernel v5.15 LTS headers to the latest version
 
   * Rust-Musl:
     - Updated toolchain tag
     - Adjusted `update_libs.py` to fetch Alpine versions again
     - Added `enable-ec_nistp_64_gcc_128` for `aarch64` to the OpenSSL build arg
-    - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
     - Added [Fortify Headers](https://github.com/jvoisin/fortify-headers) to be used during builds
     - Allow building with `-Clink-self-contained=no` by providing the correct static library for libunwind
     - Remove lto flags, this was not really used, and doesn't really have impact on the Rust binary
-    - Added the `-latomic` to all libraries for `arm-unknown-linux-musleabi`
-    - Ensure MariaDB embeds the correct OpenSSL symbols, this is useful for building with the `mysqlclient-sys` crate
+    - Added `-latomic` to all libraries for `arm-unknown-linux-musleabi`
+    - Make sure that MariaDB embeds the correct OpenSSL symbols. This is useful for building with the `mysqlclient-sys` crate
     - Fixed building with cmake or cmake-rs if `-static` is added
-    - Added chapter in the readme regarding building `mysqlclient-sys` bundled/vendored client
+    - Added a chapter in the README regarding building `mysqlclient-sys` bundled/vendored client
       Also adjusted the `test.sh` script to detect this feature and apply the fix
     - Updated sccache to v0.18
     - Updated libxml2 to v2.15.4
 
   * General:
     - Updated GitHub Actions
+    - Enable special fixes for Cortex-A53 chips during aarch64 toolchain build
 
 
 ## 2026-09-03
@@ -44,10 +43,10 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 
 ## 2026-08-26
   - Updated OpenSSL to v3.5.8
-  - Updated GHA
+  - Updated GitHub Actions
 
 
-## 2026-07-25
+## 2026-08-13
   - Updated PostgreSQL to v15.19, v16.15, v17.11 and v18.6
   - Updated sccache to v0.17.0
   - Switched zlib download to GitHub
@@ -67,10 +66,10 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ## 2026-07-21
   - Remove `config.toml` and use `CARGO_TARGET_` environment variables instead
   - Also add the `NM_<triple>` to point to the correct nm binary
-  - Updated GHA
+  - Updated GitHub Actions
 
 
-## 2026-06-26
+## 2026-07-07
   - Update SQLite to v3.53.3
 
 
@@ -88,10 +87,10 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 
 
 ## 2026-06-19
-  - Update crosstools-ng to latest commit
+  - Update crosstool-ng to latest commit
   - Build GCC v15.3.0 toolchains
   - Updated binutils to v2.46.1
-  - Kernel v5.15 LTS headers updated to the latest version
+  - Updated Kernel v5.15 LTS headers to the latest version
   - Updated sccache to v0.16.0
   - Fixed some CPPFLAGS and LDFLAGS parameters, some were pointing to a wrong directory
   - Updated GitHub Workflows
@@ -117,7 +116,7 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 ### Changed
   - Switched to Crosstool-NG to build the toolchains
   - Updated GitHub Workflows
-  - Added attest's for the toolchain images
+  - Added attestations for the toolchain images
   - Created this Changelog
 
 
@@ -165,13 +164,13 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 
 ### Added
   - Build images for aarch64 (arm64) hosts. Now you can build x86_64 binaries on your Raspberry Pi.
-  - Attest `rust-musl` container images so you can verify if the container is really build via GitHub via my repo
+  - Attest `rust-musl` container images so you can verify if the container is really built via GitHub via my repo
 
 
 ## 2024-11-26
 
 ### Removed
-  - Removed `libpq` v11, it has been deprecated for a while now
+  - Removed `libpq` v11, it was deprecated for a while now
 
 
 ## 2024-08-08
@@ -184,8 +183,8 @@ These may occasionally be rebuilt, but only while they're "current", or possibly
 
 ### Fixed
   - Possibility of wrong Postgres library being used.<br>
-    In some situations it could be that the libpq v11 was still used. Depending if during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different libpq.a.<br>
-This has been solved now by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable your self to anything else then the v15 directory.
+    In some situations it could be that the libpq v11 was still used. This depended on whether, during the compilation of the code other crates added the main library path as a search path after `pq-sys` did, which caused rustc to use a different `libpq.a`.<br>
+    This is now solved by moving the library file for v11 to a separate directory also. The default directory is changed and should not cause any issues unless you set the `PQ_LIB_DIR` variable yourself to anything else then the v15 directory.
 
 
 ## 2024-03-15
@@ -197,7 +196,7 @@ This has been solved now by moving the library file for v11 to a separate direct
 ## 2023-09-29
 
 ### Removed
- - OpenSSL v1.1.1 since it's EOL
+ - OpenSSL v1.1.1 since it is EOL
 
 
 ## 2023-04-23

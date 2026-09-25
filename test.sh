@@ -2,7 +2,7 @@
 
 # ########################################
 # Some testing RUSTFLAGS
-# # Do not use self-contained musl library, use this image's musl libc instead
+# # Do not use the self-contained musl library, use musl libc of this image instead
 # RUSTFLAGS='-Ctarget-feature=+crt-static -Clink-self-contained=no -Cprefer-dynamic=no'
 # # Compact the binary a bit more
 # RUSTFLAGS='-Clink-arg=-Wl,-z,pack-relative-relocs'
@@ -162,7 +162,7 @@ fi
 if [[ -z "${PQ_LIB+set}" ]]; then
   PQ_LIB_DIR=()
 elif [[ -z "${PQ_LIB-unset}" ]]; then
-  # Else, if PQ_LIB is set to an empty string unset PQ_LIB_DIR
+  # Else, if PQ_LIB is set to an empty string, unset PQ_LIB_DIR
   PQ_LIB_DIR=(-e "PQ_LIB_DIR=")
 else
   # Else, use the defined PQ_LIB version
@@ -190,8 +190,8 @@ fi
 
 PRE_CMD=""
 if [[ "${FEATURES}" == *"vendored_mysql"* ]]; then
-  # Because the Oracle MySQL Client build process does some special checks for musl/alpine support we need to add this
-  # This should help build the mysqlclient-sys crate the vendored client library
+  # Because the Oracle MySQL Client build process does special checks for musl/Alpine support, we need to add this
+  # This lets the mysqlclient-sys crate build the vendored client library
   PRE_CMD="touch /etc/alpine-release ; "
 fi
 

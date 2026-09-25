@@ -56,7 +56,7 @@ RUN <<EOF
     find /var/log -type f -delete
 EOF
 
-# Define multiple stages per IMAGE_TAG which hold the default ENV's
+# Define multiple stages per IMAGE_TAG which hold the default ENVs
 # This keeps all the needed variables which are static within the Dockerfile instead of always providing them via build-arg.
 #
 # Define the openssl architecture and extra compile flags to use during build per IMAGE_TAG
@@ -116,8 +116,8 @@ ENV OPENSSL_ARCH="linux-armv4" \
     CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABI_LINKER="${TARGET}-gcc" \
     CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABI_RUSTFLAGS="${CARGO_TARGET_RUSTFLAGS}"
 
-# Extract the pre-build toolchain from the musl-toolchain image
-# This doesn't need to be build everytime since not much will change
+# Extract the pre-built toolchain from the musl-toolchain image
+# This does not need to be built ever ytime since not much will change
 FROM ${TOOLCHAIN_REGISTRY}/blackdex/musl-toolchain:${IMAGE_TAG}-2026-09-24 AS musl-toolchain
 
 # Start building the musl-base
@@ -219,8 +219,8 @@ set(CMAKE_C_FLAGS_INIT   "${TARGET_CFLAGS}")
 set(CMAKE_CXX_FLAGS_INIT "${TARGET_CFLAGS/-isystem ${TARGET_PREFIX}\/include\/fortify /} -D_GLIBCXX_ASSERTIONS")
 
 # Link flags
-# Remove `-static-pie` because cmake might add `-static` it self,
-# and that will clashes and a builds will fail
+# Remove `-static-pie` because cmake might add `-static` itself,
+# and that will clash and a build will fail
 set(CMAKE_EXE_LINKER_FLAGS_INIT    "${TARGET_LDFLAGS/-static-pie/-static}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${TARGET_LDFLAGS/-static-pie/-static}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${TARGET_LDFLAGS/-static-pie/-static}")
@@ -333,7 +333,7 @@ RUN <<EOF
       --libdir="${TARGET_PREFIX}/lib" \
       --prefix="${TARGET_PREFIX}"
 
-    # Fail loudly if OpenSSL is ever build without thread support, this causes very strange issues in other libraries and final rust builds!
+    # Fail loudly if OpenSSL is ever built without thread support, this causes very strange issues in other libraries and final rust builds!
     grep -q 'OPENSSL_THREADS' include/openssl/configuration.h || { echo "FATAL: OpenSSL configured without threads"; exit 1; }
 
     make -j"$(nproc)" depend
@@ -342,14 +342,14 @@ RUN <<EOF
     make install_dev install_runtime
 
     cd /tmp && rm -rf "openssl-${SSL_VER}"
-    # Move the compiled binaries out off the main musl bin to tbin
+    # Move the compiled binaries out of the main musl bin to tbin
     mv -t "${TARGET_PREFIX}/tbin" "${TARGET_PREFIX}/bin/openssl" "${TARGET_PREFIX}/bin/c_rehash"
 
     # Default cleanups
     find /var/log -type f -delete && rm -rf "${TARGET_PREFIX}/share/man"
 EOF
 
-# Build curl (needs with-zlib and all this stuff to allow https)
+# Build curl
 ARG CURL_VER="8.22.0"
 ARG CURL_HASH="f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
 RUN <<EOF
@@ -890,7 +890,7 @@ RUN <<EOF
     # Revert a specific commit which breaks Diesel/mysqlclient-sys
     filterdiff --include='*/mariadb_stmt.c' mariadb-revert-stmt-bug-v2.patch | git apply --reject --verbose --reverse
 
-    # Prevent shared library from being build, building the shared library will cause linking errors, and we do not use it at all.
+    # Prevent the shared library from being built, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
 
     if [[ "${TARGET}" == "arm-unknown-linux-musleabi" ]]; then
@@ -948,10 +948,10 @@ RUN <<EOF
     # Delete all .so files, we only want static libraries
     find /out -name '*.so' -delete
 
-    # Validate there is a `libmysqlclient.a`
+    # Make sure that there is a `libmysqlclient.a`
     test -f "/out${TARGET_PREFIX}/lib/libmysqlclient.a"
 
-    # Create some compatibilty symlinks so pkg-config and diesel can find all the correct files
+    # Create some compatibility symlinks so pkg-config and diesel can find all the correct files
     ln -sfnr "/out${TARGET_PREFIX}/include/mysql/mariadb_version.h" "/out${TARGET_PREFIX}/include/mysql/mysql_version.h"
 
     # Ensure OpenSSL symbols are added
@@ -959,7 +959,7 @@ RUN <<EOF
 
     # Create and fix the default pkg-config for mysqlclient using the libmariadb generated file
     # We need the library to point to mysqlclient instead of mariadb, else mysqlclient-sys crate will not link it statically!
-    # Also, fix the library path locations, as it points to absolute paths, which it shouldn't
+    # Also, fix the library path locations, as it points to absolute paths, which it should not
     sed -i -E 's#(-l)?/usr/local/musl/lib/lib([a-zA-Z0-9_]+)\.a#-l\2#g' "/out${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc"
 
     sed "s#Name: libmariadb#Name: mysqlclient#g" "/out${TARGET_PREFIX}/lib/pkgconfig/libmariadb.pc" | \
@@ -985,7 +985,7 @@ RUN <<EOF
     export LD="${TARGET_LD}"
     export NM="${TARGET_NM}"
     export RANLIB="${TARGET_RANLIB}"
-    export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 does not think we build dynamic libraries
+    export LDFLAGS="${TARGET_LDFLAGS} -static-libgcc" # Needs -static-libgcc so libxml2 does not think that we build dynamic libraries
     export CPPFLAGS="${TARGET_CPPFLAGS}"
     export CFLAGS="${SHARED_CFLAGS} ${TARGET_CFLAGS}"
     export CC="${TARGET_CC}"
@@ -1023,7 +1023,7 @@ RUN <<EOF
     echo "Triggering Rust install for channel '${RUST_CHANNEL}' and rustc-hash '${RUSTC_HASH}'."
 
     # `--target` to musl so that our users don't need to keep overriding it manually.
-    # `--profile minimal` to reduce the image size, we do not need to cargo/rust manual within docker
+    # `--profile minimal` to reduce the image size, we do not need the cargo/rust manual within docker
     ${CURL_CMD} --proto '=https' --tlsv1.2 https://sh.rustup.rs | \
       bash -s -- -y \
         --profile minimal \
@@ -1047,7 +1047,7 @@ RUN <<EOF
     ln -sfnr "${TARGET_PREFIX}/bin/${TARGET}-strip" "${TARGET_PREFIX}/bin/musl-strip"
     #
     # Add some compatibility links to the new CARGO_HOME and RUSTUP_HOME directories
-    # Without these it might break current CI's using this image
+    # Without these it might break current CIs using this image
     ln -sfnr "${CARGO_HOME}" /root/.cargo
     ln -sfnr "${RUSTUP_HOME}" /root/.rustup
 EOF
@@ -1067,7 +1067,7 @@ ENV CROSS_COMPILE=1 \
     TARGET_C_INCLUDE_PATH="${PKG_CONFIG_SYSTEM_INCLUDE_PATH}" \
     TARGET_PKG_CONFIG_ALLOW_CROSS=1 \
     TARGET_PKG_CONFIG_LIBDIR="${PKG_CONFIG_LIBDIR}" \
-    # pq-sys (PosgreSQL) support
+    # pq-sys (PostgreSQL) support
     PQ_LIB_STATIC=1 \
     PQ_LIB_DIR="${TARGET_PREFIX}/pq17/lib" \
     # openssl-sys support
