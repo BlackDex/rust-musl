@@ -265,8 +265,8 @@ RUN <<EOF
 EOF
 
 # Build OpenSSL (used in curl, pq and mariadb)
-ARG SSL_VER="3.5.8"
-ARG SSL_HASH="a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2"
+ARG SSL_VER="3.5.9"
+ARG SSL_HASH="603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a"
 RUN <<EOF
     echo "OpenSSL"
 
@@ -869,13 +869,13 @@ EOF
 # Building MariaDB
 FROM build AS build-mariadb
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG MARIADB_VER="3.4.9"
-ARG MARIADB_HASH="2c70b74393d589df0bde9b3e17cb7b571d30a45aaf006eda7a273120fb660f3a"
+ARG MARIADB_VER="3.4.11"
+ARG MARIADB_HASH="7cdb35c571dd0c187f806f569285829d31b4aba4feb93957a034b0b1e887e276"
 WORKDIR /tmp/mariadb
 # Copy patches for mariadb to fix build issues
 # https://gitlab.alpinelinux.org/alpine/aports/-/blob/9c5788682c99a0a102c340293d573d1f45823de5/main/mariadb-connector-c/unused-parameter.patch
 # https://github.com/mariadb-corporation/mariadb-connector-c/commit/28a1e4b5994f842aa722f9c91969513d3e047e51.patch
-COPY patches/mariadb-unused-parameter.patch patches/mariadb-revert-stmt-bug-v2.patch ./
+COPY patches/mariadb-unused-parameter.patch ./
 RUN <<EOF
     echo "MariaDB Connector/C"
 
@@ -888,7 +888,7 @@ RUN <<EOF
     git apply --reject --verbose mariadb-unused-parameter.patch
 
     # Revert a specific commit which breaks Diesel/mysqlclient-sys
-    filterdiff --include='*/mariadb_stmt.c' mariadb-revert-stmt-bug-v2.patch | git apply --reject --verbose --reverse
+    # filterdiff --include='*/mariadb_stmt.c' mariadb-revert-stmt-bug-v2.patch | git apply --reject --verbose --reverse
 
     # Prevent the shared library from being built, building the shared library will cause linking errors, and we do not use it at all.
     sed -i 's#ADD_LIBRARY(libmariadb SHARED ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#ADD_LIBRARY(libmariadb STATIC ${libmariadb_RC} ${MARIADB_OBJECTS} ${EMPTY_FILE})#' libmariadb/CMakeLists.txt
