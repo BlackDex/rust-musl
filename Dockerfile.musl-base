@@ -783,8 +783,8 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.53.4"
-ARG SQLITE_HASH="454e45f61c6bd75b7420e7190732dea03ce6639c63ada47bbc592f67fc340338"
+ARG SQLITE_VER="3.54.0"
+ARG SQLITE_HASH="f5e3e724e9c9b3b5d512c76b02082091a59eeea9becd169a9fbf4d376403acce"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
