@@ -17,11 +17,6 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 
 ## 2026-09-30
-  - Updated SQLite to v3.54.0
-  - Update GitHub Actions
-
-
-## 2026-09-30
   - Updated OpenSSL to v3.5.9
   - Updated MariaDB to v3.4.11
 
