@@ -11,17 +11,30 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 ---
 
 
+## 2026-10-17
+
+### Changed
+  - Updated SQLite to v3.54.1
+  - Updated cURL to v8.23.0
+
+
 ## 2026-10-12
+
+### Changed
   - Updated SQLite to v3.54.0
   - Update GitHub Actions
 
 
 ## 2026-09-30
+
+### Changed
   - Updated OpenSSL to v3.5.9
   - Updated MariaDB to v3.4.11
 
 
 ## 2026-09-24/25
+
+### Changed
   * Toolchain:
     - Updated crosstool-ng to the latest commit
       * Updated binutils to v2.47
@@ -48,21 +61,29 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 
 ## 2026-09-03
+
+### Changed
   - Updated cURL to v8.22.0
 
 
 ## 2026-08-26
+
+### Changed
   - Updated OpenSSL to v3.5.8
   - Updated GitHub Actions
 
 
 ## 2026-08-13
+
+### Changed
   - Updated PostgreSQL to v15.19, v16.15, v17.11 and v18.6
   - Updated sccache to v0.17.0
   - Switched zlib download to GitHub
 
 
 ## 2026-07-25
+
+### Changed
   - Updated SQLite to v3.53.4
   - Fixed a strange bug found via Vaultwarden using a database backend over TLS/SSL.
     In the end it was an issue with the compilation of OpenSSL.
@@ -74,16 +95,22 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 
 ## 2026-07-21
+
+### Changed
   - Remove `config.toml` and use `CARGO_TARGET_` environment variables instead
   - Also add the `NM_<triple>` to point to the correct nm binary
   - Updated GitHub Actions
 
 
 ## 2026-07-07
+
+### Changed
   - Update SQLite to v3.53.3
 
 
 ## 2026-06-26
+
+### Changed
   - Adjusted the `toolchain.cmake` file to work with this image.
     If crates used cmake to build code, it could happen that it did not found the pre-compiled libraries.
     By creating a custom file which basically does the same as all `TARGET_` environment variables this works again.
@@ -91,12 +118,16 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 
 ## 2026-06-25
+
+### Changed
   - Update cURL to v8.21.0
   - Update MariaDB to v3.4.9 with 1 commit reverted
     This commit breaks Diesel migrations and some other features
 
 
 ## 2026-06-19
+
+### Changed
   - Update crosstool-ng to latest commit
   - Build GCC v15.3.0 toolchains
   - Updated binutils to v2.46.1

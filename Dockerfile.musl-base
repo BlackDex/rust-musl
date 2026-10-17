@@ -350,8 +350,8 @@ RUN <<EOF
 EOF
 
 # Build curl
-ARG CURL_VER="8.22.0"
-ARG CURL_HASH="f7ef3ae8a22e521f289803fe93543eb64c329b58aa73a9e224dfd915a2a5f4f7"
+ARG CURL_VER="8.23.0"
+ARG CURL_HASH="8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5"
 RUN <<EOF
     echo "libcurl"
 
@@ -783,8 +783,8 @@ EOF
 # Build libsqlite3
 FROM build AS build-sqlite
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG SQLITE_VER="3.54.0"
-ARG SQLITE_HASH="f5e3e724e9c9b3b5d512c76b02082091a59eeea9becd169a9fbf4d376403acce"
+ARG SQLITE_VER="3.54.1"
+ARG SQLITE_HASH="b6ced585c750916b1052667239a12c25a7ff34e7f06e1e6e01ecb0427657d9c4"
 WORKDIR /tmp/sqlite
 RUN <<EOF
     echo "SQLite3"
