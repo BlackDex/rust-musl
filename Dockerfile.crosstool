@@ -143,6 +143,9 @@ RUN <<EOF
 
     echo "Finished building target ${TARGET}"
 
+    # Output all musl patches which were executed
+    bzcat /usr/local/musl/build.log.bz2 | grep -A5 -E "DEBUG.*Executing.*patch.*musl.*\.patch"
+
     echo "Cleanup so files"
     # Remove so files from sysroot, as we only want to build static libraries
     # Having these files also could cause issues during compiling
