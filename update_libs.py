@@ -47,7 +47,7 @@ def pkgver(package: str):
     """
 
     # Though the URL contains "/search/", this only returns exact matches (see API documentation)
-    url = f'https://www.archlinux.org/packages/search/json/?name={package}'
+    url = f'https://archlinux.org/packages/search/json/?name={package}'
     with SESSION.get(url, stream=False, timeout=(2, 3)) as res:
         metadata = res.json()
 
