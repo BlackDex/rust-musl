@@ -11,6 +11,15 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 ---
 
 
+## 2026-10-27
+
+### Changed
+  * Toolchain:
+    - Updated crosstool-ng to the latest commit
+    - Added patches for musl v1.2.6 to mitigate CVE's
+    - Update GitHub Actions
+
+
 ## 2026-10-17
 
 ### Changed

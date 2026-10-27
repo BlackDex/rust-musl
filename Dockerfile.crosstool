@@ -60,7 +60,7 @@ EOF
 WORKDIR /tmp
 
 # Now build crosstool-ng, this will not change often, and caching it in base is the best solution here.
-ARG CROSSTOOL_NG_HASH=f697d16bd70b3e4a3499b7f2a153860f41964f72 # Sep 16, 2026, 01:23 GMT+2
+ARG CROSSTOOL_NG_HASH=deacc28df92242014699eac9220e1d18fac3eeb6 # Oct 23, 2026, 05:27 GMT+2
 RUN <<EOF
     echo "Downloading crosstool-ng"
 
@@ -103,6 +103,10 @@ ARG TARGET=x86_64-unknown-linux-musl
 
 COPY cross-targets/base cross-targets/base_x86_64 cross-targets/base_aarch64 /tmp/build/
 COPY cross-targets/${TARGET} /tmp/build/target-config
+
+# Custom security patches for musl
+COPY patches/musl/1.2.6/ /tmp/build/patches/musl/1.2.6/
+
 COPY --link --from=source /opt/src /opt/src
 
 RUN <<EOF
@@ -110,6 +114,10 @@ RUN <<EOF
     mkdir -pv /usr/local/musl
 
     pushd build
+
+    # Verify both security patches exist
+    test -s patches/musl/1.2.6/0001-CVE-2026-40200_qsort.patch
+    test -s patches/musl/1.2.6/0002-CVE-2026-107891_regcomp.patch
 
     # Merge base and target config
     cat <(set -a; source "./base_$(uname --machine)" ; set +a ; envsubst < ./base) | tee ./base_host
@@ -125,6 +133,10 @@ RUN <<EOF
     echo -ne "\n-- Start crosstool-ng .config:\n"
     cat .config
     echo -ne "\n-- End crosstool-ng .config\n"
+
+    # Verify the custom patch configuration
+    grep -Fxq 'CT_PATCH_ORDER="bundled,local"' .config
+    grep -Fxq 'CT_LOCAL_PATCH_DIR="/tmp/build/patches"' .config
 
     # Start the actual build
     /opt/x-tools/bin/ct-ng "build.$(nproc)"

@@ -2,6 +2,10 @@ CT_CONFIG_VERSION="4"
 CT_EXPERIMENTAL=y
 CT_LOG_PROGRESS_BAR=n
 
+# Apply bundled patches first, then our custom security patches
+CT_PATCH_BUNDLED_LOCAL=y
+CT_LOCAL_PATCH_DIR="/tmp/build/patches"
+
 # Kernel | Use the latest v5 LTS
 CT_KERNEL_LINUX=y
 CT_LINUX_V_5_15=y
