@@ -25,7 +25,7 @@ concurrency:
 jobs:
   cleanup:
     name: Clean ghcr.io buildcache
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       packages: write # Allow cleaning images from ghcr.io
     steps:

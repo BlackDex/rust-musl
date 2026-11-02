@@ -15,7 +15,7 @@ toolchain-base:
 		--platform=${PLATFORM} \
 		--target=source \
 		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/musl-toolchain-buildcache:ubuntu-base-$${PLATFORM//linux\//} \
-		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/musl-toolchain-buildcache:ubuntu-base-$${PLATFORM//linux\//},compression=zstd,compression-level=9,force-compression=true,mode=max \
+		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/musl-toolchain-buildcache:ubuntu-base-$${PLATFORM//linux\//},compression=zstd,compression-level=3,mode=max \
 		-f Dockerfile.crosstool \
 		--load \
 		"."
@@ -46,7 +46,7 @@ toolchain-x86_64 toolchain-aarch64 toolchain-armv7 toolchain-arm: toolchain-base
 		-t ${LOCAL_REGISTRY}/blackdex/musl-toolchain:$(TAG) \
 		-t ${LOCAL_REGISTRY}/blackdex/musl-toolchain:$(TAG)$(TAG_DATE) \
 		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/musl-toolchain-buildcache:ubuntu-base-$${PLATFORM//linux\//} \
-		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,force-compression=true,push=${PUSH} \
+		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,push=${PUSH} \
 		-f Dockerfile.crosstool \
 		--load \
 		"."

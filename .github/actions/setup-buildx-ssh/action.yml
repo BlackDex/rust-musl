@@ -1,0 +1,54 @@
+name: Setup Docker Buildx over SSH
+description: Configure SSH and a builder with local amd64 and remote arm64 nodes
+
+inputs:
+  host:
+    description: SSH Host for the arm64 node
+    required: true
+  private-key:
+    description: SSH private key for the arm64 node
+    required: true
+  endpoint:
+    description: Docker endpoint for the arm64 node
+    required: true
+  arch:
+    description: Arch suffix for the builder name
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Load ssh-agent for Remote BuildKit
+      uses: MrSquaare/ssh-setup-action@84a60849dca0e42e04b9b73f930036654e4672ab # v4.0.0
+      with:
+        host: ${{ inputs.host }}
+        private-key: ${{ inputs.private-key }}
+        private-key-name: buildkit_arm64_host
+
+    # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
+    # This uses SSH to connect to the remote/local BuildKit tooling
+    - name: Setup Docker Buildx (Remote)
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      with:
+        use: true
+        name: act-multiarch-${{ inputs.arch }}
+        driver: docker-container
+        cache-binary: false
+        buildkitd-config-inline: |
+          [registry."docker.io"]
+            mirrors = ["mirror.gcr.io"]
+          [worker.oci]
+            max-parallelism = 3
+        driver-opts: |
+          network=host
+        platforms: linux/amd64
+        append: |
+          - endpoint: ${{ inputs.endpoint }}
+            platforms: linux/arm64
+            driver-opts:
+              - network=host
+            buildkitd-config-inline: |
+              [registry."docker.io"]
+                mirrors = ["mirror.gcr.io"]
+              [worker.oci]
+                max-parallelism = 3

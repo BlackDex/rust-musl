@@ -10,6 +10,17 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 ---
 
+## 2026-11-02
+
+### Changed
+  * General:
+    - Optimized GitHub Actions, made it more DRY by using local actions
+      And also by using more anchors
+    - Added zizmor workflow
+    - Added pre-commit
+    - Created a just file to make some tests easier
+      Probably going to migrate all Makefile's to Just
+
 
 ## 2026-10-27
 

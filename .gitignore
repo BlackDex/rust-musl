@@ -16,10 +16,13 @@
 !.actrc
 !.dockerignore
 !.gitignore
+!.pre-commit-config.yaml
 !.secrets_template
+!.yamllint.yaml
 !CHANGELOG.md
 !Dockerfile.*
 !hadolint.yaml
+!justfile
 !LICENSE
 !Makefile
 !README.md

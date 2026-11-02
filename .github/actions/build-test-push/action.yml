@@ -1,0 +1,102 @@
+name: Build, test and push Rust MUSL
+description: Build on Rust image, check PQ18 and PQ17 builds, and publish after success
+
+inputs:
+  platform:
+    description: Docket host platform, either linux/amd64 or linux/arm64
+    required: true
+  test-tag:
+    description: Local image tag used for checks
+    required: true
+  push-tags:
+    description: Published tags accepted by docker/build-push-action
+    required: true
+  build-args:
+    description: Docker build args accepted by docker/build-push-action
+    required: true
+  cache-from:
+    description: Docker cache-from accepted by docker/build-push-action
+    required: false
+    default: ""
+  cache-to:
+    description: Docker cache-to accepted by docker/build-push-action
+    required: false
+    default: ""
+
+outputs:
+  digest:
+    description: Digest of the build container returned by the publish step
+    value: ${{ steps.publish.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build and load test image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: ./Dockerfile.musl-base
+        platforms: ${{ inputs.platform }}
+        outputs: type=image,oci-mediatypes=true
+        load: true  # Set load to true so that we can test the built image in the next step (default with docker driver)
+        push: false # Do not push the image just yet, we first want to test it
+        build-args: ${{ inputs.build-args }}
+        tags: ${{ inputs.test-tag }}
+        cache-from: ${{ inputs.cache-from }}
+
+    - name: Test container image PostgreSQL library versions
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        TEST_TAG: ${{ inputs.test-tag }}
+      run: |
+        # Exit early if something fails
+        set -euo pipefail
+
+        # We want to test at least the latest version of PostgreSQL we support, and on linux/amd64 we also test one older version.
+        pq_versions="18 17"
+        if [[ "${ACT:-false}" == true && "${PLATFORM}" == "linux/arm64" ]]; then
+          echo "Skipping PQ17 for arm64 when running via act"
+          pq_versions="18"
+        fi
+
+        docker run --rm \
+          --platform "${PLATFORM}" \
+          -v cargo-cache:/root/.cargo/registry \
+          -v "${GITHUB_WORKSPACE}/test/multicrate":/home/rust/src \
+          --tmpfs /home/rust/src/target:rw,exec,mode=1777 \
+          -e RUST_BACKTRACE=full \
+          -e "PQ_VERSIONS=${pq_versions}" \
+          "${TEST_TAG}" bash -euo pipefail -c '
+            rm -vf Cargo.lock
+            cargo -Vv
+            rustc -Vv
+            cargo update
+
+            for pq in ${PQ_VERSIONS}; do
+              echo "::group::PostgreSQL ${pq}"
+
+              # Clean pq-sys to enforce a rebuild using a different library version
+              cargo clean --release --target "${CARGO_BUILD_TARGET}" -p pq-sys
+
+              # Build using the selected PQ Lib version
+              PQ_LIB_DIR="/usr/local/musl/pq${pq}/lib" cargo build --release --locked
+
+              echo "::endgroup::"
+            done
+          '
+
+    - name: Publish tested image
+      id: publish
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: ./Dockerfile.musl-base
+        platforms: ${{ inputs.platform }}
+        outputs: type=image,oci-mediatypes=true,compression=zstd,compression-level=3
+        load: false
+        push: true
+        build-args: ${{ inputs.build-args }}
+        tags: ${{ inputs.push-tags }}
+        cache-from: ${{ inputs.cache-from }}
+        cache-to: ${{ inputs.cache-to }}

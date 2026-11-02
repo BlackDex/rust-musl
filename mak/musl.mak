@@ -15,7 +15,7 @@ ubuntu-base:
 		--platform=${PLATFORM} \
 		--target=base \
 		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-ubuntu-base \
-		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-ubuntu-base,compression=zstd,compression-level=9,force-compression=true,mode=max \
+		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-ubuntu-base,compression=zstd,compression-level=3,mode=max \
 		-f Dockerfile.musl-base \
 		--load \
 		"."
@@ -45,7 +45,7 @@ musl-x86_64 musl-aarch64 musl-armv7 musl-arm: | ubuntu-base
 		-t ${LOCAL_REGISTRY}/blackdex/rust-musl:$(TAG)$(TAG_POSTFIX)$(TAG_DATE) \
 		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-buildcache:$${PLATFORM//linux\//}-ubuntu-base \
 		--cache-from type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-$(TAG) \
-		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-$(TAG),compression=zstd,compression-level=9,force-compression=true,mode=max \
+		--cache-to type=registry,ref=${LOCAL_REGISTRY}/blackdex/rust-musl-buildcache:$${PLATFORM//linux\//}-$(TAG),compression=zstd,compression-level=3,mode=max \
 		--output type=image,oci-mediatypes=true,compression=zstd,compression-level=3,push=${PUSH} \
 		-f Dockerfile.musl-base \
 		--load \

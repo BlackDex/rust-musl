@@ -1,9 +1,9 @@
--P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-26.04-dev
+-P ubuntu-26.04=ghcr.io/catthehacker/ubuntu:act-26.04-dev
+-P ubuntu-26.04-arm=ghcr.io/catthehacker/ubuntu:act-26.04-dev
 -P ubuntu-24.04=ghcr.io/catthehacker/ubuntu:act-24.04
 -P ubuntu-24.04-arm=ghcr.io/catthehacker/ubuntu:act-24.04
---eventpath ./.github/act-event.json
---artifact-server-path ./.artifacts
+--eventpath=./.github/act-event.json
 --use-new-action-cache
 --concurrent-jobs 2
---network host
 --rm

@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - ".github/workflows/toolchain.yml"
+      - ".github/actions/setup-buildx-ssh/**"
       - "Dockerfile.crosstool"
       - "cross-targets/**"
       - "patches/musl/**"
@@ -26,22 +27,22 @@ defaults:
 ##
 ## Run per architecture
 ##   # amd64
-##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl
+##   act push -j toolchain --matrix os:ubuntu-26.04 --matrix image_tag:x86_64-musl
 ##   # armv7
-##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:armv7-musleabihf
+##   act push -j toolchain --matrix os:ubuntu-26.04 --matrix image_tag:armv7-musleabihf
 ##   # arm64
-##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:aarch64-musl
+##   act push -j toolchain --matrix os:ubuntu-26.04 --matrix image_tag:aarch64-musl
 ##   # armv6
-##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:arm-musleabi
+##   act push -j toolchain --matrix os:ubuntu-26.04 --matrix image_tag:arm-musleabi
 ##
-## If you want to build both amd64 and arm64 of a specific architecture, remove the os:ubuntu-24.04 matrix
+## If you want to build both amd64 and arm64 of a specific architecture, remove the os:ubuntu-26.04 matrix
 ##   act push -j toolchain --matrix image_tag:x86_64-musl
 ##
-## Or, if you want to build only arm64 of a specific architecture add os:ubuntu-24.04-arm
-##   act push -j toolchain --matrix os:ubuntu-24.04-arm --matrix image_tag:x86_64-musl
+## Or, if you want to build only arm64 of a specific architecture add os:ubuntu-26.04-arm
+##   act push -j toolchain --matrix os:ubuntu-26.04-arm --matrix image_tag:x86_64-musl
 ##
 ## If you want to use a local registry like `docker.io/registry:3`
-##   act push -j toolchain --matrix os:ubuntu-24.04 --matrix image_tag:x86_64-musl --secret LOCAL_REGISTRY=localhost:5000
+##   act push -j toolchain --matrix os:ubuntu-26.04 --matrix image_tag:x86_64-musl --secret LOCAL_REGISTRY=localhost:5000
 ##
 ## ##
 
@@ -56,13 +57,14 @@ jobs:
   tbuild_vars:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     name: Generate Build Variables
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    environment: release
     timeout-minutes: 10
     env:
       HAVE_GHCR_LOGIN: ${{ vars.GHCR_ENABLED == 'true' && github.repository_owner != '' && secrets.GITHUB_TOKEN != '' }}
       HAVE_DOCKERHUB_LOGIN: ${{ vars.DOCKERHUB_ENABLED == 'true' && secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
       HAVE_QUAY_LOGIN: ${{ vars.QUAY_ENABLED == 'true' && secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
-      HAVE_LOCAL_REGISTRY:  ${{ secrets.LOCAL_REGISTRY != '' }}
+      HAVE_LOCAL_REGISTRY: ${{ secrets.LOCAL_REGISTRY != '' }}
       HAVE_BUILDKIT_SSH: ${{ secrets.BUILDKIT_PRIVATE_KEY != '' && secrets.BUILDKIT_ARM64_HOST  != '' && secrets.BUILDKIT_ARM64_USER  != '' }}
     outputs:
       have_ghcr_login: ${{ env.HAVE_GHCR_LOGIN }}
@@ -139,11 +141,15 @@ jobs:
   # ###
   # Building Toolchain base for all targets which is the same
   tbuild_base:
-    if: ${{ github.repository == 'BlackDex/rust-musl' }}
+    if: >-
+      ${{ github.repository == 'BlackDex/rust-musl'
+          && !contains(github.event.head_commit.message, '[skip toolchain]')
+      }}
     name: Cache Toolchain Base Image - ${{ matrix.os }}
     needs:
       - tbuild_vars
     runs-on: ${{ matrix.os }}
+    environment: release
     timeout-minutes: 30
     permissions:
       packages: write # Allow pushing images to ghcr.io
@@ -152,8 +158,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
 
     steps:
       - &arch
@@ -168,44 +174,21 @@ jobs:
             echo "type=amd64" | tee -a "${GITHUB_OUTPUT}"
           fi
 
-      - &ssh-agent
-        name: Load ssh-agent for Remote BuildKit
+      - &checkout
+        name: Checkout Repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - &setup-buildx-ssh
+        name: Setup Docker Buildx over SSH
         if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'true' }}
-        uses: MrSquaare/ssh-setup-action@84a60849dca0e42e04b9b73f930036654e4672ab # v4.0.0
+        uses: ./.github/actions/setup-buildx-ssh
         with:
           host: ${{ secrets.BUILDKIT_ARM64_HOST }}
           private-key: ${{ secrets.BUILDKIT_PRIVATE_KEY }}
-          private-key-name: buildkit_arm64_host
-
-      # Special Docker BuildKit setup when using `act` to provide local amd64 and remote arm64 builds
-      # This uses SSH to connect to the remote/local BuildKit tooling
-      - &buildx-act
-        name: Setup Docker Buildx (act)
-        if: ${{ needs.tbuild_vars.outputs.have_buildkit_ssh == 'true' }}
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          use: true
-          name: act-multiarch-${{ steps.arch.outputs.type }}
-          driver: docker-container
-          cache-binary: false
-          buildkitd-config-inline: |
-            [registry."docker.io"]
-              mirrors = ["mirror.gcr.io"]
-            [worker.oci]
-              max-parallelism = 3
-          driver-opts: |
-            network=host
-          platforms: linux/amd64
-          append: |
-            - endpoint: ${{ needs.tbuild_vars.outputs.docker_host_arm64 }}
-              platforms: linux/arm64
-              driver-opts:
-                - network=host
-              buildkitd-config-inline: |
-                [registry."docker.io"]
-                  mirrors = ["mirror.gcr.io"]
-                [worker.oci]
-                  max-parallelism = 3
+          endpoint: ${{ needs.tbuild_vars.outputs.docker_host_arm64 }}
+          arch: ${{ steps.arch.outputs.type }}
 
       - &buildx
         name: Setup Docker Buildx
@@ -231,12 +214,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - &checkout
-        name: Checkout Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - name: Docker Build - Crosstool Base Toolchain
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -258,6 +235,7 @@ jobs:
       - tbuild_vars
       - tbuild_base
     runs-on: ${{ matrix.os }}
+    environment: release
     timeout-minutes: 120
     permissions:
       packages: write # Allow pushing images to ghcr.io
@@ -268,8 +246,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - ubuntu-26.04
+          - ubuntu-26.04-arm
         image_tag: &image_tag
           - x86_64-musl
           - aarch64-musl
@@ -309,8 +287,9 @@ jobs:
 
       - *arch
 
-      - *ssh-agent
-      - *buildx-act
+      - *checkout
+
+      - *setup-buildx-ssh
 
       - *buildx
 
@@ -354,8 +333,6 @@ jobs:
           fi
 
           echo "tags=${tags}" | tee -a "${GITHUB_OUTPUT}"
-
-      - *checkout
 
       - name: Docker Build
         id: build_push
@@ -403,7 +380,8 @@ jobs:
   toolchain_merge:
     if: ${{ github.repository == 'BlackDex/rust-musl' }}
     name: Merge Toolchain Container
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
+    environment: release
     timeout-minutes: 30
     permissions:
       packages: write # Allow pushing images to ghcr.io

@@ -1,0 +1,6 @@
+rules:
+  # `uses: $/path` (GitHub, 2026-07-30) is not understood by act 0.2.x
+  # (nektos/act#6189), which is used to make the workflow more DRY.
+  # Revisit once act resolves it.
+  self-repository:
+    disable: true
