@@ -6,12 +6,12 @@
 !.github/**
 !cross-targets/
 !cross-targets/**
-!mak/
-!mak/**
 !patches/
 !patches/**
 !test/
 !test/**
+!just/
+!just/**
 
 !.actrc
 !.dockerignore
@@ -24,7 +24,6 @@
 !hadolint.yaml
 !justfile
 !LICENSE
-!Makefile
 !README.md
 !requirements.txt
 !test.sh

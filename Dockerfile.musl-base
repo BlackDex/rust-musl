@@ -5,7 +5,7 @@ ARG IMAGE_TAG=x86_64-musl
 # Which registry to use for the musl-toolchain
 ARG TOOLCHAIN_REGISTRY=ghcr.io
 # Default RUSTFLAGS to be used per triple env
-ARG CARGO_TARGET_RUSTFLAGS="-Ctarget-feature=+crt-static -Cprefer-dynamic=no -Clink-arg=-Wl,-z,pack-relative-relocs"
+ARG CARGO_TARGET_RUSTFLAGS="-Ctarget-feature=+crt-static -Cprefer-dynamic=no"
 
 # First build the base image with all packages needed to build any target
 # https://hub.docker.com/_/ubuntu
@@ -72,7 +72,7 @@ ENV OPENSSL_ARCH="linux-x86_64 enable-ec_nistp_64_gcc_128" \
     NM_x86_64_unknown_linux_musl="${TARGET}-gcc-nm" \
     RANLIB_x86_64_unknown_linux_musl="${TARGET}-gcc-ranlib" \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="${TARGET}-gcc" \
-    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_RUSTFLAGS}"
+    CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_RUSTFLAGS} -Clink-arg=-Wl,-z,pack-relative-relocs"
 
 ARG CARGO_TARGET_RUSTFLAGS
 FROM base AS target_aarch64-musl
@@ -86,7 +86,7 @@ ENV OPENSSL_ARCH="linux-aarch64 enable-ec_nistp_64_gcc_128" \
     NM_aarch64_unknown_linux_musl="${TARGET}-gcc-nm" \
     RANLIB_aarch64_unknown_linux_musl="${TARGET}-gcc-ranlib" \
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="${TARGET}-gcc" \
-    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_RUSTFLAGS}"
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${CARGO_TARGET_RUSTFLAGS} -Clink-arg=-Wl,-z,pack-relative-relocs"
 
 ARG CARGO_TARGET_RUSTFLAGS
 FROM base AS target_armv7-musleabihf
@@ -231,8 +231,8 @@ CMAKE_EOF
 EOF
 
 # Build zlib (used in openssl, curl, pq, sqlite and mariadb)
-ARG ZLIB_VER="1.3.2"
-ARG ZLIB_HASH="d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"
+ARG ZLIB_VER="1.4"
+ARG ZLIB_HASH="4f11c512053d7bab8d9e9b89bde3575add3e4c50a383b42ef6cb837035fc5a7c"
 RUN <<EOF
     echo "zlib"
 

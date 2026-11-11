@@ -15,116 +15,67 @@
 
 docker_build() {
   local -r crate="${1}"crate
-  local -r target=x86_64-unknown-linux-musl
+  local -r target="${2}"
+  local -r qemu_cmd="${3}"
+  local -r rust_musl_tag="${target/-unknown-linux/}"
+
+  local -r tuid="$(id -u)"
+  local -r tgid="$(id -g)"
+  local -r cargo_cache="${PWD}/.cache/registry"
+  mkdir -p "${cargo_cache}" || {
+    echo "Unable to create cargo-cache dir" >&2
+    return 1
+  }
 
   set -x
   docker run --rm \
-    -v "$PWD/test/${crate}:/home/rust/src" \
-    -v cargo-cache:/root/.cargo/registry \
+    --user "${tuid}:${tgid}" \
+    --read-only \
+    --cap-drop=ALL \
+    --security-opt=no-new-privileges:true \
+    --tmpfs "/tmp:rw,nosuid,nodev,exec,mode=0700,uid=${tuid},gid=${tgid}" \
+    -v "${PWD}/test/${crate}:/home/rust/src:rw" \
+    -v "${cargo_cache}:/usr/local/cargo/registry:rw" \
     "${DOCKER_UNSET[@]}" \
     "${PQ_LIB_DIR[@]}" \
     "${DOCKER_RUSTFLAGS[@]}" \
+    "${DOCKER_ALPINE[@]}" \
     -e RUST_BACKTRACE=full \
-    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:x86_64-musl-${RUST_CHANNEL}" \
-    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
+    -e TMPDIR=/tmp \
+    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:${rust_musl_tag}-${RUST_CHANNEL}" \
+    bash -c "
+      rm -vf target/${target}/${RELTYPE}/${crate}
+      cargo -vV
+      rustc -vV
+      cargo build --target=${target} ${CARGO_ARG}
+    "
   set +x
 
-  cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
-  set -x
-  file "target/${target}/${RELTYPE}/${crate}"
-  ldd "target/${target}/${RELTYPE}/${crate}"
-  ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec file "target/${target}/${RELTYPE}/${crate}"
-  set +x
-  exit 0
-}
+  cd "test/${crate}" || exit 1
+  local -r binary="target/${target}/${RELTYPE}/${crate}"
+  local elf_info
 
+  echo -ne "\n\nTESTING: ${binary/test\//}\n"
+  if [[ -f "${binary}" ]]; then
+    printf "\n# #########################\n"
+    ${qemu_cmd} "${binary}" ; echo -ne "\nExited '${crate}' with: $?\n"
+    printf "\n# #########################\n"
+  else
+    echo "Build failed, binary '${binary}' not found"
+    exit 1
+  fi
 
-docker_build_armv7() {
-  local -r crate="$1"crate
-  local -r target=armv7-unknown-linux-musleabihf
+  file -b "${binary}" || return 1
+  elf_info=$(LC_ALL=C readelf -hW -lW -dW "${binary}") || return 1
+  if grep -Eq '^[[:space:]]*INTERP[[:space:]]|\(NEEDED\)' <<< "${elf_info}"; then
+    printf '%s\n' "${elf_info}"
+    echo "ERROR: Binary requires a dynamic linker or shared libraries." >&2
+    return 1
+  fi
 
-  set -x
-  docker run --rm \
-    -v "$PWD/test/${crate}:/home/rust/src" \
-    -v cargo-cache:/root/.cargo/registry \
-    "${DOCKER_UNSET[@]}" \
-    "${PQ_LIB_DIR[@]}" \
-    "${DOCKER_RUSTFLAGS[@]}" \
-    -e RUST_BACKTRACE=full \
-    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:armv7-musleabihf-${RUST_CHANNEL}" \
-    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
-  set +x
-
-  cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu cortex-a8,vfp=on -d unimp,guest_errors ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
-  set -x
-  file "target/${target}/${RELTYPE}/${crate}"
-  ldd "target/${target}/${RELTYPE}/${crate}"
-  ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec file "target/${target}/${RELTYPE}/${crate}"
-  set +x
-  exit 0
-}
-
-
-docker_build_aarch64() {
-  local -r crate="$1"crate
-  local -r target=aarch64-unknown-linux-musl
-
-  set -x
-  docker run --rm \
-    -v "$PWD/test/${crate}:/home/rust/src" \
-    -v cargo-cache:/root/.cargo/registry \
-    "${DOCKER_UNSET[@]}" \
-    "${PQ_LIB_DIR[@]}" \
-    "${DOCKER_RUSTFLAGS[@]}" \
-    -e RUST_BACKTRACE=full \
-    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:aarch64-musl-${RUST_CHANNEL}" \
-    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
-  set +x
-
-  cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-aarch64-static -cpu cortex-a53 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
-  set -x
-  file "target/${target}/${RELTYPE}/${crate}"
-  ldd "target/${target}/${RELTYPE}/${crate}"
-  ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec file "target/${target}/${RELTYPE}/${crate}"
-  set +x
-  exit 0
-}
-
-
-docker_build_arm() {
-  local -r crate="$1"crate
-  local -r target=arm-unknown-linux-musleabi
-
-  set -x
-  docker run --rm \
-    -v "$PWD/test/${crate}:/home/rust/src" \
-    -v cargo-cache:/root/.cargo/registry \
-    "${DOCKER_UNSET[@]}" \
-    "${PQ_LIB_DIR[@]}" \
-    "${DOCKER_RUSTFLAGS[@]}" \
-    -e RUST_BACKTRACE=full \
-    -it "${IMAGE_REGISTRY}/blackdex/rust-musl:arm-musleabi-${RUST_CHANNEL}" \
-    bash -c "${PRE_CMD}rm -vf target/${target}/${RELTYPE}/${crate} ; cargo -vV ; rustc -vV ; cargo build --target=${target} ${CARGO_ARG}"
-  set +x
-
-  cd "test/${crate}" || return
-  echo -ne "\n\nTESTING: /target/${target}/${RELTYPE}/${crate}\n"
-  qemu-arm-static -cpu arm1176 ./target/"${target}/${RELTYPE}/${crate}" ; echo -ne "\nExited '${crate}' with: $?\n"
-  set -x
-  file "target/${target}/${RELTYPE}/${crate}"
-  ldd "target/${target}/${RELTYPE}/${crate}"
-  ls -l "target/${target}/${RELTYPE}/${crate}"
-  checksec file "target/${target}/${RELTYPE}/${crate}"
-  set +x
+  echo "Static linking: OK"
+  echo "${elf_info}" | grep -e "ELF Header:" -e "Class:" -e "Machine:" -e "Flags:"
+  ls -l "${binary}" || return 1
   exit 0
 }
 
@@ -188,19 +139,21 @@ if [[ -n "${FEATURES}" ]]; then
   fi
 fi
 
-PRE_CMD=""
+DOCKER_ALPINE=()
 if [[ "${FEATURES}" == *"vendored_mysql"* ]]; then
-  # Because the Oracle MySQL Client build process does special checks for musl/Alpine support, we need to add this
+  # Because the Oracle MySQL Client build process does special checks for musl/Alpine support
+  # We need to provide an entry as `/etc/alpine-release`.
+  # It uses CMake's `EXISTS` which doesn't check if it is a file or directory.
   # This lets the mysqlclient-sys crate build the vendored client library
-  PRE_CMD="touch /etc/alpine-release ; "
+  DOCKER_ALPINE=(--tmpfs "/etc/alpine-release:ro,nosuid,nodev,noexec,size=1k,mode=0555")
 fi
 
 if [[ "${ARCH}" == "armv7" ]]; then
-  docker_build_armv7 "${1}"
+  docker_build "${1}" "armv7-unknown-linux-musleabihf" "qemu-arm-static -cpu cortex-a8,vfp=on -d unimp,guest_errors"
 elif [[ "${ARCH}" == "aarch64" || "${ARCH}" == "arm64" ]]; then
-  docker_build_aarch64 "${1}"
+  docker_build "${1}" "aarch64-unknown-linux-musl" "qemu-aarch64-static -cpu cortex-a53"
 elif [[ "${ARCH}" == "armv6" || "${ARCH}" == "arm" ]]; then
-  docker_build_arm "${1}"
+  docker_build "${1}" "arm-unknown-linux-musleabi" "qemu-arm-static -cpu arm1176"
 else
-  docker_build "${1}"
+  docker_build "${1}" "x86_64-unknown-linux-musl" ""
 fi

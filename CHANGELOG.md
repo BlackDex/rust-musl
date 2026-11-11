@@ -10,6 +10,19 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 
 ---
 
+
+## 2026-11-11
+
+### Changed
+  * General:
+    - Switched from make to just for all items
+    - Run docker tests as local user and reduced priviliges
+    - Optimized `test.sh` script
+    - Updated GitHub Actions
+  * Rust-Musl:
+    - Updated zlib to v1.4
+    - Adjusted `RUSTFLAGS` to prevent compile warnings on armv6 and armv7
+
 ## 2026-11-02
 
 ### Changed
