@@ -442,8 +442,8 @@ EOF
 # Build libpq v15
 FROM build AS build-pq15
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_15_VER="15.19"
-ARG PQ_15_HASH="e1a64a87a46b825b88c082e4518161a47aab53c45694964f8ba1df28f7859f89"
+ARG PQ_15_VER="15.20"
+ARG PQ_15_HASH="30e65cbbb771a39b553ed2df7e65622e65647aed55dbc19bd0fe853ff0a08442"
 WORKDIR /tmp/pq15
 RUN <<EOF
     echo "PostgreSQL v15"
@@ -527,8 +527,8 @@ EOF
 # Build libpq v16
 FROM build AS build-pq16
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_16_VER="16.15"
-ARG PQ_16_HASH="c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed"
+ARG PQ_16_VER="16.16"
+ARG PQ_16_HASH="9d5cd8633043b75740d5d59749c6b7365e6aeb53c47098b1a5e80bb18f87881a"
 WORKDIR /tmp/pq16
 RUN <<EOF
     echo "PostgreSQL v16"
@@ -612,8 +612,8 @@ EOF
 # Build libpq v17
 FROM build AS build-pq17
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_17_VER="17.11"
-ARG PQ_17_HASH="dd27f2b3c59e73ed14aa3324901242bf69a032a6347805f274e6260322d42979"
+ARG PQ_17_VER="17.12"
+ARG PQ_17_HASH="9cf136a703d8ee2f83465c43be4e9e8e7930c82b0bfba13be7e2537be769ac55"
 WORKDIR /tmp/pq17
 RUN <<EOF
     echo "PostgreSQL v17"
@@ -697,8 +697,8 @@ EOF
 # Build libpq v18
 FROM build AS build-pq18
 SHELL ["/bin/bash", "-eux", "-o", "pipefail", "-c"]
-ARG PQ_18_VER="18.6"
-ARG PQ_18_HASH="555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f"
+ARG PQ_18_VER="18.7"
+ARG PQ_18_HASH="441dfae4280cae3e0425e5f876f80559fb0731c140f1aae22b3e5a54d0411bfd"
 WORKDIR /tmp/pq18
 RUN <<EOF
     echo "PostgreSQL v18"

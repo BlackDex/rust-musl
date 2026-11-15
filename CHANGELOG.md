@@ -14,6 +14,12 @@ These may occasionally be rebuilt, but only while they are "current", or possibl
 ## 2026-11-11
 
 ### Changed
+  * Updated PostgreSQL to v18.7, v17.12, v16.16 and v15.20
+
+
+## 2026-11-11
+
+### Changed
   * General:
     - Switched from make to just for all items
     - Run docker tests as local user and reduced priviliges

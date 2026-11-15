@@ -13,13 +13,13 @@ Since 2026-06 all images are built using musl v1.2.6 using https://github.com/cr
 And since 2025-02-15 all images are available for amd64 and arm64 host platforms.
 
 The following libraries are pre-built and marked as `STATIC` already via `ENV` variables so that the Rust Crates know there are static libraries available already.
-* ZLib (`v1.3.2`)
-* OpenSSL (`v3.5.8`)
+* ZLib (`v1.4`)
+* OpenSSL (`v3.5.9`)
 * cURL (`v8.23.0`)
-* sccache (`0.18.0`)
-* PostgreSQL lib (`v17.11`) + (`v18.6`), (`v16.15`) and (`v15.19`)
+* sccache (`0.19.0`)
+* PostgreSQL lib (`v17.12`) + (`v18.7`), (`v16.16`) and (`v15.20`)
 * SQLite (`v3.54.1`)
-* MariaDB Connector/C (`v3.4.8`) (MySQL Compatible)
+* MariaDB Connector/C (`v3.4.11`) (MySQL Compatible)
 * libxml2 (`v2.15.4`)
 
 
